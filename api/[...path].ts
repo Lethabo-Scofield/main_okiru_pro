@@ -146,8 +146,18 @@ async function getApp(): Promise<express.Express> {
     await connectDB();
 
     const app = express();
+    app.use((req: any, _res: any, next: any) => {
+      req._vercelParsedBody = req.body;
+      next();
+    });
     app.use(express.json({ limit: "10mb" }));
     app.use(express.urlencoded({ extended: false, limit: "10mb" }));
+    app.use((req: any, _res: any, next: any) => {
+      if ((!req.body || (typeof req.body === 'object' && Object.keys(req.body).length === 0)) && req._vercelParsedBody !== undefined) {
+        req.body = req._vercelParsedBody;
+      }
+      next();
+    });
     app.set("trust proxy", 1);
 
     app.use(
@@ -266,22 +276,26 @@ async function getApp(): Promise<express.Express> {
 
     app.post("/api/templates", async (req, res) => {
       try {
-        const { name, description, version, entities } = req.body;
+        const { name, description, version, entities } = req.body || {};
         if (!name) return res.status(400).json({ error: "name is required" });
+        if (!Array.isArray(entities)) return res.status(400).json({ error: "entities must be an array" });
         const seqId = await getNextSequence("template");
         const doc = await TemplateModel.create({ seqId, name, description: description || "", version: version || "1.0", entities: entities || [] });
         res.json(toTemplate(doc));
       } catch (error: any) {
+        console.error("Error creating template:", error);
         res.status(500).json({ error: "Failed to create template" });
       }
     });
 
     app.put("/api/templates/:id", async (req, res) => {
       try {
-        const doc = await TemplateModel.findOneAndUpdate({ seqId: Number(req.params.id) }, { ...req.body, updatedAt: new Date() }, { new: true });
+        const body = req.body || {};
+        const doc = await TemplateModel.findOneAndUpdate({ seqId: Number(req.params.id) }, { ...body, updatedAt: new Date() }, { new: true });
         if (!doc) return res.status(404).json({ error: "Template not found" });
         res.json(toTemplate(doc));
       } catch (error: any) {
+        console.error("Error updating template:", error);
         res.status(500).json({ error: "Failed to update template" });
       }
     });
@@ -649,8 +663,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const app = await getApp();
     await new Promise<void>((resolve, reject) => {
-      res.on("finish", resolve);
-      res.on("error", reject);
+      let settled = false;
+      const done = () => { if (!settled) { settled = true; resolve(); } };
+      res.on("finish", done);
+      res.on("close", done);
+      res.on("error", (err) => { if (!settled) { settled = true; reject(err); } });
       app(req as any, res as any);
     });
   } catch (error: any) {
