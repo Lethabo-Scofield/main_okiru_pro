@@ -27,10 +27,18 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - `npm run dev` starts Express on port 5000 with Vite middleware (HMR)
 - In production, `npm run build` then `npm run start`
 
+## Authentication
+- Users must sign in or register to access the dashboard and all features
+- No demo mode or auto-login fallbacks — real authentication required
+- Auth provider (`Toolkit/src/lib/auth.tsx`) properly throws errors on failed login/register
+- Unauthenticated users are redirected to `/auth` from protected routes
+- Landing page (`/`) always shows on reload regardless of auth state
+
 ## Key Configuration
 - `API_BASE` in `Toolkit/src/lib/config.ts` defaults to empty string (relative URLs)
 - MongoDB connection gracefully degrades in dev mode (warns instead of crashing)
 - Session store falls back to in-memory in dev when MONGODB_URI is not set
 - Storage layer (`server/storage.ts`) has a `MemoryStorage` fallback when MONGODB_URI is not set, enabling full Entity Builder, auth, and template CRUD without MongoDB (data does not persist across restarts)
-- In-memory mode auto-seeds 3 predefined B-BBEE starter templates from `src/data/starterTemplates.ts` on startup (B-BBEE Certificate, Ownership Verification, Management Control)
-- Entity generation without AI key fills all fields intelligently (synonyms, positives, negatives, zones, keywords, pattern) based on type detection (date, amount, percentage, name, number, status)
+- In-memory mode auto-seeds 3 predefined B-BBEE starter templates and a demo user (username: demo, password: demo) on startup
+- Entity generation without AI key fills all fields intelligently based on type detection
+- Vercel API (`api/[...path].ts`) includes middleware to preserve pre-parsed request body for proper POST/PUT handling in serverless environment

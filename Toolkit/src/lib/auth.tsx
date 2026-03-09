@@ -30,34 +30,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const demoFallback: AuthUser = {
-      id: 'demo-1',
-      username: 'demo',
-      fullName: 'Demo User',
-      email: 'demo@okiru.pro',
-      role: 'admin',
-      organizationId: null,
-      profilePicture: null,
-    };
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     fetch(`${API_BASE}/api/auth/me`, { credentials: 'include', signal: controller.signal })
       .then(res => res.ok ? res.json() : Promise.reject())
       .then(data => setUser(data.user))
-      .catch(() => setUser(demoFallback))
+      .catch(() => setUser(null))
       .finally(() => { clearTimeout(timeout); setIsLoading(false); });
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
-    const demoFallback: AuthUser = {
-      id: 'demo-1',
-      username: username || 'demo',
-      fullName: username || 'Demo User',
-      email: 'demo@okiru.pro',
-      role: 'admin',
-      organizationId: null,
-      profilePicture: null,
-    };
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/api/auth/login`, {
@@ -67,35 +49,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ username, password }),
       });
     } catch {
-      setUser(demoFallback);
-      queryClient.clear();
-      return;
+      throw new Error('Network error. Please try again.');
     }
     if (!res.ok) {
-      setUser(demoFallback);
-      queryClient.clear();
-      return;
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.message || 'Invalid username or password');
     }
     const data = await res.json().catch(() => null);
     if (!data?.user) {
-      setUser(demoFallback);
-      queryClient.clear();
-      return;
+      throw new Error('Login failed. Please try again.');
     }
     setUser(data.user);
     queryClient.clear();
   }, [queryClient]);
 
   const register = useCallback(async (regData: { username: string; password: string; fullName?: string; email?: string; organizationName?: string }) => {
-    const demoFallback: AuthUser = {
-      id: 'demo-1',
-      username: regData.username || 'demo',
-      fullName: regData.fullName || regData.username || 'Demo User',
-      email: regData.email || 'demo@okiru.pro',
-      role: 'admin',
-      organizationId: null,
-      profilePicture: null,
-    };
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/api/auth/register`, {
@@ -105,20 +73,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(regData),
       });
     } catch {
-      setUser(demoFallback);
-      queryClient.clear();
-      return;
+      throw new Error('Network error. Please try again.');
     }
     if (!res.ok) {
-      setUser(demoFallback);
-      queryClient.clear();
-      return;
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.message || 'Registration failed');
     }
     const result = await res.json().catch(() => null);
     if (!result?.user) {
-      setUser(demoFallback);
-      queryClient.clear();
-      return;
+      throw new Error('Registration failed. Please try again.');
     }
     setUser(result.user);
     queryClient.clear();

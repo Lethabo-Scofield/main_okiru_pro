@@ -30,7 +30,7 @@ import { AppLoader } from "@toolkit/components/Loader";
 import okiruLogoDark from "@toolkit-assets/Okiru_WHT_Circle_Logo_V1_1772658965196.png";
 import { useBbeeStore } from "@toolkit/lib/store";
 import { useActiveClient } from "@toolkit/lib/client-context";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 
 function RouteAwareSkeleton() {
   const [location] = useLocation();
@@ -53,18 +53,13 @@ function RouteAwareSkeleton() {
 
 function DataLoader({ children }: { children: React.ReactNode }) {
   const { activeClientId } = useActiveClient();
-  const { loadClientData, isLoaded, isDemoMode, activeClientId: storeClientId } = useBbeeStore();
+  const { loadClientData, isLoaded, activeClientId: storeClientId } = useBbeeStore();
 
   useEffect(() => {
-    if (isDemoMode && isLoaded) return;
     if (activeClientId && activeClientId !== storeClientId) {
       loadClientData(activeClientId);
     }
-  }, [activeClientId, storeClientId, loadClientData, isDemoMode, isLoaded]);
-
-  if (isDemoMode && isLoaded) {
-    return <>{children}</>;
-  }
+  }, [activeClientId, storeClientId, loadClientData]);
 
   if (!isLoaded) {
     return <RouteAwareSkeleton />;
@@ -116,19 +111,6 @@ function PostLoginClientGate() {
 function AuthenticatedApp() {
   const { user, isLoading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
-  const { isDemoMode, loadDemoData } = useBbeeStore();
-
-  const handleStartDemo = useCallback(() => {
-    loadDemoData();
-  }, [loadDemoData]);
-
-  if (isDemoMode) {
-    return (
-      <ClientProvider>
-        <AppRoutes />
-      </ClientProvider>
-    );
-  }
 
   if (isLoading) {
     return <AppLoader />;
@@ -138,7 +120,7 @@ function AuthenticatedApp() {
     if (showAuth) {
       return <AuthPage />;
     }
-    return <LandingPage onNavigateAuth={() => setShowAuth(true)} onStartDemo={handleStartDemo} />;
+    return <LandingPage onNavigateAuth={() => setShowAuth(true)} />;
   }
 
   return (

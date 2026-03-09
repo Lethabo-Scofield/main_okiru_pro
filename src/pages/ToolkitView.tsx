@@ -49,7 +49,7 @@ function ToolkitRoutes() {
 
 function ClientAutoLoader({ clientId }: { clientId: string }) {
   const { setActiveClientId, activeClientId } = useActiveClient();
-  const { loadClientData, loadDemoData, isLoaded, isDemoMode, activeClientId: storeClientId } = useBbeeStore();
+  const { loadClientData, isLoaded, activeClientId: storeClientId } = useBbeeStore();
   const lastLoadedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -61,13 +61,13 @@ function ClientAutoLoader({ clientId }: { clientId: string }) {
   useEffect(() => {
     if (activeClientId && activeClientId !== lastLoadedRef.current) {
       lastLoadedRef.current = activeClientId;
-      loadClientData(activeClientId).catch(() => {
-        loadDemoData();
+      loadClientData(activeClientId).catch((err: any) => {
+        console.error("Failed to load client data:", err);
       });
     }
-  }, [activeClientId, loadClientData, loadDemoData]);
+  }, [activeClientId, loadClientData]);
 
-  if (!isLoaded && !isDemoMode) {
+  if (!isLoaded) {
     return <AppLoader />;
   }
 

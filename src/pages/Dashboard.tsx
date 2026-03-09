@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@toolkit/lib/auth';
-import { useBbeeStore } from '@toolkit/lib/store';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
 import { Trash2, Loader2, LogOut, Pencil, ChevronLeft, Search, ChevronRight, Plus, FileText, Building2, Sparkles } from 'lucide-react';
 import { starterTemplates as staticTemplates } from '@/data/starterTemplates';
@@ -57,7 +56,6 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user, isLoading: authLoading, logout } = useAuth();
-  const { isDemoMode } = useBbeeStore();
   const [templateSearch, setTemplateSearch] = useState('');
   const [companySearch, setCompanySearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
@@ -144,10 +142,10 @@ export default function Dashboard() {
   }), [industries]);
 
   useEffect(() => {
-    if (!authLoading && !user && !isDemoMode) {
-      navigate("/");
+    if (!authLoading && !user) {
+      navigate("/auth");
     }
-  }, [user, authLoading, isDemoMode, navigate]);
+  }, [user, authLoading, navigate]);
 
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
 
@@ -183,7 +181,7 @@ export default function Dashboard() {
     );
   }
 
-  if (!user && !isDemoMode) {
+  if (!user) {
     return null;
   }
 
@@ -224,9 +222,9 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1c1c1e] text-[12px]" data-testid="user-menu">
               <span className="inline-flex h-5 w-5 rounded-full bg-purple-600 items-center justify-center text-white font-semibold text-[9px]">
-                {(user?.fullName || user?.username || (isDemoMode ? 'Demo' : 'U')).charAt(0).toUpperCase()}
+                {(user?.fullName || user?.username || 'U').charAt(0).toUpperCase()}
               </span>
-              <span className="text-[#d1d1d6] font-medium">{user?.fullName || user?.username || (isDemoMode ? 'Demo User' : '')}</span>
+              <span className="text-[#d1d1d6] font-medium">{user?.fullName || user?.username || ''}</span>
             </div>
             <button
               onClick={() => { logout(); navigate('/'); }}

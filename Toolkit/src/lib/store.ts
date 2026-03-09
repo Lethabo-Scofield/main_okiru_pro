@@ -6,10 +6,6 @@ import {
 } from './types';
 import { v4 as uuidv4 } from "uuid";
 import { api, invalidateClientData } from './api';
-import {
-  DEMO_CLIENT_ID, demoClient, demoOwnership, demoManagement,
-  demoSkills, demoProcurement, demoESD, demoSED,
-} from './demo-data';
 import type { CalculatorConfig } from '../../../shared/schema';
 
 import { calculateOwnershipScore } from './calculators/ownership';
@@ -113,8 +109,6 @@ interface BbeeState extends PillarState {
   baseSnapshot: ScenarioSnapshot | null;
 
   loadClientData: (clientId: string) => Promise<void>;
-  loadDemoData: () => void;
-  isDemoMode: boolean;
   clearData: () => void;
 
   setPipelineOverrides: (overrides: PipelineOverrides) => void;
@@ -249,7 +243,6 @@ function calculateScorecard(
 
 export const useBbeeStore = create<BbeeState>((set, get) => ({
   isLoaded: false,
-  isDemoMode: false,
   activeClientId: null,
   client: emptyClient,
   ownership: emptyOwnership,
@@ -389,7 +382,6 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
 
       set({
         isLoaded: true,
-        isDemoMode: false,
         activeClientId: clientId,
         client: clientData,
         ownership: ownershipState,
@@ -413,60 +405,9 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
     }
   },
 
-  loadDemoData: () => {
-    set({
-      isLoaded: true,
-      isDemoMode: true,
-      activeClientId: DEMO_CLIENT_ID,
-      client: demoClient,
-      ownership: demoOwnership,
-      management: demoManagement,
-      skills: demoSkills,
-      procurement: demoProcurement,
-      esd: demoESD,
-      sed: demoSED,
-      scenarios: [],
-      isScenarioMode: false,
-      activeScenarioId: null,
-      baseSnapshot: null,
-      pipelineOverrides: null,
-    });
-    get()._recalculateAll();
-
-    const sc = get().scorecard;
-    const ownOk = sc.ownership.score >= 24.5;
-    const mcOk = sc.managementControl.score >= 26.5;
-    const procOk = sc.procurement.score >= 24.5;
-    const skillsOk = sc.skillsDevelopment.score >= 10;
-    const esdOk = sc.enterpriseDevelopment.score >= 5;
-    const sedOk = sc.socioEconomicDevelopment.score >= 4.5;
-    const totalOk = sc.total.score >= 100;
-    const levelOk = (sc.isDiscounted ? sc.discountedLevel : sc.achievedLevel) === 1;
-    const noDiscount = !sc.isDiscounted;
-    const ownSubMin = sc.ownership.subMinimumMet === true;
-    const skillSubMin = sc.skillsDevelopment.subMinimumMet === true;
-    const procSubMin = sc.procurement.subMinimumMet === true;
-
-    const mark = (ok: boolean) => ok ? '[✓]' : '[✗]';
-
-    console.log('\n=== CLIENT REQUIREMENTS MET CHECKLIST ===');
-    console.log(`${mark(ownOk)} Ownership = ${sc.ownership.score.toFixed(2)} points (25% +1 vote rule)`);
-    console.log(`${mark(mcOk)} MC = ${sc.managementControl.score.toFixed(2)} points (Transport QSE max 27)`);
-    console.log(`${mark(procOk)} Procurement = ${sc.procurement.score.toFixed(2)} points + Designated Group bonus`);
-    console.log(`${mark(skillsOk)} Skills = ${sc.skillsDevelopment.score.toFixed(2)} points (EAP breakdown + sub-min ${skillSubMin ? 'PASSED' : 'FAILED'})`);
-    console.log(`${mark(esdOk)} ESD = ${sc.enterpriseDevelopment.score.toFixed(2)} points`);
-    console.log(`${mark(sedOk)} SED = ${sc.socioEconomicDevelopment.score.toFixed(2)} points (capped at 5)`);
-    console.log(`${mark(ownSubMin && skillSubMin && procSubMin)} Sub-minimums: Own ${ownSubMin ? '✓' : '✗'}, Skills ${skillSubMin ? '✓' : '✗'}, Proc ${procSubMin ? '✓' : '✗'}`);
-    console.log(`${mark(noDiscount)} No wrongful sub-minimum discount`);
-    console.log(`${mark(totalOk)} Total = ${sc.total.score.toFixed(2)} → ${levelOk ? 'LEVEL 1' : 'Level ' + (sc.isDiscounted ? sc.discountedLevel : sc.achievedLevel)} @${sc.recognitionLevel}`);
-    console.log(`${mark(levelOk && noDiscount)} Final: ${levelOk && noDiscount ? 'LEVEL 1 @135% — matches certificate ✓' : 'DOES NOT MATCH — review required'}`);
-    console.log('==========================================\n');
-  },
-
   clearData: () => {
     set({
       isLoaded: false,
-      isDemoMode: false,
       activeClientId: null,
       client: emptyClient,
       ownership: emptyOwnership,
@@ -488,7 +429,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
     set({ pipelineOverrides: overrides });
     get()._recalculateAll();
     const clientId = get().activeClientId;
-    if (clientId && !get().isDemoMode) {
+    if (clientId) {
       api.updateClient(clientId, { pipelineOverrides: overrides }).catch(console.error);
     }
   },
@@ -504,7 +445,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
       ...snapshotPillarState(state),
     };
 
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.addScenario(state.activeClientId, { name, snapshot: newScenario }).catch(console.error);
     }
 
@@ -548,7 +489,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
     const state = get();
     if (state.activeScenarioId === id) get().switchScenario(null);
     set((state) => ({ scenarios: state.scenarios.filter(s => s.id !== id) }));
-    if (!get().isDemoMode) api.deleteScenario(id).catch(console.error);
+    api.deleteScenario(id).catch(console.error);
   },
 
   loadCalculatorConfig: async (clientId: string) => {
@@ -567,7 +508,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
     set({ calculatorConfig: config });
     get()._recalculateAll();
     const clientId = get().activeClientId;
-    if (clientId && !get().isDemoMode) {
+    if (clientId) {
       try {
         await api.saveCalculatorConfig(clientId, config);
       } catch (error) {
@@ -583,7 +524,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
   addFinancialYear: (year) => {
     set((state) => ({ client: { ...state.client, financialHistory: [...state.client.financialHistory, year] } }));
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.addFinancialYear(state.activeClientId, { year: year.year, revenue: year.revenue, npat: year.npat, indicativeNpat: year.indicativeNpat, notes: year.notes }).catch(console.error);
     }
   },
@@ -592,14 +533,14 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
   },
   removeFinancialYear: (id) => {
     set((state) => ({ client: { ...state.client, financialHistory: state.client.financialHistory.filter(y => y.id !== id) } }));
-    if (!get().isDemoMode) api.deleteFinancialYear(id).catch(console.error);
+    api.deleteFinancialYear(id).catch(console.error);
   },
 
   addShareholder: (shareholder) => {
     set((state) => ({ ownership: { ...state.ownership, shareholders: [...state.ownership.shareholders, shareholder] } }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.addShareholder(state.activeClientId, {
         name: shareholder.name,
         ownershipType: shareholder.ownershipType || 'shareholder',
@@ -613,18 +554,18 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
   updateShareholder: (id, data) => {
     set((state) => ({ ownership: { ...state.ownership, shareholders: state.ownership.shareholders.map(sh => sh.id === id ? { ...sh, ...data } : sh) } }));
     get()._recalculateAll();
-    if (!get().isDemoMode) api.updateShareholder(id, data).catch(console.error);
+    api.updateShareholder(id, data).catch(console.error);
   },
   removeShareholder: (id) => {
     set((state) => ({ ownership: { ...state.ownership, shareholders: state.ownership.shareholders.filter(sh => sh.id !== id) } }));
     get()._recalculateAll();
-    if (!get().isDemoMode) api.deleteShareholder(id).catch(console.error);
+    api.deleteShareholder(id).catch(console.error);
   },
   updateCompanyValue: (companyValue, outstandingDebt) => {
     set((state) => ({ ownership: { ...state.ownership, companyValue, outstandingDebt } }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.updateOwnership(state.activeClientId, { companyValue, outstandingDebt }).catch(console.error);
     }
   },
@@ -633,7 +574,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
     set((state) => ({ management: { ...state.management, employees: [...state.management.employees, employee] } }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.addEmployee(state.activeClientId, {
         name: employee.name, gender: employee.gender, race: employee.race,
         designation: employee.designation, isDisabled: employee.isDisabled,
@@ -643,13 +584,13 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
   removeEmployee: (id) => {
     set((state) => ({ management: { ...state.management, employees: state.management.employees.filter(e => e.id !== id) } }));
     get()._recalculateAll();
-    if (!get().isDemoMode) api.deleteEmployee(id).catch(console.error);
+    api.deleteEmployee(id).catch(console.error);
   },
   addEmployeesBulk: (employees) => {
     set((state) => ({ management: { ...state.management, employees: [...state.management.employees, ...employees] } }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       Promise.all(
         employees.map(emp =>
           api.addEmployee(state.activeClientId!, {
@@ -665,7 +606,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
     set((state) => ({ skills: { ...state.skills, trainingPrograms: [...state.skills.trainingPrograms, program] } }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.addTrainingProgram(state.activeClientId, {
         name: program.name, category: program.category, cost: program.cost,
         employeeId: program.employeeId, isEmployed: program.isEmployed, isBlack: program.isBlack,
@@ -676,19 +617,19 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
   updateTrainingProgram: (id, data) => {
     set((state) => ({ skills: { ...state.skills, trainingPrograms: state.skills.trainingPrograms.map(p => p.id === id ? { ...p, ...data } : p) } }));
     get()._recalculateAll();
-    if (!get().isDemoMode) api.updateTrainingProgram(id, data).catch(console.error);
+    api.updateTrainingProgram(id, data).catch(console.error);
   },
   removeTrainingProgram: (id) => {
     set((state) => ({ skills: { ...state.skills, trainingPrograms: state.skills.trainingPrograms.filter(p => p.id !== id) } }));
     get()._recalculateAll();
-    if (!get().isDemoMode) api.deleteTrainingProgram(id).catch(console.error);
+    api.deleteTrainingProgram(id).catch(console.error);
   },
 
   addSupplier: (supplier) => {
     set((state) => ({ procurement: { ...state.procurement, suppliers: [...state.procurement.suppliers, supplier] } }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.addSupplier(state.activeClientId, {
         name: supplier.name, beeLevel: supplier.beeLevel,
         blackOwnership: supplier.blackOwnership, blackWomenOwnership: supplier.blackWomenOwnership,
@@ -700,19 +641,19 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
   updateSupplier: (id, data) => {
     set((state) => ({ procurement: { ...state.procurement, suppliers: state.procurement.suppliers.map(s => s.id === id ? { ...s, ...data } : s) } }));
     get()._recalculateAll();
-    if (!get().isDemoMode) api.updateSupplier(id, data).catch(console.error);
+    api.updateSupplier(id, data).catch(console.error);
   },
   removeSupplier: (id) => {
     set((state) => ({ procurement: { ...state.procurement, suppliers: state.procurement.suppliers.filter(s => s.id !== id) } }));
     get()._recalculateAll();
-    if (!get().isDemoMode) api.deleteSupplier(id).catch(console.error);
+    api.deleteSupplier(id).catch(console.error);
   },
 
   addEsdContribution: (contribution) => {
     set((state) => ({ esd: { ...state.esd, contributions: [...state.esd.contributions, contribution] } }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.addEsdContribution(state.activeClientId, {
         beneficiary: contribution.beneficiary, type: contribution.type,
         amount: contribution.amount, category: contribution.category,
@@ -722,14 +663,14 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
   removeEsdContribution: (id) => {
     set((state) => ({ esd: { ...state.esd, contributions: state.esd.contributions.filter(c => c.id !== id) } }));
     get()._recalculateAll();
-    if (!get().isDemoMode) api.deleteEsdContribution(id).catch(console.error);
+    api.deleteEsdContribution(id).catch(console.error);
   },
 
   addSedContribution: (contribution) => {
     set((state) => ({ sed: { ...state.sed, contributions: [...state.sed.contributions, contribution] } }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.addSedContribution(state.activeClientId, {
         beneficiary: contribution.beneficiary, type: contribution.type,
         amount: contribution.amount, category: contribution.category,
@@ -739,7 +680,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
   removeSedContribution: (id) => {
     set((state) => ({ sed: { ...state.sed, contributions: state.sed.contributions.filter(c => c.id !== id) } }));
     get()._recalculateAll();
-    if (!get().isDemoMode) api.deleteSedContribution(id).catch(console.error);
+    api.deleteSedContribution(id).catch(console.error);
   },
 
   updateFinancials: (revenue, npat, leviableAmount, industryNorm) => {
@@ -749,7 +690,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
     }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.updateClient(state.activeClientId, { revenue, npat, leviableAmount, industryNorm }).catch(console.error);
     }
   },
@@ -758,7 +699,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
     set((state) => ({ procurement: { ...state.procurement, tmps } }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.updateProcurement(state.activeClientId, tmps).catch(console.error);
     }
   },
@@ -775,7 +716,7 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
     }));
     get()._recalculateAll();
     const state = get();
-    if (state.activeClientId && !state.isDemoMode) {
+    if (state.activeClientId) {
       api.updateClient(state.activeClientId, { eapProvince, industrySector, measurementPeriodStart, measurementPeriodEnd }).catch(console.error);
     }
   }

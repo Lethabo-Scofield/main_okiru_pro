@@ -16,8 +16,8 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
   const { toast } = useToast();
 
   const [form, setForm] = useState({
-    username: 'demo',
-    password: 'demo',
+    username: '',
+    password: '',
     fullName: '',
     email: '',
     organizationName: '',
@@ -160,14 +160,6 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
                 )}
               </Button>
             </form>
-
-            {mode === 'login' && (
-              <div className="mt-3 p-2.5 rounded-lg bg-primary/5 border border-primary/10">
-                <p className="text-[11px] text-muted-foreground/70 text-center">
-                  Demo credentials: <span className="font-medium text-primary">demo</span> / <span className="font-medium text-primary">demo</span>
-                </p>
-              </div>
-            )}
 
             <div className="mt-4 text-center">
               <p className="text-[12px] text-muted-foreground/60">

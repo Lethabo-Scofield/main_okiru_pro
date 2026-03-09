@@ -662,7 +662,7 @@ function Reveal({ children, delay = "", className = "" }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function OkiruLanding({ onNavigateAuth, onStartDemo }) {
+export default function OkiruLanding({ onNavigateAuth }: { onNavigateAuth: () => void }) {
   // Inject scoped CSS once, keyed by ID so it's never duplicated
   useEffect(() => {
     const id = "okiru-styles";
@@ -692,7 +692,6 @@ export default function OkiruLanding({ onNavigateAuth, onStartDemo }) {
             <span className="ok-nav-chip">B-BBEE Intelligence</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button className="ok-btn-ghost" onClick={onStartDemo}>Demo</button>
             <button className="ok-btn-ghost" onClick={onNavigateAuth}>Sign in</button>
             <button className="ok-btn-pur" onClick={onNavigateAuth}>Get started</button>
           </div>
@@ -715,7 +714,7 @@ export default function OkiruLanding({ onNavigateAuth, onStartDemo }) {
               <button className="ok-btn-main" onClick={onNavigateAuth}>
                 Start for free <span className="arr"><ArrowRight size={14} /></span>
               </button>
-              <button className="ok-btn-sec" onClick={onStartDemo}>Try demo</button>
+              <button className="ok-btn-sec" onClick={onNavigateAuth}>Learn more</button>
             </div>
             <div className="ok-stats">
               {STATS.map((s, i) => (
