@@ -648,6 +648,11 @@ Respond ONLY with a valid JSON array.`;
       }
     });
 
+    app.use((req: any, res: any) => {
+      console.error("Vercel Express 404 — no route matched:", req.method, req.url, req.originalUrl);
+      res.status(404).json({ error: "Not found", path: req.url, method: req.method });
+    });
+
     appInstance = app;
     return app;
   })().catch((err) => {
@@ -667,12 +672,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const done = () => { if (!settled) { settled = true; resolve(); } };
       res.on("finish", done);
       res.on("close", done);
-      res.on("error", (err) => { if (!settled) { settled = true; reject(err); } });
+      res.on("error", (err: Error) => { if (!settled) { settled = true; reject(err); } });
+
+      const originalUrl = req.url || "/";
+      (req as any).originalUrl = originalUrl;
       app(req as any, res as any);
     });
   } catch (error: any) {
     const msg = error?.message || String(error);
-    console.error("Vercel API handler error:", msg);
+    console.error("Vercel API handler error:", msg, "URL:", req.url);
     if (!res.headersSent) {
       res.status(500).json({ error: "Internal server error", details: msg });
     }

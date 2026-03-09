@@ -16,7 +16,7 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - `server/` — Express backend (routes, storage, db, vite middleware)
 - `shared/` — Shared schemas (Mongoose models)
 - `script/build.ts` — Production build script
-- `api/` — Legacy Vercel serverless functions (not used on Replit)
+- `api/` — Vercel serverless functions (not used on Replit, active on Vercel deployment)
 
 ## Required Environment Variables
 - `MONGODB_URI` — MongoDB connection string (required for auth, templates, data persistence)
@@ -42,3 +42,5 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - In-memory mode auto-seeds 3 predefined B-BBEE starter templates and a demo user (username: demo, password: demo) on startup
 - Entity generation without AI key fills all fields intelligently based on type detection
 - Vercel API (`api/[...path].ts`) includes middleware to preserve pre-parsed request body for proper POST/PUT handling in serverless environment
+- Vercel routing (`vercel.json`) uses explicit `routes` array: API routes → catch-all serverless function, then filesystem, then SPA fallback to `index.html`
+- `api/tsconfig.json` uses ES2020 modules (matching `api/package.json` type: module)
