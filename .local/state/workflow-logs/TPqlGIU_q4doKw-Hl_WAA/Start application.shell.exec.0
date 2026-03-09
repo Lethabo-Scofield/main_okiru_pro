@@ -1,0 +1,9 @@
+
+> rest-express@1.0.0 dev
+> cross-env NODE_ENV=development tsx server/index.ts
+
+[1G[0KStorage: Using in-memory storage (MONGODB_URI not set). Data will not persist across restarts.
+WARNING: GROQ_API_KEY is not set. AI endpoints will return errors.
+WARNING: MONGODB_URI is not set. Database features will be unavailable.
+WARNING: Using in-memory session store (MONGODB_URI not set). Sessions will not persist across restarts.
+8:30:11 PM [express] serving on port 5000

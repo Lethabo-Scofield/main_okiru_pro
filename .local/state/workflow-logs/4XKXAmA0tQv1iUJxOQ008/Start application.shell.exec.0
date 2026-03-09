@@ -1,0 +1,15 @@
+
+> rest-express@1.0.0 dev
+> cross-env NODE_ENV=development tsx server/index.ts
+
+[1G[0KWARNING: GROQ_API_KEY is not set. AI endpoints will return errors.
+WARNING: MONGODB_URI is not set. Database features will be unavailable.
+WARNING: Using in-memory session store (MONGODB_URI not set). Sessions will not persist across restarts.
+8:28:27 PM [express] serving on port 5000
+8:28:35 PM [express] GET /api/templates 200 in 4ms :: []
+8:28:38 PM [express] POST /api/templates 200 in 2ms :: {"id":1,"name":"Test Template","description":"Testing","version":"1.0","entities":[{"label":"TestEntity","definition":"A test entity","synonyms":[],"positives":[],"negatives":[],"zones":["Email Body"],"keywords":{"must":[],"nice":[],"neg":[]},"pattern":""}],"createdAt":"2026-03-09T20:28:38.326Z","updatedAt":"2026-03-09T20:28:38.326Z"}
+8:28:43 PM [express] GET /api/templates 200 in 1ms :: [{"id":1,"name":"Test Template","description":"Testing","version":"1.0","entities":[{"label":"TestEntity","definition":"A test entity","synonyms":[],"positives":[],"negatives":[],"zones":["Email Body"],"keywords":{"must":[],"nice":[],"neg":[]},"pattern":""}],"createdAt":"2026-03-09T20:28:38.326Z","updatedAt":"2026-03-09T20:28:38.326Z"}]
+8:28:44 PM [express] POST /api/auth/register 200 in 32ms :: {"user":{"id":"1","username":"testuser","fullName":"Test User","email":null,"role":"user","organizationId":null,"organizationName":null,"profilePicture":null,"createdAt":"2026-03-09T20:28:44.041Z"}}
+8:28:49 PM [express] GET /api/auth/me 401 in 1ms :: {"message":"Not authenticated"}
+8:28:59 PM [express] GET /api/templates 200 in 1ms :: [{"id":1,"name":"Test Template","description":"Testing","version":"1.0","entities":[{"label":"TestEntity","definition":"A test entity","synonyms":[],"positives":[],"negatives":[],"zones":["Email Body"],"keywords":{"must":[],"nice":[],"neg":[]},"pattern":""}],"createdAt":"2026-03-09T20:28:38.326Z","updatedAt":"2026-03-09T20:28:38.326Z"}]
+8:28:59 PM [express] GET /api/auth/me 401 in 0ms :: {"message":"Not authenticated"}

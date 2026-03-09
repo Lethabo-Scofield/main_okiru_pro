@@ -1,0 +1,14 @@
+
+> rest-express@1.0.0 dev
+> cross-env NODE_ENV=development tsx server/index.ts
+
+[1G[0KStorage: Using in-memory storage (MONGODB_URI not set). Data will not persist across restarts.
+WARNING: GROQ_API_KEY is not set. AI endpoints will return errors.
+WARNING: MONGODB_URI is not set. Database features will be unavailable.
+WARNING: Using in-memory session store (MONGODB_URI not set). Sessions will not persist across restarts.
+Storage: Seeded dummy user — username: demo, password: demo
+8:46:42 PM [express] serving on port 5000
+8:46:52 PM [express] POST /api/generate-entities 200 in 5ms :: {"entities":[{"id":1773089211996.4521,"label":"InvoiceNumberFromAPdfDocument","definition":"invoice number from a PDF document","completeness":20,"synonyms":[],"positives":[],"negatives":[],"zones":["Email Body","PDF Header"],"keywords":{"must":[],"nice":[],"neg":[]},"pattern":"","expanded":true,"activeTab":"definition"}]}
+8:46:59 PM [express] GET /api/templates 304 in 1ms :: []
+8:46:59 PM [express] GET /api/auth/me 401 in 1ms :: {"message":"Not authenticated"}
+8:55:12 PM [express] POST /api/generate-entities 200 in 2ms :: {"entities":[{"id":1773089712181.9292,"label":"ExtractNationalityThisIsUsuallyACountryTheCandidateWasBornIn","definition":"extract Nationality , this is usually a country the candidate was born in","completeness":20,"synonyms":[],"positives":[],"negatives":[],"zones":["Email Body","PDF Header"],"keywords":{"must":[],"nice":[],"neg":[]},"pattern":"","expanded":true,"activeTab":"definition"}]}
