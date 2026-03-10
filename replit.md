@@ -19,9 +19,9 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - `api/` — Vercel serverless functions (not used on Replit, active on Vercel deployment)
 
 ## Required Environment Variables
-- `MONGODB_URI` — MongoDB connection string (required for auth, templates, data persistence)
-- `GROQ_API_KEY` — Groq API key (required for AI entity extraction features)
-- `SESSION_SECRET` — Express session secret (auto-generated on Replit)
+- `MONGODB_URI` — MongoDB connection string (optional — both Replit and Vercel fallback to in-memory storage if not set)
+- `GROQ_API_KEY` — Groq API key (optional — entity generation uses rule-based fallback without it)
+- `SESSION_SECRET` — Express session secret (auto-generated on Replit, uses default on Vercel if not set)
 
 ## Dev Server
 - `npm run dev` starts Express on port 5000 with Vite middleware (HMR)
@@ -42,5 +42,6 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - In-memory mode auto-seeds 3 predefined B-BBEE starter templates and a demo user (username: demo, password: demo) on startup
 - Entity generation without AI key fills all fields intelligently based on type detection
 - Vercel API (`api/[...path].ts`) includes middleware to preserve pre-parsed request body for proper POST/PUT handling in serverless environment
+- Vercel API gracefully handles missing MONGODB_URI: auth uses session-only mode (any credentials accepted), templates use in-memory storage with 3 starter templates
 - Vercel routing (`vercel.json`) uses explicit `routes` array: API routes → catch-all serverless function, then filesystem, then SPA fallback to `index.html`
 - `api/tsconfig.json` uses ES2020 modules (matching `api/package.json` type: module)

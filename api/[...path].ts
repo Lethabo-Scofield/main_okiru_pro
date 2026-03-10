@@ -4,6 +4,7 @@ import session from "express-session";
 import bcrypt from "bcryptjs";
 import mongoose, { Schema } from "mongoose";
 import { Store } from "express-session";
+import crypto from "crypto";
 
 class MongoSessionStore extends Store {
   private collection: any;
@@ -41,14 +42,37 @@ class MongoSessionStore extends Store {
   }
 }
 
+const AUTH_SECRET = process.env.SESSION_SECRET || "okiru-entity-studio-dev-secret";
+
+function signToken(payload: any): string {
+  const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = crypto.createHmac("sha256", AUTH_SECRET).update(data).digest("base64url");
+  return `${data}.${sig}`;
+}
+
+function verifyToken(token: string): any | null {
+  const [data, sig] = token.split(".");
+  if (!data || !sig) return null;
+  const expected = crypto.createHmac("sha256", AUTH_SECRET).update(data).digest("base64url");
+  if (sig !== expected) return null;
+  try { return JSON.parse(Buffer.from(data, "base64url").toString()); } catch { return null; }
+}
+
 let isDbConnected = false;
 async function connectDB() {
   if (isDbConnected) return;
   const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error("MONGODB_URI environment variable is not set");
-  await mongoose.connect(uri);
-  isDbConnected = true;
-  console.log("MongoDB connected");
+  if (!uri) {
+    console.warn("MONGODB_URI not set — running without database. Auth will use session-only mode.");
+    return;
+  }
+  try {
+    await mongoose.connect(uri);
+    isDbConnected = true;
+    console.log("MongoDB connected");
+  } catch (err: any) {
+    console.error("MongoDB connection failed:", err.message);
+  }
 }
 mongoose.connection.on("disconnected", () => { isDbConnected = false; });
 
@@ -160,15 +184,16 @@ async function getApp(): Promise<express.Express> {
     });
     app.set("trust proxy", 1);
 
-    app.use(
-      session({
-        store: new MongoSessionStore({ db: mongoose, collectionName: "sessions" }),
-        secret: process.env.SESSION_SECRET || "okiru-entity-studio-dev-secret",
-        resave: false,
-        saveUninitialized: false,
-        cookie: { httpOnly: true, secure: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 },
-      })
-    );
+    const sessionConfig: any = {
+      secret: process.env.SESSION_SECRET || "okiru-entity-studio-dev-secret",
+      resave: false,
+      saveUninitialized: false,
+      cookie: { httpOnly: true, secure: true, sameSite: "lax" as const, maxAge: 7 * 24 * 60 * 60 * 1000 },
+    };
+    if (isDbConnected) {
+      sessionConfig.store = new MongoSessionStore({ db: mongoose, collectionName: "sessions" });
+    }
+    app.use(session(sessionConfig));
 
     app.get("/api/health", (_req, res) => {
       res.json({ status: "ok", timestamp: Date.now() });
@@ -179,14 +204,22 @@ async function getApp(): Promise<express.Express> {
         const { username, password, fullName, email, organizationName } = req.body;
         if (!username || !password) return res.status(400).json({ message: "Username and password are required" });
         if (password.length < 4) return res.status(400).json({ message: "Password must be at least 4 characters" });
-        const existing = await UserModel.findOne({ username });
-        if (existing) return res.status(400).json({ message: "Username already taken" });
-        const hashedPassword = await bcrypt.hash(password, 8);
-        const doc = await UserModel.create({ username, password: hashedPassword, fullName: fullName || null, email: email || null, organizationName: organizationName || null, role: "user", organizationId: null, profilePicture: null });
-        const user = toUser(doc)!;
-        const safeUser = sanitizeUser(user);
-        (req.session as any).userId = user.id;
-        (req.session as any).userData = safeUser;
+
+        if (isDbConnected) {
+          const existing = await UserModel.findOne({ username });
+          if (existing) return res.status(400).json({ message: "Username already taken" });
+          const hashedPassword = await bcrypt.hash(password, 8);
+          const doc = await UserModel.create({ username, password: hashedPassword, fullName: fullName || null, email: email || null, organizationName: organizationName || null, role: "user", organizationId: null, profilePicture: null });
+          const user = toUser(doc)!;
+          const safeUser = sanitizeUser(user);
+          (req.session as any).userId = user.id;
+          (req.session as any).userData = safeUser;
+          return res.json({ user: safeUser });
+        }
+
+        const safeUser = { id: `user-${Date.now()}`, username, fullName: fullName || null, email: email || null, role: "user", organizationId: null, organizationName: organizationName || null, profilePicture: null };
+        const token = signToken(safeUser);
+        res.cookie("okiru_auth", token, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
         res.json({ user: safeUser });
       } catch (error: any) {
         console.error("Register error:", error);
@@ -198,14 +231,22 @@ async function getApp(): Promise<express.Express> {
       try {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ message: "Username and password are required" });
-        const doc = await UserModel.findOne({ username });
-        if (!doc) return res.status(401).json({ message: "Invalid username or password" });
-        const user = toUser(doc)!;
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return res.status(401).json({ message: "Invalid username or password" });
-        const safeUser = sanitizeUser(user);
-        (req.session as any).userId = user.id;
-        (req.session as any).userData = safeUser;
+
+        if (isDbConnected) {
+          const doc = await UserModel.findOne({ username });
+          if (!doc) return res.status(401).json({ message: "Invalid username or password" });
+          const user = toUser(doc)!;
+          const valid = await bcrypt.compare(password, user.password);
+          if (!valid) return res.status(401).json({ message: "Invalid username or password" });
+          const safeUser = sanitizeUser(user);
+          (req.session as any).userId = user.id;
+          (req.session as any).userData = safeUser;
+          return res.json({ user: safeUser });
+        }
+
+        const safeUser = { id: `user-${Date.now()}`, username, fullName: null, email: null, role: "user", organizationId: null, organizationName: null, profilePicture: null };
+        const token = signToken(safeUser);
+        res.cookie("okiru_auth", token, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
         res.json({ user: safeUser });
       } catch (error: any) {
         console.error("Login error:", error);
@@ -214,6 +255,10 @@ async function getApp(): Promise<express.Express> {
     });
 
     app.post("/api/auth/logout", (req, res) => {
+      if (!isDbConnected) {
+        res.clearCookie("okiru_auth");
+        return res.json({ success: true });
+      }
       req.session.destroy((err) => {
         if (err) return res.status(500).json({ message: "Logout failed" });
         res.json({ success: true });
@@ -222,15 +267,25 @@ async function getApp(): Promise<express.Express> {
 
     app.get("/api/auth/me", async (req, res) => {
       try {
-        const userId = (req.session as any)?.userId;
-        if (!userId) return res.status(401).json({ message: "Not authenticated" });
-        const cached = (req.session as any)?.userData;
-        if (cached) return res.json({ user: cached });
-        const doc = await UserModel.findById(userId);
-        if (!doc) return res.status(401).json({ message: "Not authenticated" });
-        const safeUser = sanitizeUser(toUser(doc)!);
-        (req.session as any).userData = safeUser;
-        res.json({ user: safeUser });
+        if (isDbConnected) {
+          const userId = (req.session as any)?.userId;
+          if (!userId) return res.status(401).json({ message: "Not authenticated" });
+          const cached = (req.session as any)?.userData;
+          if (cached) return res.json({ user: cached });
+          const doc = await UserModel.findById(userId);
+          if (!doc) return res.status(401).json({ message: "Not authenticated" });
+          const safeUser = sanitizeUser(toUser(doc)!);
+          (req.session as any).userData = safeUser;
+          return res.json({ user: safeUser });
+        }
+
+        const cookies = (req.headers.cookie || "").split(";").map(c => c.trim());
+        const authCookie = cookies.find(c => c.startsWith("okiru_auth="));
+        if (!authCookie) return res.status(401).json({ message: "Not authenticated" });
+        const token = authCookie.split("=").slice(1).join("=");
+        const user = verifyToken(token);
+        if (!user) return res.status(401).json({ message: "Not authenticated" });
+        return res.json({ user });
       } catch (error: any) {
         res.status(500).json({ message: "Failed to get user" });
       }
@@ -238,14 +293,26 @@ async function getApp(): Promise<express.Express> {
 
     app.patch("/api/profile", async (req, res) => {
       try {
-        const userId = (req.session as any)?.userId;
-        if (!userId) return res.status(401).json({ message: "Not authenticated" });
         const { fullName, email } = req.body;
-        const doc = await UserModel.findByIdAndUpdate(userId, { ...(fullName !== undefined && { fullName }), ...(email !== undefined && { email }) }, { new: true });
-        if (!doc) return res.status(404).json({ message: "User not found" });
-        const safeUser = sanitizeUser(toUser(doc)!);
-        (req.session as any).userData = safeUser;
-        res.json({ user: safeUser });
+        if (isDbConnected) {
+          const userId = (req.session as any)?.userId;
+          if (!userId) return res.status(401).json({ message: "Not authenticated" });
+          const doc = await UserModel.findByIdAndUpdate(userId, { ...(fullName !== undefined && { fullName }), ...(email !== undefined && { email }) }, { new: true });
+          if (!doc) return res.status(404).json({ message: "User not found" });
+          const safeUser = sanitizeUser(toUser(doc)!);
+          (req.session as any).userData = safeUser;
+          return res.json({ user: safeUser });
+        }
+        const cookies = (req.headers.cookie || "").split(";").map(c => c.trim());
+        const authCookie = cookies.find(c => c.startsWith("okiru_auth="));
+        if (!authCookie) return res.status(401).json({ message: "Not authenticated" });
+        const token = authCookie.split("=").slice(1).join("=");
+        const current = verifyToken(token);
+        if (!current) return res.status(401).json({ message: "Not authenticated" });
+        const updated = { ...current, ...(fullName !== undefined && { fullName }), ...(email !== undefined && { email }) };
+        const newToken = signToken(updated);
+        res.cookie("okiru_auth", newToken, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+        res.json({ user: updated });
       } catch (error: any) {
         res.status(500).json({ message: "Failed to update profile" });
       }
@@ -255,10 +322,29 @@ async function getApp(): Promise<express.Express> {
       res.json({ url: null });
     });
 
+    const inMemoryTemplates: any[] = [
+      { id: 1, seqId: 1, name: "B-BBEE Certificate", description: "Extract key fields from B-BBEE compliance certificates", version: "1.0", entities: [
+        { id: 1, label: "CompanyName", definition: "The registered name of the company on the certificate", synonyms: ["Entity Name", "Organisation", "Business Name"], positives: ["Moyo Retail (Pty) Ltd", "Karoo Telecom"], negatives: ["Registration Number", "Date"], zones: ["PDF Header"], keywords: { must: ["company", "name"], nice: ["entity", "business"], neg: ["number", "date"] }, pattern: "", completeness: 85, expanded: false, activeTab: "definition" },
+        { id: 2, label: "BEELevel", definition: "The B-BBEE level achieved (1-8 or Non-compliant)", synonyms: ["Level", "BEE Status", "Compliance Level"], positives: ["Level 1", "Level 4", "3"], negatives: ["Amount", "Date"], zones: ["PDF Header", "Tables"], keywords: { must: ["level", "bee"], nice: ["status", "compliance"], neg: ["amount"] }, pattern: "Level\\s*\\d|\\d", completeness: 90, expanded: false, activeTab: "definition" },
+        { id: 3, label: "ExpiryDate", definition: "The date when the certificate expires", synonyms: ["Valid Until", "Expiry", "Certificate End Date"], positives: ["2025-03-31", "31 March 2025"], negatives: ["Issue Date", "Amount"], zones: ["PDF Header"], keywords: { must: ["expiry", "valid"], nice: ["date", "until"], neg: ["issue", "amount"] }, pattern: "\\d{4}[-/]\\d{2}[-/]\\d{2}|\\d{1,2}\\s+\\w+\\s+\\d{4}", completeness: 88, expanded: false, activeTab: "definition" },
+      ], createdAt: new Date("2024-01-15"), updatedAt: new Date("2024-01-15") },
+      { id: 2, seqId: 2, name: "Ownership Verification", description: "Verify ownership structure and black ownership percentages", version: "1.0", entities: [
+        { id: 4, label: "BlackOwnershipPercentage", definition: "The percentage of black ownership in the company", synonyms: ["Black Ownership", "BO%", "Black Shareholding"], positives: ["51%", "30.5%", "25.1%"], negatives: ["Revenue", "Employee Count"], zones: ["Tables"], keywords: { must: ["black", "ownership"], nice: ["percentage", "shareholding"], neg: ["revenue"] }, pattern: "\\d{1,3}(\\.\\d{1,2})?%", completeness: 92, expanded: false, activeTab: "definition" },
+        { id: 5, label: "BlackWomenOwnership", definition: "The percentage of black women ownership", synonyms: ["BW Ownership", "Black Female Ownership"], positives: ["12%", "25%"], negatives: ["Total Ownership", "Male Ownership"], zones: ["Tables"], keywords: { must: ["black", "women"], nice: ["female", "ownership"], neg: ["male"] }, pattern: "\\d{1,3}(\\.\\d{1,2})?%", completeness: 85, expanded: false, activeTab: "definition" },
+      ], createdAt: new Date("2024-01-20"), updatedAt: new Date("2024-01-20") },
+      { id: 3, seqId: 3, name: "Management Control", description: "Extract management control and employment equity data", version: "1.0", entities: [
+        { id: 6, label: "BoardComposition", definition: "Composition of the board of directors by race and gender", synonyms: ["Board Members", "Directors"], positives: ["3 Black, 2 White", "60% Black representation"], negatives: ["Employee Count", "Revenue"], zones: ["Tables"], keywords: { must: ["board", "director"], nice: ["composition", "member"], neg: ["employee", "revenue"] }, pattern: "", completeness: 80, expanded: false, activeTab: "definition" },
+      ], createdAt: new Date("2024-02-01"), updatedAt: new Date("2024-02-01") },
+    ];
+    let nextTemplateId = 4;
+
     app.get("/api/templates", async (_req, res) => {
       try {
-        const docs = await TemplateModel.find().sort({ updatedAt: -1 });
-        res.json(docs.map((d: any) => toTemplate(d)!));
+        if (isDbConnected) {
+          const docs = await TemplateModel.find().sort({ updatedAt: -1 });
+          return res.json(docs.map((d: any) => toTemplate(d)!));
+        }
+        res.json(inMemoryTemplates.map(t => ({ id: t.seqId, name: t.name, description: t.description, version: t.version, entities: t.entities, createdAt: t.createdAt, updatedAt: t.updatedAt })));
       } catch (error: any) {
         res.status(500).json({ error: "Failed to fetch templates" });
       }
@@ -266,9 +352,14 @@ async function getApp(): Promise<express.Express> {
 
     app.get("/api/templates/:id", async (req, res) => {
       try {
-        const doc = await TemplateModel.findOne({ seqId: Number(req.params.id) });
-        if (!doc) return res.status(404).json({ error: "Template not found" });
-        res.json(toTemplate(doc));
+        if (isDbConnected) {
+          const doc = await TemplateModel.findOne({ seqId: Number(req.params.id) });
+          if (!doc) return res.status(404).json({ error: "Template not found" });
+          return res.json(toTemplate(doc));
+        }
+        const t = inMemoryTemplates.find(t => t.seqId === Number(req.params.id));
+        if (!t) return res.status(404).json({ error: "Template not found" });
+        res.json({ id: t.seqId, name: t.name, description: t.description, version: t.version, entities: t.entities, createdAt: t.createdAt, updatedAt: t.updatedAt });
       } catch (error: any) {
         res.status(500).json({ error: "Failed to fetch template" });
       }
@@ -279,9 +370,15 @@ async function getApp(): Promise<express.Express> {
         const { name, description, version, entities } = req.body || {};
         if (!name) return res.status(400).json({ error: "name is required" });
         if (!Array.isArray(entities)) return res.status(400).json({ error: "entities must be an array" });
-        const seqId = await getNextSequence("template");
-        const doc = await TemplateModel.create({ seqId, name, description: description || "", version: version || "1.0", entities: entities || [] });
-        res.json(toTemplate(doc));
+        if (isDbConnected) {
+          const seqId = await getNextSequence("template");
+          const doc = await TemplateModel.create({ seqId, name, description: description || "", version: version || "1.0", entities: entities || [] });
+          return res.json(toTemplate(doc));
+        }
+        const seqId = nextTemplateId++;
+        const newTemplate = { id: seqId, seqId, name, description: description || "", version: version || "1.0", entities: entities || [], createdAt: new Date(), updatedAt: new Date() };
+        inMemoryTemplates.push(newTemplate);
+        res.json({ id: seqId, name, description: description || "", version: version || "1.0", entities: entities || [], createdAt: newTemplate.createdAt, updatedAt: newTemplate.updatedAt });
       } catch (error: any) {
         console.error("Error creating template:", error);
         res.status(500).json({ error: "Failed to create template" });
@@ -291,9 +388,16 @@ async function getApp(): Promise<express.Express> {
     app.put("/api/templates/:id", async (req, res) => {
       try {
         const body = req.body || {};
-        const doc = await TemplateModel.findOneAndUpdate({ seqId: Number(req.params.id) }, { ...body, updatedAt: new Date() }, { new: true });
-        if (!doc) return res.status(404).json({ error: "Template not found" });
-        res.json(toTemplate(doc));
+        if (isDbConnected) {
+          const doc = await TemplateModel.findOneAndUpdate({ seqId: Number(req.params.id) }, { ...body, updatedAt: new Date() }, { new: true });
+          if (!doc) return res.status(404).json({ error: "Template not found" });
+          return res.json(toTemplate(doc));
+        }
+        const idx = inMemoryTemplates.findIndex(t => t.seqId === Number(req.params.id));
+        if (idx === -1) return res.status(404).json({ error: "Template not found" });
+        inMemoryTemplates[idx] = { ...inMemoryTemplates[idx], ...body, updatedAt: new Date() };
+        const t = inMemoryTemplates[idx];
+        res.json({ id: t.seqId, name: t.name, description: t.description, version: t.version, entities: t.entities, createdAt: t.createdAt, updatedAt: t.updatedAt });
       } catch (error: any) {
         console.error("Error updating template:", error);
         res.status(500).json({ error: "Failed to update template" });
@@ -302,8 +406,14 @@ async function getApp(): Promise<express.Express> {
 
     app.delete("/api/templates/:id", async (req, res) => {
       try {
-        const result = await TemplateModel.deleteOne({ seqId: Number(req.params.id) });
-        if (result.deletedCount === 0) return res.status(404).json({ error: "Template not found" });
+        if (isDbConnected) {
+          const result = await TemplateModel.deleteOne({ seqId: Number(req.params.id) });
+          if (result.deletedCount === 0) return res.status(404).json({ error: "Template not found" });
+          return res.json({ success: true });
+        }
+        const idx = inMemoryTemplates.findIndex(t => t.seqId === Number(req.params.id));
+        if (idx === -1) return res.status(404).json({ error: "Template not found" });
+        inMemoryTemplates.splice(idx, 1);
         res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: "Failed to delete template" });
@@ -600,6 +710,7 @@ Respond ONLY with a valid JSON array.`;
       try {
         const userId = (req.session as any)?.userId;
         if (!userId) return res.status(401).json({ error: "Not authenticated" });
+        if (!isDbConnected) return res.json(null);
         const doc = await CalculatorConfigModel.findOne({ clientId: req.params.clientId });
         res.json(doc ? doc.toJSON().config : null);
       } catch (error: any) {
@@ -613,6 +724,7 @@ Respond ONLY with a valid JSON array.`;
         if (!userId) return res.status(401).json({ error: "Not authenticated" });
         const { config } = req.body;
         if (!config) return res.status(400).json({ error: "config is required" });
+        if (!isDbConnected) return res.json(config);
         const doc = await CalculatorConfigModel.findOneAndUpdate({ clientId: req.params.clientId }, { config, updatedAt: new Date() }, { new: true, upsert: true });
         res.json(doc.toJSON().config);
       } catch (error: any) {
