@@ -24,11 +24,12 @@ import { cn, formatRand } from "@toolkit/lib/utils";
 import type { TrainingProgram } from "@toolkit/lib/types";
 
 const CATEGORY_OPTIONS = [
-  { value: "learnership", label: "Learnership" },
-  { value: "internship", label: "Internship" },
-  { value: "short_course", label: "Short Course" },
-  { value: "bursary", label: "Bursary" },
-  { value: "other", label: "Other" },
+  { value: "A", label: "Cat A — Bursaries (University / TVET)" },
+  { value: "B", label: "Cat B — Internships & Learnerships" },
+  { value: "C", label: "Cat C — Short Courses & Workshops" },
+  { value: "D", label: "Cat D — Other Accredited Training" },
+  { value: "E", label: "Cat E — Non-accredited / Informal (≤25% cap)" },
+  { value: "F", label: "Cat F — Other (Travel, Venue, Catering) (≤15% cap)" },
 ];
 
 const RACE_OPTIONS = [
@@ -45,7 +46,7 @@ const GENDER_OPTIONS = [
 
 interface ProgramFormState {
   name: string;
-  category: string;
+  categoryCode: string;
   cost: number;
   isEmployed: boolean;
   isBlack: boolean;
@@ -56,13 +57,22 @@ interface ProgramFormState {
 
 const defaultFormState: ProgramFormState = {
   name: '',
-  category: 'short_course',
+  categoryCode: 'C',
   cost: 0,
   isEmployed: true,
   isBlack: true,
   gender: '',
   race: '',
   isDisabled: false,
+};
+
+const categoryCodeToLegacy: Record<string, TrainingProgram['category']> = {
+  A: 'bursary',
+  B: 'learnership',
+  C: 'short_course',
+  D: 'other',
+  E: 'other',
+  F: 'other',
 };
 
 export default function SkillsDevelopment() {
@@ -80,23 +90,25 @@ export default function SkillsDevelopment() {
   
   const totalSpend = trainingPrograms.reduce((acc, prog) => acc + prog.cost, 0);
   const bursarySpend = trainingPrograms
-    .filter(p => p.category === 'bursary')
+    .filter(p => p.categoryCode === 'A' || p.category === 'bursary')
     .reduce((acc, prog) => acc + prog.cost, 0);
 
-  const getCategoryColor = (category: string) => {
-    switch(category) {
-      case 'bursary': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800/50';
-      case 'learnership': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800/50';
-      case 'internship': return 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300 border-teal-200 dark:border-teal-800/50';
-      case 'short_course': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800/50';
-      case 'other': return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700/50';
+  const getCategoryColor = (code: string) => {
+    switch(code) {
+      case 'A': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800/50';
+      case 'B': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800/50';
+      case 'C': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800/50';
+      case 'D': return 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300 border-teal-200 dark:border-teal-800/50';
+      case 'E': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800/50';
+      case 'F': return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700/50';
       default: return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700/50';
     }
   };
 
-  const formatCategoryLabel = (category: string) => {
-    const found = CATEGORY_OPTIONS.find(c => c.value === category);
-    return found ? found.label : category;
+  const formatCategoryLabel = (prog: TrainingProgram) => {
+    const code = prog.categoryCode || 'D';
+    const found = CATEGORY_OPTIONS.find(c => c.value === code);
+    return found ? found.label : `Cat ${code}`;
   };
 
   const formatCurrency = formatRand;
@@ -114,7 +126,8 @@ export default function SkillsDevelopment() {
     addTrainingProgram({
       id: uuidv4(),
       name: formState.name,
-      category: formState.category as TrainingProgram['category'],
+      category: categoryCodeToLegacy[formState.categoryCode] || 'other',
+      categoryCode: formState.categoryCode as TrainingProgram['categoryCode'],
       cost: Number(formState.cost),
       isEmployed: formState.isEmployed,
       isBlack: formState.isBlack,
@@ -132,7 +145,7 @@ export default function SkillsDevelopment() {
     setEditingId(prog.id);
     setFormState({
       name: prog.name,
-      category: prog.category,
+      categoryCode: prog.categoryCode || 'D',
       cost: prog.cost,
       isEmployed: prog.isEmployed,
       isBlack: prog.isBlack,
@@ -152,7 +165,8 @@ export default function SkillsDevelopment() {
 
     updateTrainingProgram(editingId, {
       name: formState.name,
-      category: formState.category as TrainingProgram['category'],
+      category: categoryCodeToLegacy[formState.categoryCode] || 'other',
+      categoryCode: formState.categoryCode as TrainingProgram['categoryCode'],
       cost: Number(formState.cost),
       isEmployed: formState.isEmployed,
       isBlack: formState.isBlack,
@@ -183,7 +197,7 @@ export default function SkillsDevelopment() {
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label className="text-right">Category</Label>
-        <Select value={formState.category} onValueChange={(v) => setFormState({ ...formState, category: v })}>
+        <Select value={formState.categoryCode} onValueChange={(v) => setFormState({ ...formState, categoryCode: v })}>
           <SelectTrigger className="col-span-3" data-testid="select-category">
             <SelectValue />
           </SelectTrigger>
@@ -446,8 +460,8 @@ export default function SkillsDevelopment() {
                   <tr key={prog.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors group">
                     <td className="p-4 font-medium" data-testid={`prog-name-${idx}`}>{prog.name}</td>
                     <td className="p-4">
-                      <span className={cn("text-xs px-2 py-1 rounded-md border capitalize", getCategoryColor(prog.category))}>
-                        {formatCategoryLabel(prog.category)}
+                      <span className={cn("text-xs px-2 py-1 rounded-md border", getCategoryColor(prog.categoryCode || 'D'))}>
+                        {formatCategoryLabel(prog)}
                       </span>
                     </td>
                     <td className="p-4 text-center">
