@@ -34,7 +34,8 @@ const pillarMeta = [
   { key: "managementControl", name: "Management Control", icon: UserCog, color: "from-blue-500 to-cyan-500", iconBg: "bg-blue-500/15", iconColor: "text-blue-400", barColor: "bg-blue-500" },
   { key: "skillsDevelopment", name: "Skills Development", icon: BookOpen, color: "from-emerald-400 to-green-500", iconBg: "bg-emerald-500/15", iconColor: "text-emerald-400", barColor: "bg-emerald-500" },
   { key: "procurement", name: "Procurement", icon: ShoppingCart, color: "from-amber-400 to-orange-500", iconBg: "bg-amber-500/15", iconColor: "text-amber-400", barColor: "bg-amber-500" },
-  { key: "enterpriseDevelopment", name: "Enterprise & Supplier", icon: Handshake, color: "from-rose-400 to-pink-500", iconBg: "bg-rose-500/15", iconColor: "text-rose-400", barColor: "bg-rose-500" },
+  { key: "supplierDevelopment", name: "Supplier Development", icon: Handshake, color: "from-rose-400 to-pink-500", iconBg: "bg-rose-500/15", iconColor: "text-rose-400", barColor: "bg-rose-500" },
+  { key: "enterpriseDevelopment", name: "Enterprise Development", icon: Handshake, color: "from-orange-400 to-red-500", iconBg: "bg-orange-500/15", iconColor: "text-orange-400", barColor: "bg-orange-500" },
   { key: "socioEconomicDevelopment", name: "Socio-Economic Dev", icon: HeartHandshake, color: "from-fuchsia-400 to-purple-500", iconBg: "bg-fuchsia-500/15", iconColor: "text-fuchsia-400", barColor: "bg-fuchsia-500" },
 ];
 

@@ -269,13 +269,13 @@ export default function Ownership() {
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-4 flex flex-col items-center justify-center text-center">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Voting</p>
-            <p className="text-2xl font-bold font-mono text-primary" data-testid="text-voting-score">{score.votingRights.toFixed(2)}</p>
+            <p className="text-2xl font-bold font-mono text-primary" data-testid="text-voting-score">{score.votingRightsBlack.toFixed(2)}</p>
           </CardContent>
         </Card>
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-4 flex flex-col items-center justify-center text-center">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Economic Int.</p>
-            <p className="text-2xl font-bold font-mono text-primary" data-testid="text-economic-score">{score.economicInterest.toFixed(2)}</p>
+            <p className="text-2xl font-bold font-mono text-primary" data-testid="text-economic-score">{score.economicInterestBlack.toFixed(2)}</p>
           </CardContent>
         </Card>
         <Card className="bg-primary/5 border-primary/20">
@@ -303,96 +303,43 @@ export default function Ownership() {
       <Card className="glass-panel mt-8" data-testid="card-ownership-detailed-scorecard">
         <CardHeader>
           <CardTitle>Detailed Scorecard Breakdown</CardTitle>
-          <CardDescription>Direct translation of GP Excel toolkit calculations</CardDescription>
+          <CardDescription>7 sub-line indicators per RCOGP Generic Codes</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border overflow-x-auto">
-            <div className="bg-muted/30 px-4 py-3 border-b text-sm text-muted-foreground flex justify-between items-center">
-              <span>data as at <strong className="text-foreground">24 February 2026</strong></span>
-            </div>
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-muted/50 border-b">
                 <tr>
                   <th className="px-4 py-3 font-semibold text-muted-foreground">Indicator</th>
-                  <th className="px-4 py-3 font-semibold text-muted-foreground">Criteria</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Target Points</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Target %</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Actual %</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Actual Points</th>
+                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Target</th>
+                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Weighting</th>
+                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Score</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium">Voting Rights</td>
-                  <td className="px-4 py-3 text-muted-foreground">Exercisable Voting rights in the hands of Black people</td>
-                  <td className="px-4 py-3 text-right font-mono">4.00</td>
-                  <td className="px-4 py-3 text-right font-mono">25% + 1 vote</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((score.rawStats?.blackVotingPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{score.votingRights.toFixed(2)}</td>
-                </tr>
-                <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3"></td>
-                  <td className="px-4 py-3 text-muted-foreground">Exercisable Voting rights in the hands of Black females</td>
-                  <td className="px-4 py-3 text-right font-mono">2.00</td>
-                  <td className="px-4 py-3 text-right font-mono">10%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((score.rawStats?.blackWomenVotingPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{score.womenBonus.toFixed(2)}</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30 border-t-2">
-                  <td className="px-4 py-3 font-medium">Economic Interest</td>
-                  <td className="px-4 py-3 text-muted-foreground">Economic interest to which Black people are entitled</td>
-                  <td className="px-4 py-3 text-right font-mono">4.00</td>
-                  <td className="px-4 py-3 text-right font-mono">25%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((score.rawStats?.economicInterestPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{score.economicInterest.toFixed(2)}</td>
-                </tr>
-                <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3"></td>
-                  <td className="px-4 py-3 text-muted-foreground">Economic interest to which Black women are entitled</td>
-                  <td className="px-4 py-3 text-right font-mono">2.00</td>
-                  <td className="px-4 py-3 text-right font-mono">10%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((score.rawStats?.blackWomenVotingPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{Math.min((score.rawStats?.blackWomenVotingPercentage || 0) / 0.10 * 2, 2).toFixed(2)}</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3"></td>
-                  <td className="px-4 py-3 text-muted-foreground">Economic interest of Black New Entrants</td>
-                  <td className="px-4 py-3 text-right font-mono">2.00</td>
-                  <td className="px-4 py-3 text-right font-mono">2%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">0.00%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">0.00</td>
-                </tr>
-                <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3"></td>
-                  <td className="px-4 py-3 text-muted-foreground">Economic interest of Black Military Veterans / Broad-Based</td>
-                  <td className="px-4 py-3 text-right font-mono">3.00</td>
-                  <td className="px-4 py-3 text-right font-mono">3%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">0.00%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">0.00</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30 border-t-2">
-                  <td className="px-4 py-3 font-medium">Realisation Points</td>
-                  <td className="px-4 py-3 text-muted-foreground">Net Value</td>
-                  <td className="px-4 py-3 text-right font-mono">8.00</td>
-                  <td className="px-4 py-3 text-right font-mono">100%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((score.rawStats?.netValuePercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{score.netValue.toFixed(2)}</td>
-                </tr>
+                {score.subLines.map((sl, idx) => (
+                  <tr key={idx} className="hover:bg-muted/30">
+                    <td className="px-4 py-3 text-muted-foreground">{sl.name}</td>
+                    <td className="px-4 py-3 text-right font-mono">{sl.target}</td>
+                    <td className="px-4 py-3 text-right font-mono">{sl.weighting.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-primary">{sl.score.toFixed(2)}</td>
+                  </tr>
+                ))}
               </tbody>
               <tfoot className="bg-primary/5 font-bold border-t-2 border-primary/20">
                 <tr>
                   <td className="px-4 py-4 text-primary font-medium uppercase tracking-wider" colSpan={2}>Total Ownership Score</td>
                   <td className="px-4 py-4 text-right font-mono">25.00</td>
-                  <td className="px-4 py-4"></td>
-                  <td className="px-4 py-4"></td>
                   <td className="px-4 py-4 text-right font-mono text-lg text-primary">{score.total.toFixed(2)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
+          {score.fullOwnershipAwarded && (
+            <div className="mt-3 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-md text-sm text-emerald-700 dark:text-emerald-300">
+              Full Ownership Awarded — Black voting ≥ 25%, all indicators receive full points.
+            </div>
+          )}
         </CardContent>
       </Card>
 

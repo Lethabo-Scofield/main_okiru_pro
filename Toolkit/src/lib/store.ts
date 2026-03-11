@@ -72,13 +72,14 @@ const emptySED: SEDData = { id: '', clientId: '', contributions: [] };
 
 const emptyScorecard: ScorecardResult = {
   ownership: { score: 0, target: 25, weighting: 25, subMinimumMet: false },
-  managementControl: { score: 0, target: 27, weighting: 27 },
+  managementControl: { score: 0, target: 19, weighting: 19 },
   skillsDevelopment: { score: 0, target: 25, weighting: 25, subMinimumMet: false },
   procurement: { score: 0, target: 29, weighting: 29, subMinimumMet: false },
-  enterpriseDevelopment: { score: 0, target: 17, weighting: 17 },
+  supplierDevelopment: { score: 0, target: 10, weighting: 10, subMinimumMet: false },
+  enterpriseDevelopment: { score: 0, target: 7, weighting: 7, subMinimumMet: false },
   socioEconomicDevelopment: { score: 0, target: 5, weighting: 5 },
   yesInitiative: { score: 0, target: 5, weighting: 5 },
-  total: { score: 0, target: 133, weighting: 133 },
+  total: { score: 0, target: 120, weighting: 120 },
   achievedLevel: 9, discountedLevel: 9, isDiscounted: false, recognitionLevel: '0%',
 };
 
@@ -87,6 +88,7 @@ export interface PipelineOverrides {
   managementControl?: number;
   skillsDevelopment?: number;
   procurement?: number;
+  supplierDevelopment?: number;
   enterpriseDevelopment?: number;
   socioEconomicDevelopment?: number;
   yesInitiative?: number;
@@ -195,52 +197,61 @@ function calculateScorecard(
     const mcPts = ov.managementControl ?? mgtScore.total;
     const skPts = ov.skillsDevelopment ?? skillScore.total;
     const prPts = ov.procurement ?? procScore.total;
-    const esdPts = ov.enterpriseDevelopment ?? esdScore.total;
+    const sdPts = ov.supplierDevelopment ?? esdScore.sdTotal;
+    const edPts = ov.enterpriseDevelopment ?? esdScore.edTotal;
     const sedPts = ov.socioEconomicDevelopment ?? sedScore.total;
     const yesPts = ov.yesInitiative ?? 0;
-    const total = ov.totalPoints ?? (ownPts + mcPts + skPts + prPts + esdPts + sedPts + yesPts);
+    const total = ov.totalPoints ?? (ownPts + mcPts + skPts + prPts + sdPts + edPts + sedPts + yesPts);
 
     const level = ov.achievedLevel ?? pointsToLevel(total);
     const disc = ov.discountedLevel ?? level;
     const isDisc = ov.isDiscounted ?? false;
     const recog = ov.recognitionLevel ?? levelToRecognition(disc);
 
-    const ownSubMin = ov.subMinimumsMet !== undefined ? ov.subMinimumsMet : (ownPts >= 10 || ownScore.subMinimumMet);
-    const skSubMin = ov.subMinimumsMet !== undefined ? ov.subMinimumsMet : (skPts >= 10 || skillScore.subMinimumMet);
+    const allSubMinMet = ov.subMinimumsMet;
+    const ownSubMin = allSubMinMet !== undefined ? allSubMinMet : (ownPts >= 10 || ownScore.subMinimumMet);
+    const skSubMin = allSubMinMet !== undefined ? allSubMinMet : skillScore.subMinimumMet;
     const procBase = typeof procScore.base === 'number' ? procScore.base : prPts;
-    const prSubMin = ov.subMinimumsMet !== undefined ? ov.subMinimumsMet : (procBase >= 11.6);
+    const prSubMin = allSubMinMet !== undefined ? allSubMinMet : (procBase >= 11.6);
+    const sdSubMin = allSubMinMet !== undefined ? allSubMinMet : esdScore.sdSubMinimumMet;
+    const edSubMin = allSubMinMet !== undefined ? allSubMinMet : esdScore.edSubMinimumMet;
 
     return {
       ownership: { score: ownPts, target: 25, weighting: 25, subMinimumMet: ownSubMin },
-      managementControl: { score: mcPts, target: 27, weighting: 27 },
+      managementControl: { score: mcPts, target: 19, weighting: 19 },
       skillsDevelopment: { score: skPts, target: 25, weighting: 25, subMinimumMet: skSubMin },
       procurement: { score: prPts, target: 29, weighting: 29, subMinimumMet: prSubMin },
-      enterpriseDevelopment: { score: esdPts, target: 17, weighting: 17 },
+      supplierDevelopment: { score: sdPts, target: 10, weighting: 10, subMinimumMet: sdSubMin },
+      enterpriseDevelopment: { score: edPts, target: 7, weighting: 7, subMinimumMet: edSubMin },
       socioEconomicDevelopment: { score: sedPts, target: 5, weighting: 5 },
       yesInitiative: { score: yesPts, target: 5, weighting: 5 },
-      total: { score: total, target: 133, weighting: 133 },
+      total: { score: total, target: 120, weighting: 120 },
       achievedLevel: level, discountedLevel: disc, isDiscounted: isDisc, recognitionLevel: recog,
     };
   }
 
-  const totalPoints = ownScore.total + mgtScore.total + skillScore.total + procScore.total + esdScore.total + sedScore.total;
+  const totalPoints = ownScore.total + mgtScore.total + skillScore.total + procScore.total + esdScore.sdTotal + esdScore.edTotal + sedScore.total;
   const level = pointsToLevel(totalPoints);
 
   const ownSubMinMet = ownScore.total >= 10 || ownScore.subMinimumMet;
   const skSubMinMet = skillScore.subMinimumMet;
   const prSubMinMet = procScore.subMinimumMet;
-  const isDiscounted = level < 9 && (!ownSubMinMet || !skSubMinMet || !prSubMinMet);
+  const sdSubMinMet = esdScore.sdSubMinimumMet;
+  const edSubMinMet = esdScore.edSubMinimumMet;
+  const anySubMinFailed = !ownSubMinMet || !skSubMinMet || !prSubMinMet || !sdSubMinMet || !edSubMinMet;
+  const isDiscounted = level < 9 && anySubMinFailed;
   const discountedLevel = isDiscounted ? Math.min(level + 1, 8) : level;
 
   return {
     ownership: { score: ownScore.total, target: 25, weighting: 25, subMinimumMet: ownSubMinMet },
-    managementControl: { score: mgtScore.total, target: 27, weighting: 27 },
+    managementControl: { score: mgtScore.total, target: 19, weighting: 19 },
     skillsDevelopment: { score: skillScore.total, target: 25, weighting: 25, subMinimumMet: skSubMinMet },
     procurement: { score: procScore.total, target: 29, weighting: 29, subMinimumMet: prSubMinMet },
-    enterpriseDevelopment: { score: esdScore.total, target: 17, weighting: 17 },
+    supplierDevelopment: { score: esdScore.sdTotal, target: 10, weighting: 10, subMinimumMet: sdSubMinMet },
+    enterpriseDevelopment: { score: esdScore.edTotal, target: 7, weighting: 7, subMinimumMet: edSubMinMet },
     socioEconomicDevelopment: { score: sedScore.total, target: 5, weighting: 5 },
     yesInitiative: { score: 0, target: 5, weighting: 5 },
-    total: { score: totalPoints, target: 133, weighting: 133 },
+    total: { score: totalPoints, target: 120, weighting: 120 },
     achievedLevel: level, discountedLevel, isDiscounted, recognitionLevel: levelToRecognition(discountedLevel),
   };
 }

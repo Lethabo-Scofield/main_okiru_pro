@@ -362,36 +362,36 @@ export default function ManagementControl() {
           <CardContent className="p-4 flex flex-col items-center justify-center text-center">
             <p className="text-xs font-medium uppercase tracking-wider mb-1 opacity-80">Total MC Score</p>
             <p className="text-2xl font-bold font-mono">{mcScore.total.toFixed(2)}</p>
-            <p className="text-[10px] mt-0.5 opacity-70">of 27</p>
+            <p className="text-[10px] mt-0.5 opacity-70">of 19</p>
           </CardContent>
         </Card>
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-4 flex flex-col items-center justify-center text-center">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Board</p>
-            <p className="text-2xl font-bold font-mono text-primary">{mcScore.boardTotal.toFixed(2)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">of 6</p>
+            <p className="text-2xl font-bold font-mono text-primary">{(mcScore.boardVotingBlack + mcScore.boardVotingBWO).toFixed(2)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">of 3</p>
           </CardContent>
         </Card>
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-4 flex flex-col items-center justify-center text-center">
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Other Exec</p>
-            <p className="text-2xl font-bold font-mono text-primary">{mcScore.execTotal.toFixed(2)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">of 4</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Exec Mgmt</p>
+            <p className="text-2xl font-bold font-mono text-primary">{(mcScore.execDirectorsBlack + mcScore.execDirectorsBWO + mcScore.otherExecBlack + mcScore.otherExecBWO).toFixed(2)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">of 6</p>
           </CardContent>
         </Card>
         <Card className="border-border/50">
           <CardContent className="p-4 grid grid-cols-2 gap-2 text-center">
             <div>
               <p className="text-[10px] text-muted-foreground">Senior</p>
-              <p className="text-sm font-bold font-mono">{mcScore.senior.toFixed(2)}</p>
+              <p className="text-sm font-bold font-mono">{(mcScore.seniorBlack + mcScore.seniorBWO).toFixed(2)}</p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground">Middle</p>
-              <p className="text-sm font-bold font-mono">{mcScore.middle.toFixed(2)}</p>
+              <p className="text-sm font-bold font-mono">{(mcScore.middleBlack + mcScore.middleBWO).toFixed(2)}</p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground">Junior</p>
-              <p className="text-sm font-bold font-mono">{mcScore.junior.toFixed(2)}</p>
+              <p className="text-sm font-bold font-mono">{(mcScore.juniorBlack + mcScore.juniorBWO).toFixed(2)}</p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground">Disabled</p>
@@ -408,111 +408,45 @@ export default function ManagementControl() {
         </CardHeader>
         <CardContent>
           <div className="rounded-md border overflow-x-auto">
-            <div className="bg-muted/30 px-4 py-3 border-b text-sm text-muted-foreground flex justify-between items-center">
-              <span>data as at <strong className="text-foreground">24 February 2026</strong></span>
-            </div>
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-muted/50 border-b">
                 <tr>
                   <th className="px-4 py-3 font-semibold text-muted-foreground">Indicator</th>
-                  <th className="px-4 py-3 font-semibold text-muted-foreground">Criteria</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Target Points</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Target %</th>
+                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Target</th>
+                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Weighting</th>
                   <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Actual %</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Actual Points</th>
+                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Score</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium" rowSpan={3}>Board Participation</td>
-                  <td className="px-4 py-3 text-muted-foreground">Exercisable voting rights of Black board members (Executive Directors)</td>
-                  <td className="px-4 py-3 text-right font-mono">3.00</td>
-                  <td className="px-4 py-3 text-right font-mono">50%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((mcScore.rawStats?.boardBlackVotingPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{mcScore.boardExecBlack.toFixed(2)}</td>
-                </tr>
-                <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3 text-muted-foreground">Black non-executive board members</td>
-                  <td className="px-4 py-3 text-right font-mono">2.00</td>
-                  <td className="px-4 py-3 text-right font-mono">50%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((mcScore.rawStats?.boardBlackVotingPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{mcScore.boardNonExec.toFixed(2)}</td>
-                </tr>
-                <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3 text-muted-foreground">Black female board members</td>
-                  <td className="px-4 py-3 text-right font-mono">1.00</td>
-                  <td className="px-4 py-3 text-right font-mono">25%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((mcScore.rawStats?.boardBlackWomenVotingPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{mcScore.boardBWO.toFixed(2)}</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30 border-t-2">
-                  <td className="px-4 py-3 font-medium" rowSpan={2}>Other Executive Management</td>
-                  <td className="px-4 py-3 text-muted-foreground">Black Executive Management as a % of all executives</td>
-                  <td className="px-4 py-3 text-right font-mono">2.00</td>
-                  <td className="px-4 py-3 text-right font-mono">60%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((mcScore.rawStats?.execBlackVotingPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{mcScore.otherExecBlack.toFixed(2)}</td>
-                </tr>
-                <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3 text-muted-foreground">Black female Executive Management</td>
-                  <td className="px-4 py-3 text-right font-mono">2.00</td>
-                  <td className="px-4 py-3 text-right font-mono">30%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((mcScore.rawStats?.execBlackWomenVotingPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{mcScore.otherExecBWO.toFixed(2)}</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30 border-t-2">
-                  <td className="px-4 py-3 font-medium">Senior Management</td>
-                  <td className="px-4 py-3 text-muted-foreground">Black employees in Senior Management</td>
-                  <td className="px-4 py-3 text-right font-mono">5.00</td>
-                  <td className="px-4 py-3 text-right font-mono">60%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((mcScore.rawStats?.seniorBlackPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{mcScore.senior.toFixed(2)}</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30 border-t-2">
-                  <td className="px-4 py-3 font-medium">Middle Management</td>
-                  <td className="px-4 py-3 text-muted-foreground">Black employees in Middle Management</td>
-                  <td className="px-4 py-3 text-right font-mono">4.00</td>
-                  <td className="px-4 py-3 text-right font-mono">75%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((mcScore.rawStats?.middleBlackPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{mcScore.middle.toFixed(2)}</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30 border-t-2">
-                  <td className="px-4 py-3 font-medium">Junior Management</td>
-                  <td className="px-4 py-3 text-muted-foreground">Black employees in Junior Management</td>
-                  <td className="px-4 py-3 text-right font-mono">4.00</td>
-                  <td className="px-4 py-3 text-right font-mono">88%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((mcScore.rawStats?.juniorBlackPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{mcScore.junior.toFixed(2)}</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30 border-t-2">
-                  <td className="px-4 py-3 font-medium">Disabled Employees</td>
-                  <td className="px-4 py-3 text-muted-foreground">Black employees with disabilities</td>
-                  <td className="px-4 py-3 text-right font-mono">2.00</td>
-                  <td className="px-4 py-3 text-right font-mono">3%</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">{((mcScore.rawStats?.disabledBlackPercentage || 0) * 100).toFixed(2)}%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{mcScore.disabled.toFixed(2)}</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30 border-t-2">
-                  <td className="px-4 py-3 font-medium">Adjusted Recognition</td>
-                  <td className="px-4 py-3 text-muted-foreground">Bonus for gender reporting compliance</td>
-                  <td className="px-4 py-3 text-right font-mono">2.00</td>
-                  <td className="px-4 py-3 text-right font-mono">—</td>
-                  <td className="px-4 py-3 text-right font-mono text-primary">—</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{mcScore.adjustedRecognition.toFixed(2)}</td>
-                </tr>
-
+                {mcScore.subLines.map((sl, idx) => (
+                  <tr key={idx} className="hover:bg-muted/30">
+                    <td className="px-4 py-3 text-muted-foreground">{sl.name}</td>
+                    <td className="px-4 py-3 text-right font-mono">{sl.target}</td>
+                    <td className="px-4 py-3 text-right font-mono">{sl.weighting.toFixed(0)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-primary">
+                      {(() => {
+                        const statsKey = [
+                          'boardBlackPct', 'boardBWOPct',
+                          'execBlackPct', 'execBWOPct',
+                          'otherExecBlackPct', 'otherExecBWOPct',
+                          'seniorBlackPct', 'seniorBWOPct',
+                          'middleBlackPct', 'middleBWOPct',
+                          'juniorBlackPct', 'juniorBWOPct',
+                          'disabledBlackPct',
+                        ][idx] as keyof typeof mcScore.rawStats;
+                        const val = mcScore.rawStats[statsKey];
+                        return val !== undefined ? `${(val * 100).toFixed(2)}%` : '—';
+                      })()}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-primary">{sl.score.toFixed(2)}</td>
+                  </tr>
+                ))}
               </tbody>
               <tfoot className="bg-primary/5 font-bold border-t-2 border-primary/20">
                 <tr>
                   <td className="px-4 py-4 text-primary font-medium uppercase tracking-wider" colSpan={2}>Total Management Control Score</td>
-                  <td className="px-4 py-4 text-right font-mono">27.00</td>
-                  <td className="px-4 py-4"></td>
+                  <td className="px-4 py-4 text-right font-mono">19.00</td>
                   <td className="px-4 py-4"></td>
                   <td className="px-4 py-4 text-right font-mono text-lg text-primary">{mcScore.total.toFixed(2)}</td>
                 </tr>

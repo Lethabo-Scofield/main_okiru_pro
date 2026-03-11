@@ -21,12 +21,18 @@ export interface EsdResult {
   enterpriseDev: number;
   graduationBonus: number;
   jobsCreatedBonus: number;
+  sdTotal: number;
+  edTotal: number;
   total: number;
+  sdSubMinimumMet: boolean;
+  edSubMinimumMet: boolean;
   subMinimumMet: boolean;
   sdSpend: number;
   edSpend: number;
   sdTarget: number;
   edTarget: number;
+  sdSubLines: EsdSubLine[];
+  edSubLines: EsdSubLine[];
   subLines: EsdSubLine[];
 }
 
@@ -89,27 +95,41 @@ export function calculateEsdScore(data: ESDData, npat: number, config?: Calculat
   const graduationBonusScore = data.graduationBonus ? 1 : 0;
   const jobsCreatedBonusScore = data.jobsCreatedBonus ? 1 : 0;
 
-  const baseTotal = clampScore(sdScore + edScore, supplierDevMax + enterpriseDevMax);
-  const totalScore = clampScore(baseTotal + graduationBonusScore + jobsCreatedBonusScore, supplierDevMax + enterpriseDevMax + 2);
+  const sdTotal = clampScore(sdScore, supplierDevMax);
+  const edTotal = clampScore(edScore + graduationBonusScore + jobsCreatedBonusScore, enterpriseDevMax + 2);
 
-  const subLines: EsdSubLine[] = [
-    { name: "Supplier Development Contributions", target: "2% of NPAT", weighting: 10, score: sdScore },
-    { name: "Enterprise Development Contributions", target: "1% of NPAT", weighting: 5, score: edScore },
-    { name: "Bonus: Graduation of ED Beneficiaries to SD", target: "Tick-box", weighting: 1, score: graduationBonusScore, isBonus: true },
-    { name: "Bonus: Jobs Created from ED & SD Initiatives", target: "Tick-box", weighting: 1, score: jobsCreatedBonusScore, isBonus: true },
+  const sdSubMinimumMet = sdTotal >= (supplierDevMax * 0.4);
+  const edSubMinimumMet = edScore >= (enterpriseDevMax * 0.4);
+
+  const sdSubLines: EsdSubLine[] = [
+    { name: "Annual value of all Supplier Development contributions", target: "2% of NPAT", weighting: 10, score: sdScore },
   ];
+
+  const edSubLines: EsdSubLine[] = [
+    { name: "Annual value of Enterprise Development contributions", target: "1% of NPAT", weighting: 5, score: edScore },
+    { name: "Graduation of ED beneficiaries to SD beneficiaries", target: "Tick-box", weighting: 1, score: graduationBonusScore, isBonus: true },
+    { name: "Jobs created from ED & SD initiatives", target: "Tick-box", weighting: 1, score: jobsCreatedBonusScore, isBonus: true },
+  ];
+
+  const subLines: EsdSubLine[] = [...sdSubLines, ...edSubLines];
 
   return {
     supplierDev: sdScore,
     enterpriseDev: edScore,
     graduationBonus: graduationBonusScore,
     jobsCreatedBonus: jobsCreatedBonusScore,
-    total: totalScore,
-    subMinimumMet: true,
+    sdTotal,
+    edTotal,
+    total: sdTotal + edTotal,
+    sdSubMinimumMet,
+    edSubMinimumMet,
+    subMinimumMet: sdSubMinimumMet && edSubMinimumMet,
     sdSpend,
     edSpend,
     sdTarget,
     edTarget,
+    sdSubLines,
+    edSubLines,
     subLines,
   };
 }

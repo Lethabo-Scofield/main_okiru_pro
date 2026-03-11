@@ -148,7 +148,8 @@ export interface ScorecardResult {
   managementControl: PillarScore;
   skillsDevelopment: PillarScore & { subMinimumMet: boolean };
   procurement: PillarScore & { subMinimumMet: boolean };
-  enterpriseDevelopment: PillarScore;
+  supplierDevelopment: PillarScore & { subMinimumMet: boolean };
+  enterpriseDevelopment: PillarScore & { subMinimumMet: boolean };
   socioEconomicDevelopment: PillarScore;
   yesInitiative: PillarScore;
   total: PillarScore;

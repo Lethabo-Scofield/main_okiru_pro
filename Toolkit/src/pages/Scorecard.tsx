@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Switch } from "@toolkit/components/ui/switch";
 import { Label } from "@toolkit/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@toolkit/components/ui/tooltip";
-import { ChevronDown, ChevronRight, HelpCircle, Award, Shield, TrendingUp, Trophy, CheckCircle2, XCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, HelpCircle, Award, Shield, TrendingUp, Trophy, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { useBbeeStore } from "@toolkit/lib/store";
 import { calculateOwnershipScore } from "@toolkit/lib/calculators/ownership";
 import { calculateManagementScore } from "@toolkit/lib/calculators/management";
@@ -41,6 +41,16 @@ function pct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+function achievementPct(score: number, target: number): number {
+  return target > 0 ? Math.min(100, (score / target) * 100) : 0;
+}
+
+function statusIcon(pctAchieved: number): { icon: typeof CheckCircle2; label: string; color: string } {
+  if (pctAchieved >= 100) return { icon: CheckCircle2, label: "On Track", color: "text-emerald-500" };
+  if (pctAchieved >= 70) return { icon: AlertTriangle, label: "At Risk", color: "text-amber-500" };
+  return { icon: XCircle, label: "Critical", color: "text-destructive" };
+}
+
 export default function Scorecard() {
   const { scorecard, ownership, management, skills, procurement, esd, sed, client } = useBbeeStore();
   const [wrapMode, setWrapMode] = useState(true);
@@ -54,14 +64,6 @@ export default function Scorecard() {
       else next.add(key);
       return next;
     });
-  };
-
-  const expandAll = () => {
-    if (expandedRows.size === elements.length) {
-      setExpandedRows(new Set());
-    } else {
-      setExpandedRows(new Set(elements.map(e => e.key)));
-    }
   };
 
   const ownResult = useMemo(() => calculateOwnershipScore(ownership), [ownership]);
@@ -83,13 +85,13 @@ export default function Scorecard() {
       subMinLabel: ownResult.fullOwnershipAwarded
         ? `Black Voting ${pct(ownResult.rawStats.blackVotingPercentage)} ≥ 25%: Full 25 pts awarded`
         : `Net Value ≥ 3.2 or Black Voting ≥ 25%: ${ownResult.subMinimumMet ? 'Met' : 'Not met'}`,
-      subIndicators: [
-        { name: "Exercisable Voting Rights of Black People", target: "25% + 1 vote", weighting: 4, score: ownResult.votingRights, formula: ownResult.fullOwnershipAwarded ? `Black voting ${pct(ownResult.rawStats.blackVotingPercentage)} ≥ 25% → full 4 pts awarded` : `Black voting ${pct(ownResult.rawStats.blackVotingPercentage)} ÷ 25% target × 4 pts` },
-        { name: "Exercisable Voting Rights of Black Women", target: "≥ 10%", weighting: 2, score: ownResult.womenBonus, formula: `BWO voting ${pct(ownResult.rawStats.blackWomenVotingPercentage)} ÷ 10% target × 2 pts` },
-        { name: "Economic Interest of Black People", target: "25%", weighting: 8, score: ownResult.economicInterest, formula: ownResult.fullOwnershipAwarded ? `Black voting ≥ 25% → full 8 pts awarded` : `Economic interest ${pct(ownResult.rawStats.economicInterestPercentage)} ÷ 25% target × 8 pts` },
-        { name: "Net Value of Black People", target: "25%", weighting: 8, score: ownResult.netValue, formula: ownResult.fullOwnershipAwarded ? `Black voting ≥ 25% → full 8 pts awarded` : `Net value effective % = ${pct(ownResult.rawStats.netValuePercentage)}` },
-        { name: "Black New Entrant Bonus", target: "New Entrant", weighting: 3, score: ownResult.newEntrantBonus, formula: `Bonus if any shareholder is a Black New Entrant` },
-      ],
+      subIndicators: ownResult.subLines.map(sl => ({
+        name: sl.name,
+        target: sl.target,
+        weighting: sl.weighting,
+        score: sl.score,
+        formula: `Score: ${sl.score.toFixed(2)} / ${sl.weighting} pts`,
+      })),
     },
     {
       key: "managementControl",
@@ -97,18 +99,13 @@ export default function Scorecard() {
       ...scorecard.managementControl,
       accentColor: "text-blue-500 dark:text-blue-400",
       barColor: "bg-blue-500",
-      subIndicators: [
-        { name: "Board Participation – Executive Directors", target: "50% black", weighting: 3, score: mgtResult.boardExecBlack, formula: `Black board % ${pct(mgtResult.rawStats.boardBlackVotingPercentage)} ÷ 50% × 3 pts` },
-        { name: "Board Participation – Non-Executive Directors", target: "50% black", weighting: 2, score: mgtResult.boardNonExec, formula: `Black board % ${pct(mgtResult.rawStats.boardBlackVotingPercentage)} ÷ 50% × 2 pts` },
-        { name: "Board Participation – Black Women", target: "25% BWO", weighting: 1, score: mgtResult.boardBWO, formula: `BWO board % ${pct(mgtResult.rawStats.boardBlackWomenVotingPercentage)} ÷ 25% × 1 pt` },
-        { name: "Other Executive Management – Black", target: "60% black", weighting: 2, score: mgtResult.otherExecBlack, formula: `Black exec % ${pct(mgtResult.rawStats.execBlackVotingPercentage)} ÷ 60% × 2 pts` },
-        { name: "Other Executive Management – BWO", target: "30% BWO", weighting: 2, score: mgtResult.otherExecBWO, formula: `BWO exec % ${pct(mgtResult.rawStats.execBlackWomenVotingPercentage)} ÷ 30% × 2 pts` },
-        { name: "Senior Management", target: "EAP / 60%", weighting: 5, score: mgtResult.senior, formula: `Black senior % ${pct(mgtResult.rawStats.seniorBlackPercentage)} ÷ 60% × 5 pts` },
-        { name: "Middle Management", target: "EAP / 75%", weighting: 4, score: mgtResult.middle, formula: `Black middle % ${pct(mgtResult.rawStats.middleBlackPercentage)} ÷ 75% × 4 pts` },
-        { name: "Junior Management", target: "EAP / 88%", weighting: 4, score: mgtResult.junior, formula: `Black junior % ${pct(mgtResult.rawStats.juniorBlackPercentage)} ÷ 88% × 4 pts` },
-        { name: "Employees with Disabilities", target: "3%", weighting: 2, score: mgtResult.disabled, formula: `Black disabled % ${pct(mgtResult.rawStats.disabledBlackPercentage)} ÷ 3% × 2 pts` },
-        { name: "Adjusted Recognition for Gender", target: "Gender parity", weighting: 2, score: mgtResult.adjustedRecognition, formula: `Bonus awarded if gender data captured` },
-      ],
+      subIndicators: mgtResult.subLines.map(sl => ({
+        name: sl.name,
+        target: sl.target,
+        weighting: sl.weighting,
+        score: sl.score,
+        formula: `Score: ${sl.score.toFixed(2)} / ${sl.weighting} pts`,
+      })),
     },
     {
       key: "skillsDevelopment",
@@ -118,10 +115,13 @@ export default function Scorecard() {
       barColor: "bg-emerald-500",
       subMinLabel: `Skills total ≥ 10 pts (40% of 25): ${skillResult.subMinimumMet ? 'Met' : 'Not met'}`,
       subIndicators: [
-        { name: "Skills Development Expenditure on Learning Programmes", target: `3.5% of LA`, weighting: 20, score: skillResult.general, formula: `Spend R${(skillResult.actualSpend).toLocaleString()} ÷ target R${skillResult.targetOverall.toLocaleString()} × 20 pts` },
-        { name: "  ↳ Black People (EAP)", target: skillResult.eapIndicators.blackPeople.targetPct, weighting: skillResult.eapIndicators.blackPeople.maxPoints, score: skillResult.eapIndicators.blackPeople.score, formula: `Black spend R${skillResult.eapIndicators.blackPeople.spend.toLocaleString()} ÷ ${skillResult.eapIndicators.blackPeople.targetPct} of LA × ${skillResult.eapIndicators.blackPeople.maxPoints} pts` },
-        { name: "  ↳ Black Women (EAP)", target: skillResult.eapIndicators.blackWomen.targetPct, weighting: skillResult.eapIndicators.blackWomen.maxPoints, score: skillResult.eapIndicators.blackWomen.score, formula: `BWO spend R${skillResult.eapIndicators.blackWomen.spend.toLocaleString()} ÷ ${skillResult.eapIndicators.blackWomen.targetPct} of LA × ${skillResult.eapIndicators.blackWomen.maxPoints} pts` },
-        { name: "  ↳ Black Disabled", target: skillResult.eapIndicators.disabled.targetPct, weighting: skillResult.eapIndicators.disabled.maxPoints, score: skillResult.eapIndicators.disabled.score, formula: `Disabled spend R${skillResult.eapIndicators.disabled.spend.toLocaleString()} ÷ ${skillResult.eapIndicators.disabled.targetPct} of LA × ${skillResult.eapIndicators.disabled.maxPoints} pts` },
+        ...skillResult.subLines.map(sl => ({
+          name: sl.name,
+          target: sl.target,
+          weighting: sl.weighting,
+          score: sl.score,
+          formula: `Score: ${sl.score.toFixed(2)} / ${sl.weighting} pts`,
+        })),
         ...skillResult.categoryBreakdown.filter(cb => cb.spend > 0).map(cb => ({
           name: `  ↳ Cat ${cb.code}: ${cb.label}`,
           target: cb.cap ? `≤${(cb.cap * 100).toFixed(0)}% cap` : "No cap",
@@ -129,8 +129,6 @@ export default function Scorecard() {
           score: 0,
           formula: `${cb.label} spend R${cb.spend.toLocaleString()}${cb.capApplied ? ` → capped to R${cb.recognisedSpend.toLocaleString()} (${(cb.cap! * 100).toFixed(0)}% limit)` : ` → R${cb.recognisedSpend.toLocaleString()} recognised`}`,
         })),
-        { name: "Bursaries for Black Students", target: `2.5% of LA`, weighting: 5, score: skillResult.bursaries, formula: `Bursary spend R${(skillResult.actualBursarySpend).toLocaleString()} ÷ target R${skillResult.targetBursaries.toLocaleString()} × 5 pts` },
-        { name: "  ↳ Absorption Rate", target: "2.5%", weighting: 0, score: 0, formula: `${skillResult.eapIndicators.absorption.count} of ${skillResult.eapIndicators.absorption.total} learners absorbed (${(skillResult.eapIndicators.absorption.rate * 100).toFixed(0)}%)` },
       ],
     },
     {
@@ -151,21 +149,35 @@ export default function Scorecard() {
       })),
     },
     {
-      key: "enterpriseDevelopment",
-      name: "Enterprise & Supplier Development",
-      ...scorecard.enterpriseDevelopment,
+      key: "supplierDevelopment",
+      name: "Supplier Development",
+      ...scorecard.supplierDevelopment,
       accentColor: "text-rose-500 dark:text-rose-400",
       barColor: "bg-rose-500",
-      subIndicators: esdResult.subLines.map(sl => ({
+      subMinLabel: `SD ≥ 4 pts (40% of 10): ${esdResult.sdSubMinimumMet ? 'Met' : 'Not met'}`,
+      subIndicators: esdResult.sdSubLines.map(sl => ({
+        name: sl.name,
+        target: sl.target,
+        weighting: sl.weighting,
+        score: sl.score,
+        formula: `SD spend R${esdResult.sdSpend.toLocaleString()} ÷ target R${esdResult.sdTarget.toLocaleString()} × ${sl.weighting} pts`,
+      })),
+    },
+    {
+      key: "enterpriseDevelopment",
+      name: "Enterprise Development",
+      ...scorecard.enterpriseDevelopment,
+      accentColor: "text-orange-500 dark:text-orange-400",
+      barColor: "bg-orange-500",
+      subMinLabel: `ED base ≥ 2 pts (40% of 5): ${esdResult.edSubMinimumMet ? 'Met' : 'Not met'}`,
+      subIndicators: esdResult.edSubLines.map(sl => ({
         name: sl.isBonus ? `⭐ ${sl.name}` : sl.name,
         target: sl.target,
         weighting: sl.weighting,
         score: sl.score,
         formula: sl.isBonus
           ? `${sl.score > 0 ? 'Awarded' : 'Not claimed'} — tick-box + evidence`
-          : sl.name.includes('Supplier') 
-            ? `SD spend R${esdResult.sdSpend.toLocaleString()} ÷ target R${esdResult.sdTarget.toLocaleString()} × ${sl.weighting} pts`
-            : `ED spend R${esdResult.edSpend.toLocaleString()} ÷ target R${esdResult.edTarget.toLocaleString()} × ${sl.weighting} pts`,
+          : `ED spend R${esdResult.edSpend.toLocaleString()} ÷ target R${esdResult.edTarget.toLocaleString()} × ${sl.weighting} pts`,
       })),
     },
     {
@@ -176,7 +188,7 @@ export default function Scorecard() {
       barColor: "bg-sky-500",
       subMinLabel: "Grass-roots only (health, safety). Education = Skills Development.",
       subIndicators: [
-        { name: "SED Contributions", target: "1% of NPAT", weighting: 5, score: sedResult.total, formula: `SED spend R${sedResult.actualSpend.toLocaleString()} ÷ target R${sedResult.target.toLocaleString()} × 5 pts. Note: SED is grass-roots only (health, safety). Education spend counts under Skills Development.` },
+        { name: "Annual value of all SED contributions", target: "1% of NPAT", weighting: 5, score: sedResult.total, formula: `SED spend R${sedResult.actualSpend.toLocaleString()} ÷ target R${sedResult.target.toLocaleString()} × 5 pts` },
       ],
     },
     {
@@ -191,9 +203,25 @@ export default function Scorecard() {
     },
   ];
 
+  const expandAll = () => {
+    if (expandedRows.size === elements.length) {
+      setExpandedRows(new Set());
+    } else {
+      setExpandedRows(new Set(elements.map(e => e.key)));
+    }
+  };
+
   const displayLevel = scorecard.isDiscounted ? scorecard.discountedLevel : scorecard.achievedLevel;
   const levelLabel = displayLevel >= 9 ? "Non-Compliant" : `Level ${displayLevel}`;
   const totalPct = scorecard.total.weighting > 0 ? Math.min(100, (scorecard.total.score / scorecard.total.weighting) * 100) : 0;
+
+  const subMinimumItems = [
+    { name: "Ownership", threshold: "≥ 10 pts", detail: "40% of 25 (Net Value)", met: scorecard.ownership.subMinimumMet, score: scorecard.ownership.score, target: 25, color: "text-violet-500 dark:text-violet-400" },
+    { name: "Skills Dev", threshold: "≥ 10 pts", detail: "40% of 25", met: scorecard.skillsDevelopment.subMinimumMet, score: scorecard.skillsDevelopment.score, target: 25, color: "text-emerald-500 dark:text-emerald-400" },
+    { name: "Procurement", threshold: "≥ 11.6 pts", detail: "40% of 29", met: scorecard.procurement.subMinimumMet, score: scorecard.procurement.score, target: 29, color: "text-amber-500 dark:text-amber-400" },
+    { name: "Supplier Dev", threshold: "≥ 4 pts", detail: "40% of 10", met: scorecard.supplierDevelopment.subMinimumMet, score: scorecard.supplierDevelopment.score, target: 10, color: "text-rose-500 dark:text-rose-400" },
+    { name: "Enterprise Dev", threshold: "≥ 2 pts", detail: "40% of 5", met: scorecard.enterpriseDevelopment.subMinimumMet, score: scorecard.enterpriseDevelopment.score, target: 7, color: "text-orange-500 dark:text-orange-400" },
+  ];
 
   return (
     <TooltipProvider>
@@ -202,7 +230,7 @@ export default function Scorecard() {
           <div>
             <h1 className="text-2xl font-heading font-bold tracking-tight" data-testid="text-scorecard-title">Full Scorecard</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Generic B-BBEE Scorecard with sub-indicator breakdown.
+              {client.name ? `${client.name} — ` : ''}Generic B-BBEE Scorecard (Amended Codes of Good Practice)
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -268,7 +296,7 @@ export default function Scorecard() {
                   {scorecard.isDiscounted ? "Discounted" : "Clear"}
                 </div>
                 <div className="text-[11px] text-muted-foreground mt-1">
-                  3 priority elements
+                  5 priority elements
                 </div>
               </div>
             </div>
@@ -294,11 +322,13 @@ export default function Scorecard() {
             <table className={cn("w-full text-sm", wrapMode && "table-fixed")}>
               <thead>
                 <tr className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
-                  <th className={cn("px-4 py-2.5 text-left border-b border-border/30", wrapMode ? "w-[40%]" : "min-w-[240px]")}>Element</th>
-                  <th className="px-4 py-2.5 text-right border-b border-border/30 w-[12%]">Target</th>
-                  <th className="px-4 py-2.5 text-right border-b border-border/30 w-[12%]">Weight</th>
-                  <th className="px-4 py-2.5 text-right border-b border-border/30 w-[18%]">Score</th>
-                  <th className="px-4 py-2.5 text-center border-b border-border/30 w-[18%]">Sub-min</th>
+                  <th className={cn("px-4 py-2.5 text-left border-b border-border/30", wrapMode ? "w-[32%]" : "min-w-[220px]")}>Element</th>
+                  <th className="px-4 py-2.5 text-right border-b border-border/30 w-[10%]">Target</th>
+                  <th className="px-4 py-2.5 text-right border-b border-border/30 w-[10%]">Weight</th>
+                  <th className="px-4 py-2.5 text-right border-b border-border/30 w-[14%]">Score</th>
+                  <th className="px-4 py-2.5 text-right border-b border-border/30 w-[10%]">% Achieved</th>
+                  <th className="px-4 py-2.5 text-center border-b border-border/30 w-[10%]">Status</th>
+                  <th className="px-4 py-2.5 text-center border-b border-border/30 w-[14%]">Sub-min</th>
                 </tr>
               </thead>
               <tbody>
@@ -318,7 +348,7 @@ export default function Scorecard() {
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2 font-bold text-primary">
                       <Award className="h-4 w-4" />
-                      Total Score
+                      Grand Total
                     </div>
                   </td>
                   <td className="px-4 py-3.5 text-right text-muted-foreground font-mono text-xs">{scorecard.total.target}</td>
@@ -327,6 +357,21 @@ export default function Scorecard() {
                     <span className="font-bold font-mono text-base text-primary tabular-nums" data-testid="text-scorecard-total">
                       {fmt(scorecard.total.score, fullFigures)}
                     </span>
+                  </td>
+                  <td className="px-4 py-3.5 text-right font-mono text-xs font-bold text-primary">
+                    {totalPct.toFixed(1)}%
+                  </td>
+                  <td className="px-4 py-3.5 text-center">
+                    {(() => {
+                      const st = statusIcon(totalPct);
+                      const Icon = st.icon;
+                      return (
+                        <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold uppercase", st.color)}>
+                          <Icon className="h-3 w-3" />
+                          {st.label}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3.5 text-center">
                     {scorecard.isDiscounted ? (
@@ -351,16 +396,14 @@ export default function Scorecard() {
           <div className="px-4 py-3 border-b border-border/40 bg-muted/30">
             <h2 className="text-sm font-semibold flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" />
-              Sub-minimum Compliance
+              Priority Elements — Sub-minimum Compliance
             </h2>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Priority elements that must meet 40% threshold to avoid level discounting.</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Priority elements must meet 40% threshold. Level discounted by 1 if any of the 5 sub-minimums fail.
+            </p>
           </div>
-          <div className="p-4 grid gap-3 sm:grid-cols-3">
-            {[
-              { name: "Ownership", threshold: "≥ 10 pts", detail: "40% of 25", met: scorecard.ownership.subMinimumMet, score: scorecard.ownership.score, target: 25, color: "text-violet-500 dark:text-violet-400" },
-              { name: "Skills Development", threshold: "≥ 10 pts", detail: "40% of 25", met: scorecard.skillsDevelopment.subMinimumMet, score: scorecard.skillsDevelopment.score, target: 25, color: "text-emerald-500 dark:text-emerald-400" },
-              { name: "Pref. Procurement", threshold: "≥ 11.6 pts", detail: "40% of 29", met: scorecard.procurement.subMinimumMet, score: scorecard.procurement.score, target: 29, color: "text-amber-500 dark:text-amber-400" },
-            ].map(sm => (
+          <div className="p-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {subMinimumItems.map(sm => (
               <div
                 key={sm.name}
                 className="rounded-lg border border-border/40 p-3.5"
@@ -408,7 +451,9 @@ function ElementRow({ element, isExpanded, onToggle, fullFigures, wrapMode }: {
   wrapMode: boolean;
 }) {
   const el = element;
-  const achievement = el.weighting > 0 ? Math.min(100, (el.score / el.weighting) * 100) : 0;
+  const achievement = achievementPct(el.score, el.weighting);
+  const st = statusIcon(achievement);
+  const StatusIcon = st.icon;
 
   return (
     <>
@@ -448,6 +493,14 @@ function ElementRow({ element, isExpanded, onToggle, fullFigures, wrapMode }: {
             )}
           </div>
         </td>
+        <td className="px-4 py-3 text-right font-mono text-xs tabular-nums">
+          {achievement.toFixed(1)}%
+        </td>
+        <td className="px-4 py-3 text-center">
+          <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold uppercase", st.color)}>
+            <StatusIcon className="h-3 w-3" />
+          </span>
+        </td>
         <td className="px-4 py-3 text-center">
           {'subMinimumMet' in el && el.subMinimumMet === false ? (
             <span className="inline-flex items-center gap-1 text-[10px] text-destructive font-bold uppercase">
@@ -467,7 +520,7 @@ function ElementRow({ element, isExpanded, onToggle, fullFigures, wrapMode }: {
       <AnimatePresence>
         {isExpanded && (
           <tr>
-            <td colSpan={5} className="p-0">
+            <td colSpan={7} className="p-0">
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
@@ -480,12 +533,12 @@ function ElementRow({ element, isExpanded, onToggle, fullFigures, wrapMode }: {
                     <tbody>
                       {el.subIndicators.map((sub, idx) => (
                         <tr key={idx} className="hover:bg-muted/15 border-b border-border/10 last:border-b-0">
-                          <td className={cn("px-4 py-2 pl-11 text-muted-foreground", wrapMode ? "w-[40%] break-words" : "min-w-[240px]")}>
+                          <td className={cn("px-4 py-2 pl-11 text-muted-foreground", wrapMode ? "w-[32%] break-words" : "min-w-[220px]")}>
                             {sub.name}
                           </td>
-                          <td className="px-4 py-2 text-right text-muted-foreground/50 font-mono w-[12%]">{sub.target}</td>
-                          <td className="px-4 py-2 text-right text-muted-foreground/50 font-mono w-[12%]">{sub.weighting}</td>
-                          <td className="px-4 py-2 text-right w-[18%]">
+                          <td className="px-4 py-2 text-right text-muted-foreground/50 font-mono w-[10%]">{sub.target}</td>
+                          <td className="px-4 py-2 text-right text-muted-foreground/50 font-mono w-[10%]">{sub.weighting}</td>
+                          <td className="px-4 py-2 text-right w-[14%]">
                             <div className="flex items-center justify-end gap-1.5">
                               <span className="font-mono font-semibold text-foreground/70 tabular-nums">{fmt(sub.score, fullFigures)}</span>
                               <Tooltip>
@@ -498,7 +551,11 @@ function ElementRow({ element, isExpanded, onToggle, fullFigures, wrapMode }: {
                               </Tooltip>
                             </div>
                           </td>
-                          <td className="px-4 py-2 w-[18%]"></td>
+                          <td className="px-4 py-2 text-right text-muted-foreground/50 font-mono w-[10%]">
+                            {sub.weighting > 0 ? `${achievementPct(sub.score, sub.weighting).toFixed(0)}%` : ''}
+                          </td>
+                          <td className="px-4 py-2 w-[10%]"></td>
+                          <td className="px-4 py-2 w-[14%]"></td>
                         </tr>
                       ))}
                     </tbody>

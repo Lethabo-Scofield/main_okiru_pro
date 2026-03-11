@@ -3,8 +3,9 @@ import type { CalculatorConfig } from '../../../../shared/schema';
 import { safeRatio, clampScore } from './shared';
 
 const FULL_OWNERSHIP_THRESHOLD = 0.25;
-const WOMEN_BONUS_THRESHOLD = 0.10;
-const NEW_ENTRANT_BONUS_POINTS = 3;
+const WOMEN_VOTING_TARGET = 0.10;
+const WOMEN_ECONOMIC_TARGET = 0.10;
+const DESIGNATED_GROUP_TARGET = 0.10;
 const MAX_TOTAL = 25;
 
 const GRADUATION_TABLE: Record<number, number> = {
@@ -13,19 +14,31 @@ const GRADUATION_TABLE: Record<number, number> = {
   9: 1.0, 10: 1.0,
 };
 
+export interface OwnershipSubLine {
+  name: string;
+  target: string;
+  weighting: number;
+  score: number;
+}
+
 export interface OwnershipResult {
-  votingRights: number;
-  womenBonus: number;
-  economicInterest: number;
+  votingRightsBlack: number;
+  votingRightsBWO: number;
+  economicInterestBlack: number;
+  economicInterestBWO: number;
+  designatedGroups: number;
+  newEntrants: number;
   netValue: number;
-  newEntrantBonus: number;
   total: number;
   subMinimumMet: boolean;
   fullOwnershipAwarded: boolean;
+  subLines: OwnershipSubLine[];
   rawStats: {
     blackVotingPercentage: number;
     blackWomenVotingPercentage: number;
     economicInterestPercentage: number;
+    economicInterestBWOPercentage: number;
+    designatedGroupPercentage: number;
     netValuePercentage: number;
   };
 }
@@ -46,14 +59,8 @@ export function calculateOwnershipScore(data: OwnershipData, config?: Calculator
   const { companyValue, outstandingDebt, yearsHeld } = data;
 
   const oc = config?.ownership;
-  const MAX_POINTS = {
-    votingRights: oc?.votingRightsMax ?? 4,
-    womenBonus: oc?.womenBonusMax ?? 2,
-    economicInterest: oc?.economicInterestMax ?? 8,
-    netValue: oc?.netValueMax ?? 8,
-  };
-  const TARGET_ECONOMIC_INTEREST = oc?.targetEconomicInterest ?? FULL_OWNERSHIP_THRESHOLD;
   const SUB_MIN_NET_VALUE = oc?.subMinNetValue ?? 3.2;
+  const TARGET_ECONOMIC_INTEREST = oc?.targetEconomicInterest ?? FULL_OWNERSHIP_THRESHOLD;
 
   const totalSharesRaw = shareholders.reduce((acc, sh) => acc + sh.shares, 0);
   const hasShares = totalSharesRaw > 0;
@@ -61,7 +68,10 @@ export function calculateOwnershipScore(data: OwnershipData, config?: Calculator
   let totalBlackVoting = 0;
   let totalBlackWomenVoting = 0;
   let totalEconomicInterest = 0;
+  let totalEconomicInterestBWO = 0;
+  let totalDesignatedGroup = 0;
   let netValuePointsAgg = 0;
+  let hasNewEntrant = false;
 
   for (const sh of shareholders) {
     const pct = hasShares
@@ -71,6 +81,10 @@ export function calculateOwnershipScore(data: OwnershipData, config?: Calculator
     totalBlackVoting += pct * sh.blackOwnership;
     totalBlackWomenVoting += pct * sh.blackWomenOwnership;
     totalEconomicInterest += pct * sh.blackOwnership;
+    totalEconomicInterestBWO += pct * sh.blackWomenOwnership;
+    totalDesignatedGroup += pct * sh.blackOwnership;
+
+    if (sh.blackNewEntrant) hasNewEntrant = true;
 
     if (sh.shareValue > 0 && sh.blackOwnership > 0) {
       const debtAttributable = outstandingDebt * pct;
@@ -83,56 +97,79 @@ export function calculateOwnershipScore(data: OwnershipData, config?: Calculator
 
   const fullOwnershipAwarded = totalBlackVoting >= FULL_OWNERSHIP_THRESHOLD && hasShares;
 
-  const votingRightsPoints = fullOwnershipAwarded
-    ? MAX_POINTS.votingRights
-    : safeRatio(totalBlackVoting, FULL_OWNERSHIP_THRESHOLD, MAX_POINTS.votingRights);
-
-  const womenBonusPoints = (totalBlackWomenVoting >= WOMEN_BONUS_THRESHOLD && shareholders.length >= 1)
-    ? MAX_POINTS.womenBonus
-    : safeRatio(totalBlackWomenVoting, WOMEN_BONUS_THRESHOLD, MAX_POINTS.womenBonus);
-
-  let economicInterestPoints: number;
+  let votingRightsBlack: number;
+  let votingRightsBWO: number;
+  let economicInterestBlack: number;
+  let economicInterestBWO: number;
+  let designatedGroups: number;
+  let newEntrants: number;
   let netValuePoints: number;
 
   if (fullOwnershipAwarded) {
-    economicInterestPoints = MAX_POINTS.economicInterest;
-    netValuePoints = MAX_POINTS.netValue;
+    votingRightsBlack = 4;
+    votingRightsBWO = clampScore(safeRatio(totalBlackWomenVoting, WOMEN_VOTING_TARGET, 2), 2);
+    economicInterestBlack = 4;
+    economicInterestBWO = 2;
+    designatedGroups = 3;
+    newEntrants = hasNewEntrant ? 2 : 0;
+    netValuePoints = 8;
   } else {
+    votingRightsBlack = clampScore(safeRatio(totalBlackVoting, FULL_OWNERSHIP_THRESHOLD, 4), 4);
+    votingRightsBWO = clampScore(safeRatio(totalBlackWomenVoting, WOMEN_VOTING_TARGET, 2), 2);
+
     const gradFactor = getGraduationFactor(yearsHeld);
     const formulaA = gradFactor > 0
-      ? totalEconomicInterest * (1 / (TARGET_ECONOMIC_INTEREST * gradFactor)) * 8
+      ? totalEconomicInterest * (1 / (TARGET_ECONOMIC_INTEREST * gradFactor)) * 4
       : 0;
-    const formulaB = (totalEconomicInterest / TARGET_ECONOMIC_INTEREST) * 8;
-    economicInterestPoints = clampScore(Math.max(formulaA, formulaB), MAX_POINTS.economicInterest);
+    const formulaB = (totalEconomicInterest / TARGET_ECONOMIC_INTEREST) * 4;
+    economicInterestBlack = clampScore(Math.max(formulaA, formulaB), 4);
+
+    economicInterestBWO = clampScore(safeRatio(totalEconomicInterestBWO, WOMEN_ECONOMIC_TARGET, 2), 2);
+    designatedGroups = clampScore(safeRatio(totalDesignatedGroup, DESIGNATED_GROUP_TARGET, 3), 3);
+    newEntrants = hasNewEntrant ? 2 : 0;
 
     const hasNetValue = companyValue > 0 && shareholders.some(s => s.shareValue > 0);
     if (hasNetValue) {
-      netValuePoints = clampScore(netValuePointsAgg, MAX_POINTS.netValue);
+      netValuePoints = clampScore(netValuePointsAgg, 8);
     } else {
       netValuePoints = totalBlackVoting >= 1.0
-        ? MAX_POINTS.netValue
-        : safeRatio(totalBlackVoting, FULL_OWNERSHIP_THRESHOLD, MAX_POINTS.netValue);
+        ? 8
+        : clampScore(safeRatio(totalBlackVoting, FULL_OWNERSHIP_THRESHOLD, 8), 8);
     }
   }
 
-  const newEntrantBonus = shareholders.some(s => s.blackNewEntrant === true) ? NEW_ENTRANT_BONUS_POINTS : 0;
   const subMinimumMet = fullOwnershipAwarded || netValuePoints >= SUB_MIN_NET_VALUE;
-  const totalPoints = votingRightsPoints + womenBonusPoints + economicInterestPoints + netValuePoints + newEntrantBonus;
+  const totalPoints = votingRightsBlack + votingRightsBWO + economicInterestBlack + economicInterestBWO + designatedGroups + newEntrants + netValuePoints;
+
+  const subLines: OwnershipSubLine[] = [
+    { name: "Exercisable voting rights of black individuals", target: "25% + 1 vote", weighting: 4, score: votingRightsBlack },
+    { name: "Exercisable voting rights of black females", target: "10%", weighting: 2, score: votingRightsBWO },
+    { name: "Economic interest of black individuals", target: "25%", weighting: 4, score: economicInterestBlack },
+    { name: "Economic interest of black females", target: "10%", weighting: 2, score: economicInterestBWO },
+    { name: "Economic interest of black designated groups or participants in ownership schemes", target: "10%", weighting: 3, score: designatedGroups },
+    { name: "Economic interest of black new entrants", target: "New entrant", weighting: 2, score: newEntrants },
+    { name: "Net value", target: "≥ 3.2 pts", weighting: 8, score: netValuePoints },
+  ];
 
   return {
-    votingRights: votingRightsPoints,
-    womenBonus: womenBonusPoints,
-    economicInterest: economicInterestPoints,
+    votingRightsBlack,
+    votingRightsBWO,
+    economicInterestBlack,
+    economicInterestBWO,
+    designatedGroups,
+    newEntrants,
     netValue: netValuePoints,
-    newEntrantBonus,
     total: clampScore(totalPoints, MAX_TOTAL),
     subMinimumMet,
     fullOwnershipAwarded,
+    subLines,
     rawStats: {
       blackVotingPercentage: totalBlackVoting,
       blackWomenVotingPercentage: totalBlackWomenVoting,
       economicInterestPercentage: totalEconomicInterest,
-      netValuePercentage: fullOwnershipAwarded ? 1.0 : netValuePointsAgg / MAX_POINTS.netValue,
+      economicInterestBWOPercentage: totalEconomicInterestBWO,
+      designatedGroupPercentage: totalDesignatedGroup,
+      netValuePercentage: fullOwnershipAwarded ? 1.0 : (netValuePointsAgg / 8),
     },
   };
 }

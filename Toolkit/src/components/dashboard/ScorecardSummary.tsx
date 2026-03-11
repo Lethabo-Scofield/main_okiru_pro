@@ -73,6 +73,7 @@ export function ScorecardSummary() {
     { name: "Management Control", key: "managementControl" },
     { name: "Skills Development", key: "skillsDevelopment" },
     { name: "Preferential Procurement", key: "procurement" },
+    { name: "Supplier Development", key: "supplierDevelopment" },
     { name: "Enterprise Development", key: "enterpriseDevelopment" },
     { name: "Socio-Economic Dev", key: "socioEconomicDevelopment" },
     { name: "YES Initiative", key: "yesInitiative" },

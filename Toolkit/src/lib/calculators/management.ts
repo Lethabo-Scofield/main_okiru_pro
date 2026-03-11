@@ -2,36 +2,56 @@ import type { ManagementData, Employee } from '../types';
 import type { CalculatorConfig } from '../../../../shared/schema';
 import { isBlackRace, safeRatio, clampScore } from './shared';
 
+const BOARD_BLACK_TARGET = 0.50;
+const BOARD_WOMEN_TARGET = 0.25;
+const EXEC_BLACK_TARGET = 0.60;
+const EXEC_WOMEN_TARGET = 0.30;
+const OTHER_EXEC_BLACK_TARGET = 0.60;
+const OTHER_EXEC_WOMEN_TARGET = 0.30;
 const SENIOR_TARGET = 0.60;
 const MIDDLE_TARGET = 0.75;
 const JUNIOR_TARGET = 0.88;
 const DISABLED_TARGET = 0.03;
-const MAX_TOTAL = 27;
+const MAX_TOTAL = 19;
+
+export interface ManagementSubLine {
+  name: string;
+  target: string;
+  weighting: number;
+  score: number;
+}
 
 export interface ManagementResult {
-  boardExecBlack: number;
-  boardNonExec: number;
-  boardBWO: number;
-  boardTotal: number;
+  boardVotingBlack: number;
+  boardVotingBWO: number;
+  execDirectorsBlack: number;
+  execDirectorsBWO: number;
   otherExecBlack: number;
   otherExecBWO: number;
-  execTotal: number;
-  senior: number;
-  middle: number;
-  junior: number;
+  seniorBlack: number;
+  seniorBWO: number;
+  middleBlack: number;
+  middleBWO: number;
+  juniorBlack: number;
+  juniorBWO: number;
   disabled: number;
-  adjustedRecognition: number;
   total: number;
   subMinimumMet: boolean;
+  subLines: ManagementSubLine[];
   rawStats: {
-    boardBlackVotingPercentage: number;
-    boardBlackWomenVotingPercentage: number;
-    execBlackVotingPercentage: number;
-    execBlackWomenVotingPercentage: number;
-    seniorBlackPercentage: number;
-    middleBlackPercentage: number;
-    juniorBlackPercentage: number;
-    disabledBlackPercentage: number;
+    boardBlackPct: number;
+    boardBWOPct: number;
+    execBlackPct: number;
+    execBWOPct: number;
+    otherExecBlackPct: number;
+    otherExecBWOPct: number;
+    seniorBlackPct: number;
+    seniorBWOPct: number;
+    middleBlackPct: number;
+    middleBWOPct: number;
+    juniorBlackPct: number;
+    juniorBWOPct: number;
+    disabledBlackPct: number;
   };
 }
 
@@ -49,89 +69,111 @@ function groupByDesignation(employees: Employee[]): Record<string, Employee[]> {
   return groups;
 }
 
-function designationScore(emps: Employee[], target: number, maxPoints: number): { score: number; blackPct: number } {
-  if (emps.length === 0) return { score: 0, blackPct: 0 };
-  const blackPct = countBlack(emps) / emps.length;
-  return { score: safeRatio(blackPct, target, maxPoints), blackPct };
+function pctOf(emps: Employee[], countFn: (e: Employee[]) => number): number {
+  return emps.length > 0 ? countFn(emps) / emps.length : 0;
 }
 
 export function calculateManagementScore(data: ManagementData, config?: CalculatorConfig): ManagementResult {
   const employees = data.employees || [];
   const grouped = groupByDesignation(employees);
-  const mc = config?.management;
-
-  const boardBlackTarget = mc?.boardBlackTarget ?? 0.5;
-  const boardWomenTarget = mc?.boardWomenTarget ?? 0.25;
-  const boardBlackPoints = mc?.boardBlackPoints ?? 6;
-  const boardWomenPoints = mc?.boardWomenPoints ?? 1;
-  const execBlackTarget = mc?.execBlackTarget ?? 0.6;
-  const execWomenTarget = mc?.execWomenTarget ?? 0.3;
-  const execBlackPoints = mc?.execBlackPoints ?? 4;
-  const execWomenPoints = mc?.execWomenPoints ?? 2;
 
   const board = grouped['Board'] || [];
-  const allExec = [
+  const execDirs = [
     ...(grouped['Executive'] || []),
     ...(grouped['Executive Director'] || []),
-    ...(grouped['Other Executive Management'] || []),
   ];
+  const otherExec = grouped['Other Executive Management'] || [];
   const senior = grouped['Senior'] || [];
   const middle = grouped['Middle'] || [];
   const junior = grouped['Junior'] || [];
 
-  const boardBlackPct = board.length > 0 ? countBlack(board) / board.length : 0;
-  const boardBWOPct = board.length > 0 ? countBlackWomen(board) / board.length : 0;
-  const boardExecBlack = board.length > 0 ? safeRatio(boardBlackPct, boardBlackTarget, 3) : 0;
-  const boardNonExec = board.length > 0 ? safeRatio(boardBlackPct, boardBlackTarget, 2) : 0;
-  const boardBWO = board.length > 0 ? safeRatio(boardBWOPct, boardWomenTarget, boardWomenPoints) : 0;
-  const boardTotal = clampScore(boardExecBlack + boardNonExec + boardBWO, boardBlackPoints);
-
-  const execBlackPct = allExec.length > 0 ? countBlack(allExec) / allExec.length : 0;
-  const execBWOPct = allExec.length > 0 ? countBlackWomen(allExec) / allExec.length : 0;
-  const otherExecBlack = allExec.length > 0 ? safeRatio(execBlackPct, execBlackTarget, 2) : 0;
-  const otherExecBWO = allExec.length > 0 ? safeRatio(execBWOPct, execWomenTarget, execWomenPoints) : 0;
-  const execTotal = clampScore(otherExecBlack + otherExecBWO, execBlackPoints);
-
-  const seniorResult = designationScore(senior, SENIOR_TARGET, 5);
-  const middleResult = designationScore(middle, MIDDLE_TARGET, 4);
-  const juniorResult = designationScore(junior, JUNIOR_TARGET, 4);
+  const boardBlackPct = pctOf(board, countBlack);
+  const boardBWOPct = pctOf(board, countBlackWomen);
+  const execBlackPct = pctOf(execDirs, countBlack);
+  const execBWOPct = pctOf(execDirs, countBlackWomen);
+  const otherExecBlackPct = pctOf(otherExec, countBlack);
+  const otherExecBWOPct = pctOf(otherExec, countBlackWomen);
+  const seniorBlackPct = pctOf(senior, countBlack);
+  const seniorBWOPct = pctOf(senior, countBlackWomen);
+  const middleBlackPct = pctOf(middle, countBlack);
+  const middleBWOPct = pctOf(middle, countBlackWomen);
+  const juniorBlackPct = pctOf(junior, countBlack);
+  const juniorBWOPct = pctOf(junior, countBlackWomen);
 
   const disabledEmps = employees.filter(e => e.isDisabled);
-  const blackDisabled = countBlack(disabledEmps);
-  const disabledScore = employees.length > 0
-    ? safeRatio(blackDisabled / Math.max(employees.length, 1), DISABLED_TARGET, 2)
+  const blackDisabledPct = employees.length > 0
+    ? countBlack(disabledEmps) / employees.length
     : 0;
 
-  const adjustedRecognition = employees.some(e => e.gender === 'Female') ? 2 : 0;
+  const boardVotingBlack = clampScore(safeRatio(boardBlackPct, BOARD_BLACK_TARGET, 2), 2);
+  const boardVotingBWO = clampScore(safeRatio(boardBWOPct, BOARD_WOMEN_TARGET, 1), 1);
+  const execDirectorsBlack = clampScore(safeRatio(execBlackPct, EXEC_BLACK_TARGET, 2), 2);
+  const execDirectorsBWO = clampScore(safeRatio(execBWOPct, EXEC_WOMEN_TARGET, 1), 1);
+  const otherExecBlackScore = clampScore(safeRatio(otherExecBlackPct, OTHER_EXEC_BLACK_TARGET, 2), 2);
+  const otherExecBWOScore = clampScore(safeRatio(otherExecBWOPct, OTHER_EXEC_WOMEN_TARGET, 1), 1);
+  const seniorBlack = clampScore(safeRatio(seniorBlackPct, SENIOR_TARGET, 2), 2);
+  const seniorBWO = clampScore(safeRatio(seniorBWOPct, SENIOR_TARGET * 0.5, 1), 1);
+  const middleBlack = clampScore(safeRatio(middleBlackPct, MIDDLE_TARGET, 2), 2);
+  const middleBWO = clampScore(safeRatio(middleBWOPct, MIDDLE_TARGET * 0.5, 1), 1);
+  const juniorBlackScore = clampScore(safeRatio(juniorBlackPct, JUNIOR_TARGET, 1), 1);
+  const juniorBWOScore = clampScore(safeRatio(juniorBWOPct, JUNIOR_TARGET * 0.5, 1), 1);
+  const disabledScore = clampScore(safeRatio(blackDisabledPct, DISABLED_TARGET, 2), 2);
 
-  const totalPoints = boardTotal + execTotal +
-    seniorResult.score + middleResult.score + juniorResult.score +
-    disabledScore + adjustedRecognition;
+  const totalPoints = boardVotingBlack + boardVotingBWO +
+    execDirectorsBlack + execDirectorsBWO +
+    otherExecBlackScore + otherExecBWOScore +
+    seniorBlack + seniorBWO +
+    middleBlack + middleBWO +
+    juniorBlackScore + juniorBWOScore +
+    disabledScore;
+
+  const subLines: ManagementSubLine[] = [
+    { name: "Exercisable voting rights of black board members", target: "50%", weighting: 2, score: boardVotingBlack },
+    { name: "Exercisable voting rights of black female board members", target: "25%", weighting: 1, score: boardVotingBWO },
+    { name: "Black executive directors", target: "60%", weighting: 2, score: execDirectorsBlack },
+    { name: "Black female executive directors", target: "30%", weighting: 1, score: execDirectorsBWO },
+    { name: "Black other executive management", target: "60%", weighting: 2, score: otherExecBlackScore },
+    { name: "Black female other executive management", target: "30%", weighting: 1, score: otherExecBWOScore },
+    { name: "Black employees in senior management", target: "60% / EAP", weighting: 2, score: seniorBlack },
+    { name: "Black female employees in senior management", target: "30% / EAP", weighting: 1, score: seniorBWO },
+    { name: "Black employees in middle management", target: "75% / EAP", weighting: 2, score: middleBlack },
+    { name: "Black female employees in middle management", target: "37.5% / EAP", weighting: 1, score: middleBWO },
+    { name: "Black employees in junior management", target: "88%", weighting: 1, score: juniorBlackScore },
+    { name: "Black female employees in junior management", target: "44%", weighting: 1, score: juniorBWOScore },
+    { name: "Black employees with disabilities", target: "3%", weighting: 2, score: disabledScore },
+  ];
 
   return {
-    boardExecBlack,
-    boardNonExec,
-    boardBWO,
-    boardTotal,
-    otherExecBlack,
-    otherExecBWO,
-    execTotal,
-    senior: seniorResult.score,
-    middle: middleResult.score,
-    junior: juniorResult.score,
+    boardVotingBlack,
+    boardVotingBWO,
+    execDirectorsBlack,
+    execDirectorsBWO,
+    otherExecBlack: otherExecBlackScore,
+    otherExecBWO: otherExecBWOScore,
+    seniorBlack,
+    seniorBWO,
+    middleBlack,
+    middleBWO,
+    juniorBlack: juniorBlackScore,
+    juniorBWO: juniorBWOScore,
     disabled: disabledScore,
-    adjustedRecognition,
     total: clampScore(totalPoints, MAX_TOTAL),
     subMinimumMet: true,
+    subLines,
     rawStats: {
-      boardBlackVotingPercentage: boardBlackPct,
-      boardBlackWomenVotingPercentage: boardBWOPct,
-      execBlackVotingPercentage: execBlackPct,
-      execBlackWomenVotingPercentage: execBWOPct,
-      seniorBlackPercentage: seniorResult.blackPct,
-      middleBlackPercentage: middleResult.blackPct,
-      juniorBlackPercentage: juniorResult.blackPct,
-      disabledBlackPercentage: employees.length > 0 ? blackDisabled / employees.length : 0,
+      boardBlackPct,
+      boardBWOPct,
+      execBlackPct,
+      execBWOPct,
+      otherExecBlackPct,
+      otherExecBWOPct,
+      seniorBlackPct,
+      seniorBWOPct,
+      middleBlackPct,
+      middleBWOPct,
+      juniorBlackPct,
+      juniorBWOPct,
+      disabledBlackPct: blackDisabledPct,
     },
   };
 }

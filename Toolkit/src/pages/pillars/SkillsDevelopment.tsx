@@ -75,7 +75,7 @@ export default function SkillsDevelopment() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formState, setFormState] = useState<ProgramFormState>({ ...defaultFormState });
 
-  const targetSpend = leviableAmount * 0.035; 
+  const targetSpend = leviableAmount * 0.06; 
   const bursaryTarget = leviableAmount * 0.025; 
   
   const totalSpend = trainingPrograms.reduce((acc, prog) => acc + prog.cost, 0);
@@ -368,78 +368,54 @@ export default function SkillsDevelopment() {
       <Card className="glass-panel mt-8 mb-8" data-testid="card-skills-detailed-scorecard">
         <CardHeader>
           <CardTitle>Detailed Scorecard Breakdown</CardTitle>
-          <CardDescription>Direct translation of GP Excel toolkit calculations</CardDescription>
+          <CardDescription>5 sub-line indicators per RCOGP Generic Codes</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border overflow-x-auto">
-            <div className="bg-muted/30 px-4 py-3 border-b text-sm text-muted-foreground flex justify-between items-center">
-              <span>data as at <strong className="text-foreground">24 February 2026</strong></span>
-            </div>
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-muted/50 border-b">
                 <tr>
                   <th className="px-4 py-3 font-semibold text-muted-foreground">Indicator</th>
-                  <th className="px-4 py-3 font-semibold text-muted-foreground">Criteria</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Target Points</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Target %</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Actual Points</th>
+                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Target</th>
+                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Weighting</th>
+                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Score</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium">Learning Programme Spend</td>
-                  <td className="px-4 py-3 text-muted-foreground">Skills development expenditure on learning programmes for Black People as % of Leviable Amount</td>
-                  <td className="px-4 py-3 text-right font-mono">20.00</td>
-                  <td className="px-4 py-3 text-right font-mono">3.5%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{score.general.toFixed(2)}</td>
-                </tr>
-                <tr className="bg-muted/10">
-                  <td className="px-4 py-2 pl-8 text-xs text-muted-foreground/70">↳ Black People</td>
-                  <td className="px-4 py-2 text-xs text-muted-foreground">Spend on Black participants as % of leviable amount</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">{score.eapIndicators.blackPeople.maxPoints.toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">{score.eapIndicators.blackPeople.targetPct}</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs font-semibold">{score.eapIndicators.blackPeople.score.toFixed(2)}</td>
-                </tr>
-                <tr className="bg-muted/10">
-                  <td className="px-4 py-2 pl-8 text-xs text-muted-foreground/70">↳ Black Women</td>
-                  <td className="px-4 py-2 text-xs text-muted-foreground">Spend on Black Women participants</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">{score.eapIndicators.blackWomen.maxPoints.toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">{score.eapIndicators.blackWomen.targetPct}</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs font-semibold">{score.eapIndicators.blackWomen.score.toFixed(2)}</td>
-                </tr>
-                <tr className="bg-muted/10">
-                  <td className="px-4 py-2 pl-8 text-xs text-muted-foreground/70">↳ Black Disabled</td>
-                  <td className="px-4 py-2 text-xs text-muted-foreground">Spend on Black Disabled participants</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">{score.eapIndicators.disabled.maxPoints.toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">{score.eapIndicators.disabled.targetPct}</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs font-semibold">{score.eapIndicators.disabled.score.toFixed(2)}</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30 border-t-2">
-                  <td className="px-4 py-3 font-medium">Bursaries</td>
-                  <td className="px-4 py-3 text-muted-foreground">Bursaries for Black students as % of Leviable Amount</td>
-                  <td className="px-4 py-3 text-right font-mono">5.00</td>
-                  <td className="px-4 py-3 text-right font-mono">2.5%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{score.bursaries.toFixed(2)}</td>
-                </tr>
-
-                <tr className="bg-muted/10 border-t">
-                  <td className="px-4 py-2 pl-8 text-xs text-muted-foreground/70">↳ Absorption</td>
-                  <td className="px-4 py-2 text-xs text-muted-foreground">Black learners employed after training (target 2.5%)</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">—</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">2.5%</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs font-semibold">{score.eapIndicators.absorption.count} / {score.eapIndicators.absorption.total} ({(score.eapIndicators.absorption.rate * 100).toFixed(0)}%)</td>
-                </tr>
+                {score.subLines.map((sl, idx) => (
+                  <tr key={idx} className="hover:bg-muted/30">
+                    <td className="px-4 py-3 text-muted-foreground">{sl.name}</td>
+                    <td className="px-4 py-3 text-right font-mono">{sl.target}</td>
+                    <td className="px-4 py-3 text-right font-mono">{sl.weighting.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-primary">{sl.score.toFixed(2)}</td>
+                  </tr>
+                ))}
+                {score.categoryBreakdown.filter(cb => cb.spend > 0).map((cb, idx) => (
+                  <tr key={`cat-${idx}`} className="bg-muted/10">
+                    <td className="px-4 py-2 pl-8 text-xs text-muted-foreground/70">↳ Cat {cb.code}: {cb.label}</td>
+                    <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">{cb.cap ? `≤${(cb.cap * 100).toFixed(0)}% cap` : 'No cap'}</td>
+                    <td className="px-4 py-2"></td>
+                    <td className="px-4 py-2 text-right font-mono text-xs font-semibold">
+                      R{cb.recognisedSpend.toLocaleString()}{cb.capApplied ? ' (capped)' : ''}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
               <tfoot className="bg-primary/5 font-bold border-t-2 border-primary/20">
                 <tr>
                   <td className="px-4 py-4 text-primary font-medium uppercase tracking-wider" colSpan={2}>Total Skills Development Score</td>
                   <td className="px-4 py-4 text-right font-mono">25.00</td>
-                  <td className="px-4 py-4"></td>
                   <td className="px-4 py-4 text-right font-mono text-lg text-primary">{score.total.toFixed(2)}</td>
                 </tr>
               </tfoot>
             </table>
+          </div>
+          <div className="mt-3 text-xs text-muted-foreground">
+            Sub-minimum: ≥ 10 pts (40% of 25) — {score.subMinimumMet ? (
+              <span className="text-emerald-600 font-bold">PASSED</span>
+            ) : (
+              <span className="text-destructive font-bold">FAILED</span>
+            )}
           </div>
         </CardContent>
       </Card>

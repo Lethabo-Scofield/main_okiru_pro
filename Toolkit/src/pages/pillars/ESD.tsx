@@ -417,7 +417,7 @@ export default function ESD() {
               </thead>
               <tbody className="divide-y divide-border">
                 <tr className="hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium" rowSpan={4}>Preferential Procurement</td>
+                  <td className="px-4 py-3 font-medium" rowSpan={6}>Preferential Procurement</td>
                   <td className="px-4 py-3 text-muted-foreground">B-BBEE Procurement Spend from all Empowering Suppliers</td>
                   <td className="px-4 py-3 text-right font-mono">5.00</td>
                   <td className="px-4 py-3 text-right font-mono">80%</td>
@@ -443,26 +443,24 @@ export default function ESD() {
                 </tr>
                 <tr className="hover:bg-muted/30">
                   <td className="px-4 py-3 text-muted-foreground">B-BBEE Procurement Spend from at least 30% Black Women Owned Suppliers</td>
-                  <td className="px-4 py-3 text-right font-mono">2.00</td>
+                  <td className="px-4 py-3 text-right font-mono">4.00</td>
                   <td className="px-4 py-3 text-right font-mono">12%</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{Math.min(2, (score.rawStats?.spendBlackWomenOwned || 0) / (tmps * 0.12) * 2).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{Math.min(4, (score.rawStats?.spendBlackWomenOwned || 0) / (tmps * 0.12) * 4).toFixed(2)}</td>
                 </tr>
 
-                <tr className="bg-primary/5 border-t-2 border-primary/20">
-                  <td className="px-4 py-3 text-primary font-semibold uppercase text-xs tracking-wider" colSpan={2}>Procurement Subtotal</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">25.00</td>
-                  <td className="px-4 py-3"></td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{score.base.toFixed(2)}</td>
-                </tr>
-
-                <tr className="hover:bg-muted/30 border-t-2">
-                  <td className="px-4 py-3 font-medium">Designated Group</td>
-                  <td className="px-4 py-3 text-muted-foreground">Bonus for procurement from designated group suppliers</td>
+                <tr className="hover:bg-muted/30">
+                  <td className="px-4 py-3 text-muted-foreground">Designated Group Supplier Contributions</td>
                   <td className="px-4 py-3 text-right font-mono">2.00</td>
                   <td className="px-4 py-3 text-right font-mono">—</td>
                   <td className="px-4 py-3 text-right font-mono font-bold text-primary">{score.designatedGroup.toFixed(2)}</td>
                 </tr>
-                
+                <tr className="bg-primary/5 border-t-2 border-primary/20">
+                  <td className="px-4 py-3 text-primary font-semibold uppercase text-xs tracking-wider" colSpan={2}>Procurement Subtotal</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">29.00</td>
+                  <td className="px-4 py-3"></td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-primary">{score.base.toFixed(2)}</td>
+                </tr>
+
                 <tr className="hover:bg-muted/30 border-t-2">
                   <td className="px-4 py-3 font-medium">Supplier Development</td>
                   <td className="px-4 py-3 text-muted-foreground">Annual value of all Supplier Development Contributions</td>
@@ -482,7 +480,7 @@ export default function ESD() {
               <tfoot className="bg-primary/5 font-bold border-t-2 border-primary/20">
                 <tr>
                   <td className="px-4 py-4 text-primary font-medium uppercase tracking-wider" colSpan={2}>Total ESD Score</td>
-                  <td className="px-4 py-4 text-right font-mono">{(25 + 2 + 10 + 5).toFixed(2)}</td>
+                  <td className="px-4 py-4 text-right font-mono">{(29 + 10 + 5).toFixed(2)}</td>
                   <td className="px-4 py-4"></td>
                   <td className="px-4 py-4 text-right font-mono text-lg text-primary">{(score.total + esdScore.total).toFixed(2)}</td>
                 </tr>
