@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { 
   Client, OwnershipData, ManagementData, SkillsData, 
   ProcurementData, ESDData, SEDData, ScorecardResult,
-  Shareholder, Employee, TrainingProgram, Supplier, Contribution, FinancialYear
+  Shareholder, Employee, TrainingProgram, Supplier, Contribution, FinancialYear,
+  TrainingCategoryCode
 } from './types';
 import { v4 as uuidv4 } from "uuid";
 import { api, invalidateClientData } from './api';
@@ -65,19 +66,19 @@ const emptyOwnership: OwnershipData = {
 
 const emptyManagement: ManagementData = { id: '', clientId: '', employees: [] };
 const emptySkills: SkillsData = { id: '', clientId: '', leviableAmount: 0, trainingPrograms: [] };
-const emptyProcurement: ProcurementData = { id: '', clientId: '', tmps: 0, suppliers: [] };
-const emptyESD: ESDData = { id: '', clientId: '', contributions: [] };
+const emptyProcurement: ProcurementData = { id: '', clientId: '', tmps: 0, suppliers: [], graduationBonus: false, jobsCreatedBonus: false };
+const emptyESD: ESDData = { id: '', clientId: '', contributions: [], graduationBonus: false, jobsCreatedBonus: false };
 const emptySED: SEDData = { id: '', clientId: '', contributions: [] };
 
 const emptyScorecard: ScorecardResult = {
   ownership: { score: 0, target: 25, weighting: 25, subMinimumMet: false },
   managementControl: { score: 0, target: 27, weighting: 27 },
   skillsDevelopment: { score: 0, target: 25, weighting: 25, subMinimumMet: false },
-  procurement: { score: 0, target: 25, weighting: 25, subMinimumMet: false },
-  enterpriseDevelopment: { score: 0, target: 15, weighting: 15 },
+  procurement: { score: 0, target: 29, weighting: 29, subMinimumMet: false },
+  enterpriseDevelopment: { score: 0, target: 17, weighting: 17 },
   socioEconomicDevelopment: { score: 0, target: 5, weighting: 5 },
   yesInitiative: { score: 0, target: 5, weighting: 5 },
-  total: { score: 0, target: 127, weighting: 127 },
+  total: { score: 0, target: 133, weighting: 133 },
   achievedLevel: 9, discountedLevel: 9, isDiscounted: false, recognitionLevel: '0%',
 };
 
@@ -136,6 +137,9 @@ interface BbeeState extends PillarState {
 
   addSedContribution: (contribution: Contribution) => void;
   removeSedContribution: (id: string) => void;
+
+  updateProcurementBonuses: (graduationBonus: boolean, jobsCreatedBonus: boolean, graduationEvidence?: string, jobsCreatedEvidence?: string) => void;
+  updateEsdBonuses: (graduationBonus: boolean, jobsCreatedBonus: boolean, jobsCreatedCount?: number, graduationEvidence?: string, jobsCreatedEvidence?: string) => void;
   
   updateFinancials: (revenue: number, npat: number, leviableAmount: number, industryNorm?: number) => void;
   updateTMPS: (tmps: number) => void;
@@ -210,11 +214,11 @@ function calculateScorecard(
       ownership: { score: ownPts, target: 25, weighting: 25, subMinimumMet: ownSubMin },
       managementControl: { score: mcPts, target: 27, weighting: 27 },
       skillsDevelopment: { score: skPts, target: 25, weighting: 25, subMinimumMet: skSubMin },
-      procurement: { score: prPts, target: 25, weighting: 25, subMinimumMet: prSubMin },
-      enterpriseDevelopment: { score: esdPts, target: 15, weighting: 15 },
+      procurement: { score: prPts, target: 29, weighting: 29, subMinimumMet: prSubMin },
+      enterpriseDevelopment: { score: esdPts, target: 17, weighting: 17 },
       socioEconomicDevelopment: { score: sedPts, target: 5, weighting: 5 },
       yesInitiative: { score: yesPts, target: 5, weighting: 5 },
-      total: { score: total, target: 127, weighting: 127 },
+      total: { score: total, target: 133, weighting: 133 },
       achievedLevel: level, discountedLevel: disc, isDiscounted: isDisc, recognitionLevel: recog,
     };
   }
@@ -232,13 +236,23 @@ function calculateScorecard(
     ownership: { score: ownScore.total, target: 25, weighting: 25, subMinimumMet: ownSubMinMet },
     managementControl: { score: mgtScore.total, target: 27, weighting: 27 },
     skillsDevelopment: { score: skillScore.total, target: 25, weighting: 25, subMinimumMet: skSubMinMet },
-    procurement: { score: procScore.total, target: 25, weighting: 25, subMinimumMet: prSubMinMet },
-    enterpriseDevelopment: { score: esdScore.total, target: 15, weighting: 15 },
+    procurement: { score: procScore.total, target: 29, weighting: 29, subMinimumMet: prSubMinMet },
+    enterpriseDevelopment: { score: esdScore.total, target: 17, weighting: 17 },
     socioEconomicDevelopment: { score: sedScore.total, target: 5, weighting: 5 },
     yesInitiative: { score: 0, target: 5, weighting: 5 },
-    total: { score: totalPoints, target: 127, weighting: 127 },
+    total: { score: totalPoints, target: 133, weighting: 133 },
     achievedLevel: level, discountedLevel, isDiscounted, recognitionLevel: levelToRecognition(discountedLevel),
   };
+}
+
+function mapLegacyCategoryForStore(cat: string): TrainingCategoryCode {
+  switch (cat) {
+    case 'bursary': return 'A';
+    case 'learnership':
+    case 'internship': return 'B';
+    case 'short_course': return 'C';
+    default: return 'D';
+  }
 }
 
 export const useBbeeStore = create<BbeeState>((set, get) => ({
@@ -322,7 +336,12 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
           id: tp.id,
           name: tp.name,
           category: tp.category,
+          categoryCode: tp.categoryCode || mapLegacyCategoryForStore(tp.category),
           cost: tp.cost || 0,
+          courseCost: tp.courseCost || 0,
+          travelCost: tp.travelCost || 0,
+          accommodationCost: tp.accommodationCost || 0,
+          cateringCost: tp.cateringCost || 0,
           employeeId: tp.employeeId,
           isEmployed: tp.isEmployed || false,
           isBlack: tp.isBlack || false,
@@ -347,6 +366,10 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
           enterpriseType: s.enterpriseType || 'generic',
           spend: s.spend || 0,
         })),
+        graduationBonus: data.procurement?.graduationBonus || false,
+        graduationEvidence: data.procurement?.graduationEvidence || '',
+        jobsCreatedBonus: data.procurement?.jobsCreatedBonus || false,
+        jobsCreatedEvidence: data.procurement?.jobsCreatedEvidence || '',
       };
 
       const esdState: ESDData = {
@@ -359,6 +382,11 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
           amount: c.amount || 0,
           category: c.category,
         })),
+        graduationBonus: data.esd?.graduationBonus || false,
+        graduationEvidence: data.esd?.graduationEvidence || '',
+        jobsCreatedBonus: data.esd?.jobsCreatedBonus || false,
+        jobsCreatedCount: data.esd?.jobsCreatedCount || 0,
+        jobsCreatedEvidence: data.esd?.jobsCreatedEvidence || '',
       };
 
       const sedState: SEDData = {
@@ -681,6 +709,20 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
     set((state) => ({ sed: { ...state.sed, contributions: state.sed.contributions.filter(c => c.id !== id) } }));
     get()._recalculateAll();
     api.deleteSedContribution(id).catch(console.error);
+  },
+
+  updateProcurementBonuses: (graduationBonus, jobsCreatedBonus, graduationEvidence, jobsCreatedEvidence) => {
+    set((state) => ({
+      procurement: { ...state.procurement, graduationBonus, jobsCreatedBonus, graduationEvidence, jobsCreatedEvidence },
+    }));
+    get()._recalculateAll();
+  },
+
+  updateEsdBonuses: (graduationBonus, jobsCreatedBonus, jobsCreatedCount, graduationEvidence, jobsCreatedEvidence) => {
+    set((state) => ({
+      esd: { ...state.esd, graduationBonus, jobsCreatedBonus, jobsCreatedCount, graduationEvidence, jobsCreatedEvidence },
+    }));
+    get()._recalculateAll();
   },
 
   updateFinancials: (revenue, npat, leviableAmount, industryNorm) => {

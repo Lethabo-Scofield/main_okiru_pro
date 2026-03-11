@@ -57,11 +57,18 @@ export interface ManagementData {
   employees: Employee[];
 }
 
+export type TrainingCategoryCode = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+
 export interface TrainingProgram {
   id: string;
   name: string;
   category: 'bursary' | 'learnership' | 'internship' | 'short_course' | 'other';
+  categoryCode: TrainingCategoryCode;
   cost: number;
+  courseCost?: number;
+  travelCost?: number;
+  accommodationCost?: number;
+  cateringCost?: number;
   employeeId?: string;
   isEmployed: boolean;
   isBlack: boolean;
@@ -98,6 +105,10 @@ export interface ProcurementData {
   tmps: number;
   tmpsManualOverride?: boolean;
   suppliers: Supplier[];
+  graduationBonus: boolean;
+  graduationEvidence?: string;
+  jobsCreatedBonus: boolean;
+  jobsCreatedEvidence?: string;
 }
 
 export interface Contribution {
@@ -112,6 +123,11 @@ export interface ESDData {
   id: string;
   clientId: string;
   contributions: Contribution[];
+  graduationBonus: boolean;
+  graduationEvidence?: string;
+  jobsCreatedBonus: boolean;
+  jobsCreatedCount?: number;
+  jobsCreatedEvidence?: string;
 }
 
 export interface SEDData {

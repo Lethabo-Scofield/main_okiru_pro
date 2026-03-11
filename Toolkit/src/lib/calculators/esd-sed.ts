@@ -8,15 +8,26 @@ const DEFAULT_BENEFIT_FACTORS: Record<string, number> = {
   professional_services: 0.8,
 };
 
+export interface EsdSubLine {
+  name: string;
+  target: string;
+  weighting: number;
+  score: number;
+  isBonus?: boolean;
+}
+
 export interface EsdResult {
   supplierDev: number;
   enterpriseDev: number;
+  graduationBonus: number;
+  jobsCreatedBonus: number;
   total: number;
   subMinimumMet: boolean;
   sdSpend: number;
   edSpend: number;
   sdTarget: number;
   edTarget: number;
+  subLines: EsdSubLine[];
 }
 
 export interface SedResult {
@@ -74,17 +85,32 @@ export function calculateEsdScore(data: ESDData, npat: number, config?: Calculat
 
   const sdScore = safeRatio(sdSpend, sdTarget, supplierDevMax);
   const edScore = safeRatio(edSpend, edTarget, enterpriseDevMax);
-  const totalScore = clampScore(sdScore + edScore, supplierDevMax + enterpriseDevMax);
+
+  const graduationBonusScore = data.graduationBonus ? 1 : 0;
+  const jobsCreatedBonusScore = data.jobsCreatedBonus ? 1 : 0;
+
+  const baseTotal = clampScore(sdScore + edScore, supplierDevMax + enterpriseDevMax);
+  const totalScore = clampScore(baseTotal + graduationBonusScore + jobsCreatedBonusScore, supplierDevMax + enterpriseDevMax + 2);
+
+  const subLines: EsdSubLine[] = [
+    { name: "Supplier Development Contributions", target: "2% of NPAT", weighting: 10, score: sdScore },
+    { name: "Enterprise Development Contributions", target: "1% of NPAT", weighting: 5, score: edScore },
+    { name: "Bonus: Graduation of ED Beneficiaries to SD", target: "Tick-box", weighting: 1, score: graduationBonusScore, isBonus: true },
+    { name: "Bonus: Jobs Created from ED & SD Initiatives", target: "Tick-box", weighting: 1, score: jobsCreatedBonusScore, isBonus: true },
+  ];
 
   return {
     supplierDev: sdScore,
     enterpriseDev: edScore,
+    graduationBonus: graduationBonusScore,
+    jobsCreatedBonus: jobsCreatedBonusScore,
     total: totalScore,
     subMinimumMet: true,
     sdSpend,
     edSpend,
     sdTarget,
     edTarget,
+    subLines,
   };
 }
 

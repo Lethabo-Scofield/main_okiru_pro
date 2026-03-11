@@ -122,6 +122,13 @@ export default function Scorecard() {
         { name: "  ↳ Black People (EAP)", target: skillResult.eapIndicators.blackPeople.targetPct, weighting: skillResult.eapIndicators.blackPeople.maxPoints, score: skillResult.eapIndicators.blackPeople.score, formula: `Black spend R${skillResult.eapIndicators.blackPeople.spend.toLocaleString()} ÷ ${skillResult.eapIndicators.blackPeople.targetPct} of LA × ${skillResult.eapIndicators.blackPeople.maxPoints} pts` },
         { name: "  ↳ Black Women (EAP)", target: skillResult.eapIndicators.blackWomen.targetPct, weighting: skillResult.eapIndicators.blackWomen.maxPoints, score: skillResult.eapIndicators.blackWomen.score, formula: `BWO spend R${skillResult.eapIndicators.blackWomen.spend.toLocaleString()} ÷ ${skillResult.eapIndicators.blackWomen.targetPct} of LA × ${skillResult.eapIndicators.blackWomen.maxPoints} pts` },
         { name: "  ↳ Black Disabled", target: skillResult.eapIndicators.disabled.targetPct, weighting: skillResult.eapIndicators.disabled.maxPoints, score: skillResult.eapIndicators.disabled.score, formula: `Disabled spend R${skillResult.eapIndicators.disabled.spend.toLocaleString()} ÷ ${skillResult.eapIndicators.disabled.targetPct} of LA × ${skillResult.eapIndicators.disabled.maxPoints} pts` },
+        ...skillResult.categoryBreakdown.filter(cb => cb.spend > 0).map(cb => ({
+          name: `  ↳ Cat ${cb.code}: ${cb.label}`,
+          target: cb.cap ? `≤${(cb.cap * 100).toFixed(0)}% cap` : "No cap",
+          weighting: 0,
+          score: 0,
+          formula: `${cb.label} spend R${cb.spend.toLocaleString()}${cb.capApplied ? ` → capped to R${cb.recognisedSpend.toLocaleString()} (${(cb.cap! * 100).toFixed(0)}% limit)` : ` → R${cb.recognisedSpend.toLocaleString()} recognised`}`,
+        })),
         { name: "Bursaries for Black Students", target: `2.5% of LA`, weighting: 5, score: skillResult.bursaries, formula: `Bursary spend R${(skillResult.actualBursarySpend).toLocaleString()} ÷ target R${skillResult.targetBursaries.toLocaleString()} × 5 pts` },
         { name: "  ↳ Absorption Rate", target: "2.5%", weighting: 0, score: 0, formula: `${skillResult.eapIndicators.absorption.count} of ${skillResult.eapIndicators.absorption.total} learners absorbed (${(skillResult.eapIndicators.absorption.rate * 100).toFixed(0)}%)` },
       ],
@@ -133,10 +140,15 @@ export default function Scorecard() {
       accentColor: "text-amber-500 dark:text-amber-400",
       barColor: "bg-amber-500",
       subMinLabel: `Procurement base ≥ 11.6 pts: ${procResult.subMinimumMet ? 'Met' : 'Not met'}`,
-      subIndicators: [
-        { name: "B-BBEE Procurement Spend from Empowering Suppliers", target: "80% of TMPS", weighting: 25, score: procResult.base, formula: `Recognised spend R${procResult.recognisedSpend.toLocaleString()} ÷ target R${procResult.target.toLocaleString()} × 25 pts` },
-        { name: "Procurement from Designated Groups (51%+ black owned)", target: "12% of TMPS", weighting: 2, score: procResult.designatedGroup, formula: `Designated group spend R${(procResult.rawStats?.designatedGroupSpend || 0).toLocaleString()} ÷ TMPS R${tmps.toLocaleString()} × factor` },
-      ],
+      subIndicators: procResult.subLines.map(sl => ({
+        name: sl.isBonus ? `⭐ ${sl.name}` : sl.name,
+        target: sl.target,
+        weighting: sl.weighting,
+        score: sl.score,
+        formula: sl.isBonus
+          ? `${sl.score > 0 ? 'Awarded' : 'Not claimed'} — tick-box + evidence`
+          : `Spend R${sl.spend.toLocaleString()} ÷ ${sl.target} of TMPS R${tmps.toLocaleString()} × ${sl.weighting} pts`,
+      })),
     },
     {
       key: "enterpriseDevelopment",
@@ -144,10 +156,17 @@ export default function Scorecard() {
       ...scorecard.enterpriseDevelopment,
       accentColor: "text-rose-500 dark:text-rose-400",
       barColor: "bg-rose-500",
-      subIndicators: [
-        { name: "Supplier Development Contributions", target: "2% of NPAT", weighting: 10, score: esdResult.supplierDev, formula: `SD spend R${esdResult.sdSpend.toLocaleString()} ÷ target R${esdResult.sdTarget.toLocaleString()} × 10 pts` },
-        { name: "Enterprise Development Contributions", target: "1% of NPAT", weighting: 5, score: esdResult.enterpriseDev, formula: `ED spend R${esdResult.edSpend.toLocaleString()} ÷ target R${esdResult.edTarget.toLocaleString()} × 5 pts` },
-      ],
+      subIndicators: esdResult.subLines.map(sl => ({
+        name: sl.isBonus ? `⭐ ${sl.name}` : sl.name,
+        target: sl.target,
+        weighting: sl.weighting,
+        score: sl.score,
+        formula: sl.isBonus
+          ? `${sl.score > 0 ? 'Awarded' : 'Not claimed'} — tick-box + evidence`
+          : sl.name.includes('Supplier') 
+            ? `SD spend R${esdResult.sdSpend.toLocaleString()} ÷ target R${esdResult.sdTarget.toLocaleString()} × ${sl.weighting} pts`
+            : `ED spend R${esdResult.edSpend.toLocaleString()} ÷ target R${esdResult.edTarget.toLocaleString()} × ${sl.weighting} pts`,
+      })),
     },
     {
       key: "socioEconomicDevelopment",
@@ -155,8 +174,9 @@ export default function Scorecard() {
       ...scorecard.socioEconomicDevelopment,
       accentColor: "text-sky-500 dark:text-sky-400",
       barColor: "bg-sky-500",
+      subMinLabel: "Grass-roots only (health, safety). Education = Skills Development.",
       subIndicators: [
-        { name: "SED Contributions", target: "1% of NPAT", weighting: 5, score: sedResult.total, formula: `SED spend R${sedResult.actualSpend.toLocaleString()} ÷ target R${sedResult.target.toLocaleString()} × 5 pts` },
+        { name: "SED Contributions", target: "1% of NPAT", weighting: 5, score: sedResult.total, formula: `SED spend R${sedResult.actualSpend.toLocaleString()} ÷ target R${sedResult.target.toLocaleString()} × 5 pts. Note: SED is grass-roots only (health, safety). Education spend counts under Skills Development.` },
       ],
     },
     {
@@ -339,7 +359,7 @@ export default function Scorecard() {
             {[
               { name: "Ownership", threshold: "≥ 10 pts", detail: "40% of 25", met: scorecard.ownership.subMinimumMet, score: scorecard.ownership.score, target: 25, color: "text-violet-500 dark:text-violet-400" },
               { name: "Skills Development", threshold: "≥ 10 pts", detail: "40% of 25", met: scorecard.skillsDevelopment.subMinimumMet, score: scorecard.skillsDevelopment.score, target: 25, color: "text-emerald-500 dark:text-emerald-400" },
-              { name: "Pref. Procurement", threshold: "≥ 11.6 pts", detail: "40% of 29", met: scorecard.procurement.subMinimumMet, score: scorecard.procurement.score, target: 25, color: "text-amber-500 dark:text-amber-400" },
+              { name: "Pref. Procurement", threshold: "≥ 11.6 pts", detail: "40% of 29", met: scorecard.procurement.subMinimumMet, score: scorecard.procurement.score, target: 29, color: "text-amber-500 dark:text-amber-400" },
             ].map(sm => (
               <div
                 key={sm.name}
