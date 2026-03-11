@@ -4,7 +4,10 @@ import { X } from "lucide-react"
 
 import { cn } from "@toolkit/lib/utils"
 
-const Dialog = DialogPrimitive.Root
+function Dialog({ modal = false, ...props }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Root>) {
+  return <DialogPrimitive.Root modal={modal} {...props} />
+}
+Dialog.displayName = "Dialog"
 
 const DialogTrigger = DialogPrimitive.Trigger
 
@@ -32,7 +35,9 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogPrimitive.Close asChild>
+      <DialogOverlay />
+    </DialogPrimitive.Close>
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
