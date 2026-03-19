@@ -84,12 +84,12 @@ export async function registerRoutes(
   app.use(session(sessionConfig));
 
   const REGISTERED_ORGANIZATIONS = [
-    { id: "okiru", name: "Okiru", subscriptionId: "OKR-2026-001" },
-    { id: "param-solutions", name: "Param Solutions", subscriptionId: "PRM-2026-001" },
+    { id: "okiru", name: "Okiru", subscriptionId: "OKR-2026-001", emailDomain: "okiru.co.za" },
+    { id: "param-solutions", name: "Param Solutions", subscriptionId: "PRM-2026-001", emailDomain: "paramsolutions.co.za" },
   ];
 
   app.get("/api/organizations", (_req, res) => {
-    res.json(REGISTERED_ORGANIZATIONS.map(o => ({ id: o.id, name: o.name })));
+    res.json(REGISTERED_ORGANIZATIONS.map(o => ({ id: o.id, name: o.name, emailDomain: o.emailDomain })));
   });
 
   app.post("/api/auth/register", async (req, res) => {
