@@ -1,10 +1,23 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import Groq from "groq-sdk";
 import session from "express-session";
 import MongoStore from "connect-mongo";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
+
+async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const userId = (req.session as any)?.userId;
+  if (!userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  const user = await storage.getUserById(userId);
+  if (!user) {
+    req.session.destroy(() => {});
+    return res.status(401).json({ message: "User no longer exists" });
+  }
+  next();
+}
 
 const groqApiKey = process.env.GROQ_API_KEY;
 if (!groqApiKey) {
@@ -106,11 +119,12 @@ export async function registerRoutes(
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { username, password } = req.body;
-      if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required" });
+      const { username, email, password } = req.body;
+      const loginId = username || email;
+      if (!loginId || !password) {
+        return res.status(400).json({ message: "Username/email and password are required" });
       }
-      const user = await storage.getUserByUsername(username);
+      const user = await storage.getUserByUsernameOrEmail(loginId);
       if (!user) {
         return res.status(401).json({ message: "Invalid username or password" });
       }
@@ -279,9 +293,10 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/templates", async (_req, res) => {
+  app.get("/api/templates", requireAuth, async (req, res) => {
     try {
-      const templates = await storage.getTemplates();
+      const userId = (req.session as any).userId;
+      const templates = await storage.getTemplatesByUser(userId);
       res.json(templates);
     } catch (error: any) {
       console.error("Error fetching templates:", error);
@@ -289,10 +304,11 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/templates/:id", async (req, res) => {
+  app.get("/api/templates/:id", requireAuth, async (req, res) => {
     try {
+      const userId = (req.session as any).userId;
       const id = parseInt(req.params.id);
-      const template = await storage.getTemplate(id);
+      const template = await storage.getTemplateForUser(id, userId);
       if (!template) return res.status(404).json({ error: "Template not found" });
       res.json(template);
     } catch (error: any) {
@@ -301,8 +317,9 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/templates", async (req, res) => {
+  app.post("/api/templates", requireAuth, async (req, res) => {
     try {
+      const userId = (req.session as any).userId;
       const { name, description, version, entities } = req.body;
       if (!name || !entities || !Array.isArray(entities)) {
         return res.status(400).json({ error: "name and entities array are required" });
@@ -312,6 +329,7 @@ export async function registerRoutes(
         description: description || "",
         version: version || "1.0",
         entities,
+        userId,
       });
       res.json(template);
     } catch (error: any) {
@@ -320,11 +338,12 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/templates/:id", async (req, res) => {
+  app.put("/api/templates/:id", requireAuth, async (req, res) => {
     try {
+      const userId = (req.session as any).userId;
       const id = parseInt(req.params.id);
       const { name, description, version, entities } = req.body;
-      const template = await storage.updateTemplate(id, {
+      const template = await storage.updateTemplateForUser(id, userId, {
         ...(name && { name }),
         ...(description !== undefined && { description }),
         ...(version && { version }),
@@ -338,10 +357,11 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/templates/:id", async (req, res) => {
+  app.delete("/api/templates/:id", requireAuth, async (req, res) => {
     try {
+      const userId = (req.session as any).userId;
       const id = parseInt(req.params.id);
-      const deleted = await storage.deleteTemplate(id);
+      const deleted = await storage.deleteTemplateForUser(id, userId);
       if (!deleted) return res.status(404).json({ error: "Template not found" });
       res.json({ success: true });
     } catch (error: any) {

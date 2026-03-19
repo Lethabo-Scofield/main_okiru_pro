@@ -27,12 +27,16 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - `npm run dev` starts Express on port 5000 with Vite middleware (HMR)
 - In production, `npm run build` then `npm run start`
 
-## Authentication
+## Authentication & Multi-Tenancy
 - Users must sign in or register to access the dashboard and all features
-- No demo mode or auto-login fallbacks — real authentication required
+- Login accepts both username and email (case-insensitive lookup via `getUserByUsernameOrEmail`)
+- `requireAuth` middleware validates session AND checks user still exists in DB
+- Templates are user-scoped: each user sees their own templates + shared ones (userId: null)
+- Users can only edit/delete their own templates — shared templates are read-only
 - Auth provider (`Toolkit/src/lib/auth.tsx`) properly throws errors on failed login/register
 - Unauthenticated users are redirected to `/auth` from protected routes
 - Landing page (`/`) always shows on reload regardless of auth state
+- Toolkit client data (ownership, management, skills, procurement) will move to ArangoDB (not yet implemented)
 
 ## Key Configuration
 - `API_BASE` in `Toolkit/src/lib/config.ts` defaults to empty string (relative URLs)
