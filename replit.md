@@ -38,6 +38,15 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - Landing page (`/`) always shows on reload regardless of auth state
 - Toolkit client data (ownership, management, skills, procurement) will move to ArangoDB (not yet implemented)
 
+## Registration Wizard (4-step flow)
+- Step 1 — Organization: Select from registered orgs (Okiru, Param Solutions) + enter subscription ID
+- Step 2 — Personal Details: Full name and email
+- Step 3 — Credentials: Username, password, confirm password
+- Step 4 — Role Selection: Auditor, Analyst, Manager, or Admin (admin role blocked server-side for self-registration)
+- Backend validates org + subscription ID match, trims/normalizes all inputs, enforces allowed roles (no privilege escalation)
+- Registered orgs and subscription IDs defined server-side in `REGISTERED_ORGANIZATIONS` constant in `server/routes.ts`
+- `/api/organizations` endpoint returns org list (id + name) for the dropdown
+
 ## Key Configuration
 - `API_BASE` in `Toolkit/src/lib/config.ts` defaults to empty string (relative URLs)
 - MongoDB connection gracefully degrades in dev mode (warns instead of crashing)

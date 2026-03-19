@@ -83,28 +83,73 @@ export async function registerRoutes(
 
   app.use(session(sessionConfig));
 
+  const REGISTERED_ORGANIZATIONS = [
+    { id: "okiru", name: "Okiru", subscriptionId: "OKR-2026-001" },
+    { id: "param-solutions", name: "Param Solutions", subscriptionId: "PRM-2026-001" },
+  ];
+
+  app.get("/api/organizations", (_req, res) => {
+    res.json(REGISTERED_ORGANIZATIONS.map(o => ({ id: o.id, name: o.name })));
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { username, password, fullName, email, organizationName } = req.body;
-      if (!username || !password) {
+      const { username, password, fullName, email, organizationId, subscriptionId, role } = req.body;
+
+      const trimmedUsername = typeof username === 'string' ? username.trim() : '';
+      const trimmedFullName = typeof fullName === 'string' ? fullName.trim() : '';
+      const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+      const trimmedSubId = typeof subscriptionId === 'string' ? subscriptionId.trim().toUpperCase() : '';
+
+      if (!trimmedUsername || !password) {
         return res.status(400).json({ message: "Username and password are required" });
+      }
+      if (trimmedUsername.length < 3) {
+        return res.status(400).json({ message: "Username must be at least 3 characters" });
       }
       if (password.length < 4) {
         return res.status(400).json({ message: "Password must be at least 4 characters" });
       }
-      const existing = await storage.getUserByUsername(username);
+      if (!trimmedFullName) {
+        return res.status(400).json({ message: "Full name is required" });
+      }
+      if (!trimmedEmail) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+      if (!organizationId) {
+        return res.status(400).json({ message: "Organization is required" });
+      }
+      const org = REGISTERED_ORGANIZATIONS.find(o => o.id === organizationId);
+      if (!org) {
+        return res.status(400).json({ message: "Invalid organization selected" });
+      }
+      if (!trimmedSubId || trimmedSubId !== org.subscriptionId) {
+        return res.status(400).json({ message: "Invalid subscription ID for this organization" });
+      }
+
+      const ALLOWED_ROLES = ["auditor", "analyst", "manager"];
+      const safeRole = ALLOWED_ROLES.includes(role) ? role : "auditor";
+
+      const existing = await storage.getUserByUsername(trimmedUsername);
       if (existing) {
         return res.status(400).json({ message: "Username already taken" });
       }
+      const existingEmail = await storage.getUserByUsernameOrEmail(trimmedEmail);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
       const hashedPassword = await bcrypt.hash(password, 8);
       const user = await storage.createUser({
-        username,
+        username: trimmedUsername,
         password: hashedPassword,
-        fullName: fullName || null,
-        email: email || null,
-        organizationName: organizationName || null,
-        role: "user",
-        organizationId: null,
+        fullName: trimmedFullName,
+        email: trimmedEmail,
+        organizationName: org.name,
+        organizationId: org.id,
+        role: safeRole,
         profilePicture: null,
       });
       const safeUser = sanitizeUser(user);
