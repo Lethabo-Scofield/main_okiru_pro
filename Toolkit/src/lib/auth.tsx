@@ -27,7 +27,7 @@ interface RegisterData {
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: { fullName?: string; email?: string }) => Promise<void>;
@@ -51,14 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => { clearTimeout(timeout); setIsLoading(false); });
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       });
     } catch {
       throw new Error('Network error. Please try again.');

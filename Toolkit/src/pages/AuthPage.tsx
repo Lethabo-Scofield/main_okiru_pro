@@ -38,6 +38,7 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
   const { toast } = useToast();
 
   const [form, setForm] = useState({
+    loginEmail: '',
     username: '',
     password: '',
     confirmPassword: '',
@@ -98,9 +99,17 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === 'login') {
+      if (!form.loginEmail.trim()) {
+        setFieldErrors({ loginEmail: "Email is required" });
+        return;
+      }
+      if (!form.password) {
+        setFieldErrors({ password: "Password is required" });
+        return;
+      }
       setIsLoading(true);
       try {
-        await login(form.username, form.password);
+        await login(form.loginEmail.trim(), form.password);
       } catch (error: any) {
         toast({ title: "Login Failed", description: error.message, variant: "destructive" });
       } finally {
@@ -212,7 +221,7 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
                   </h2>
                   <p className="text-[13px] text-muted-foreground/60 mt-1">
                     {mode === 'login'
-                      ? 'Access your compliance dashboard'
+                      ? 'Sign in with your work email'
                       : (
                         <span className="flex items-center justify-center gap-1.5">
                           <StepIcon className="h-3.5 w-3.5" />
@@ -252,17 +261,24 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
                     {mode === 'login' ? (
                       <div className="space-y-4">
                         <div className="space-y-1.5">
-                          <Label htmlFor="login-user" className="text-[12px] font-medium text-muted-foreground/70">Username or Email</Label>
+                          <Label htmlFor="login-email" className="text-[12px] font-medium text-muted-foreground/70">Work Email</Label>
                           <Input
-                            id="login-user"
+                            id="login-email"
+                            type="email"
                             required
-                            value={form.username}
-                            onChange={e => setForm({ ...form, username: e.target.value })}
-                            placeholder="username or email"
+                            value={form.loginEmail}
+                            onChange={e => {
+                              setForm({ ...form, loginEmail: e.target.value });
+                              setFieldErrors(prev => ({ ...prev, loginEmail: '' }));
+                            }}
+                            placeholder="thabo@okiru.co.za"
                             className="h-10"
-                            autoComplete="username"
-                            data-testid="input-username"
+                            autoComplete="email"
+                            data-testid="input-login-email"
                           />
+                          {fieldErrors.loginEmail && (
+                            <p className="text-[11px] text-destructive" data-testid="error-login-email">{fieldErrors.loginEmail}</p>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="login-pw" className="text-[12px] font-medium text-muted-foreground/70">Password</Label>
@@ -271,12 +287,18 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
                             type="password"
                             required
                             value={form.password}
-                            onChange={e => setForm({ ...form, password: e.target.value })}
+                            onChange={e => {
+                              setForm({ ...form, password: e.target.value });
+                              setFieldErrors(prev => ({ ...prev, password: '' }));
+                            }}
                             placeholder="••••••••"
                             className="h-10"
                             autoComplete="current-password"
                             data-testid="input-password"
                           />
+                          {fieldErrors.password && (
+                            <p className="text-[11px] text-destructive" data-testid="error-login-password">{fieldErrors.password}</p>
+                          )}
                         </div>
                         <Button
                           type="submit"
