@@ -446,10 +446,10 @@ export default function EntityBuilder() {
 
       <header className="h-[52px] shrink-0 z-20 flex items-center justify-between px-5 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
         <div className="flex items-center gap-3">
-          <button onClick={() => window.history.back()} className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 transition-all duration-200 press-sm group" data-testid="btn-back">
+          <Link href="/templates" className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 transition-all duration-200 press-sm group" data-testid="btn-back">
             <ChevronLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
             <img src={logoCircle} alt="Okiru" className="h-7 w-7 rounded-[8px]" />
-          </button>
+          </Link>
           <div className="h-4 w-px bg-[#3a3a3c] mx-0.5" />
           {isEditingProjectName ? (
             <input autoFocus value={projectName} onChange={(e) => setProjectName(e.target.value)}

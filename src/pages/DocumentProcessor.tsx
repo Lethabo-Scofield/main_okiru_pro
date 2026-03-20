@@ -538,6 +538,27 @@ export default function DocumentProcessor() {
     return sid;
   }, [sessionId, companyInfo, uploadedFiles, fileClassifications, extractionResults, docStatuses]);
 
+  const lastSavedFilesRef = useRef<string>('');
+  useEffect(() => {
+    if (!sessionId || currentPage !== 'upload') return;
+    const allReady = uploadedFiles.length > 0 && uploadedFiles.every(f => f.status === 'ready');
+    if (!allReady) return;
+    const key = uploadedFiles.map(f => f.id + f.status).join(',');
+    if (key === lastSavedFilesRef.current) return;
+    lastSavedFilesRef.current = key;
+    persistSession('upload', { files: uploadedFiles });
+  }, [uploadedFiles, currentPage, sessionId, persistSession]);
+
+  const lastSavedClassifyRef = useRef<string>('');
+  useEffect(() => {
+    if (!sessionId || currentPage !== 'classify') return;
+    const key = JSON.stringify(fileClassifications);
+    if (key === lastSavedClassifyRef.current || key === '{}') return;
+    lastSavedClassifyRef.current = key;
+    const t = setTimeout(() => { persistSession('classify', { classifications: fileClassifications }); }, 800);
+    return () => clearTimeout(t);
+  }, [fileClassifications, currentPage, sessionId, persistSession]);
+
   const extractPdfText = async (file: File): Promise<string> => {
     try {
       const arrayBuffer = await file.arrayBuffer();
