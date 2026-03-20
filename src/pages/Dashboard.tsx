@@ -84,6 +84,28 @@ export default function Dashboard() {
   const { needsOnboarding, showTour, startTour, completeTour, dismissTour } = useOnboarding(user?.id);
   const [processorSessions, setProcessorSessions] = useState<ProcessorSession[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
+  const [deleteSessionConfirm, setDeleteSessionConfirm] = useState<string | null>(null);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
+
+  const isAdmin = user?.role === 'admin';
+
+  const handleDeleteSession = useCallback(async (sessionId: string) => {
+    setIsDeletingSession(true);
+    try {
+      const res = await fetch(`/api/processor-sessions/${sessionId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setProcessorSessions(prev => prev.filter(s => s.id !== sessionId));
+        toast({ title: 'Assessment deleted', description: 'The client assessment has been removed.' });
+      } else {
+        toast({ title: 'Delete failed', description: 'Could not delete the assessment.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Delete failed', description: 'Network error. Please try again.', variant: 'destructive' });
+    } finally {
+      setIsDeletingSession(false);
+      setDeleteSessionConfirm(null);
+    }
+  }, [toast]);
 
   const fetchSessions = useCallback(async () => {
     setLoadingSessions(true);
@@ -682,24 +704,58 @@ export default function Dashboard() {
                           </td>
                           <td className="px-5 py-3.5 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              {c.isComplete ? (
-                                <Link
-                                  href={`/toolkit/${c.sessionId}`}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[12px] font-semibold smooth press-sm"
-                                  data-testid={`button-toolkit-${c.id}`}
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                  View in Toolkit
-                                </Link>
+                              {deleteSessionConfirm === c.sessionId ? (
+                                <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-1.5">
+                                  <span className="text-[11px] text-red-400 font-medium">Delete?</span>
+                                  <button
+                                    onClick={() => handleDeleteSession(c.sessionId)}
+                                    disabled={isDeletingSession}
+                                    className="px-2.5 py-1 rounded-lg bg-red-500 hover:bg-red-400 text-white text-[11px] font-semibold smooth press-sm disabled:opacity-60"
+                                    data-testid={`button-confirm-delete-${c.id}`}
+                                  >
+                                    {isDeletingSession ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes, delete'}
+                                  </button>
+                                  <button
+                                    onClick={() => setDeleteSessionConfirm(null)}
+                                    disabled={isDeletingSession}
+                                    className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[#8e8e93] text-[11px] font-medium smooth press-sm"
+                                    data-testid={`button-cancel-delete-${c.id}`}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
                               ) : (
-                                <Link
-                                  href={`/processor?session=${c.sessionId}`}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[12px] font-semibold smooth press-sm"
-                                  data-testid={`button-resume-${c.id}`}
-                                >
-                                  <Play className="h-2.5 w-2.5" />
-                                  Resume
-                                </Link>
+                                <>
+                                  {c.isComplete ? (
+                                    <Link
+                                      href={`/toolkit/${c.sessionId}`}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[12px] font-semibold smooth press-sm"
+                                      data-testid={`button-toolkit-${c.id}`}
+                                    >
+                                      <ExternalLink className="h-3 w-3" />
+                                      View in Toolkit
+                                    </Link>
+                                  ) : (
+                                    <Link
+                                      href={`/processor?session=${c.sessionId}`}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[12px] font-semibold smooth press-sm"
+                                      data-testid={`button-resume-${c.id}`}
+                                    >
+                                      <Play className="h-2.5 w-2.5" />
+                                      Resume
+                                    </Link>
+                                  )}
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() => setDeleteSessionConfirm(c.sessionId)}
+                                      className="p-1.5 rounded-lg text-[#636366] hover:text-red-400 hover:bg-red-500/10 smooth press-sm"
+                                      data-testid={`button-delete-${c.id}`}
+                                      title="Delete assessment"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </td>
