@@ -4,12 +4,16 @@ import { Card, CardContent } from "@toolkit/components/ui/card";
 import { Button } from "@toolkit/components/ui/button";
 import { Input } from "@toolkit/components/ui/input";
 import { Label } from "@toolkit/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@toolkit/components/ui/select";
-import { Loader2, ArrowRight, ArrowLeft, Check, Building2, User, KeyRound, Shield } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, Check, Building2, User, KeyRound, Shield, ChevronDown } from "lucide-react";
 import { useToast } from "@toolkit/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_BASE } from "@toolkit/lib/config";
 import okiruLogo from "@toolkit-assets/Okiru_WHT_Circle_Logo_V1_1772658965196.png";
+
+const FALLBACK_ORGANIZATIONS: OrgOption[] = [
+  { id: "okiru", name: "Okiru", emailDomain: "okiru.co.za" },
+  { id: "param-solutions", name: "Param Solutions", emailDomain: "paramsolutions.co.za" },
+];
 
 const ROLES = [
   { value: "auditor", label: "B-BBEE Auditor", description: "Conduct and manage compliance audits" },
@@ -28,12 +32,67 @@ interface OrgOption {
   emailDomain: string;
 }
 
+function OrgPicker({ organizations, value, onChange, error }: {
+  organizations: OrgOption[];
+  value: string;
+  onChange: (v: string) => void;
+  error?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = organizations.find(o => o.id === value);
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-[12px] font-medium text-muted-foreground/70">Organization</Label>
+      <div className="relative">
+        <button
+          type="button"
+          data-testid="select-organization"
+          onClick={() => setOpen(p => !p)}
+          className={`flex h-10 w-full items-center justify-between rounded-md border px-3 text-sm bg-transparent shadow-sm transition-colors ${
+            error ? 'border-destructive' : 'border-input hover:border-ring'
+          } focus:outline-none focus:ring-1 focus:ring-ring`}
+        >
+          {selected ? (
+            <span className="flex items-center gap-2">
+              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+              {selected.name}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Select your organization</span>
+          )}
+          <ChevronDown className={`h-4 w-4 opacity-50 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+            {organizations.map(org => (
+              <button
+                key={org.id}
+                type="button"
+                data-testid={`org-option-${org.id}`}
+                onClick={() => { onChange(org.id); setOpen(false); }}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-accent hover:text-accent-foreground ${
+                  value === org.id ? 'bg-accent/50 font-medium' : ''
+                }`}
+              >
+                <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                {org.name}
+                {value === org.id && <Check className="h-3.5 w-3.5 ml-auto text-primary" />}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {error && <p className="text-[11px] text-destructive" data-testid="error-organization">{error}</p>}
+    </div>
+  );
+}
+
 export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'login' | 'register' } = {}) {
   const [mode, setMode] = useState<'login' | 'register'>(defaultMode);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
-  const [organizations, setOrganizations] = useState<OrgOption[]>([]);
+  const [organizations, setOrganizations] = useState<OrgOption[]>(FALLBACK_ORGANIZATIONS);
   const { login, register } = useAuth();
   const { toast } = useToast();
 
@@ -53,9 +112,9 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
 
   useEffect(() => {
     fetch(`${API_BASE}/api/organizations`)
-      .then(r => r.ok ? r.json() : [])
-      .then(setOrganizations)
-      .catch(() => setOrganizations([]));
+      .then(r => r.ok ? r.json() : FALLBACK_ORGANIZATIONS)
+      .then((data: OrgOption[]) => setOrganizations(data?.length ? data : FALLBACK_ORGANIZATIONS))
+      .catch(() => setOrganizations(FALLBACK_ORGANIZATIONS));
   }, []);
 
   const selectedOrg = organizations.find(o => o.id === form.organizationId);
@@ -283,33 +342,15 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
                       <div className="space-y-4">
                         {step === 1 && (
                           <div className="space-y-4">
-                            <div className="space-y-1.5">
-                              <Label className="text-[12px] font-medium text-muted-foreground/70">Organization</Label>
-                              <Select
-                                value={form.organizationId}
-                                onValueChange={v => {
-                                  setForm({ ...form, organizationId: v });
-                                  setFieldErrors(prev => ({ ...prev, organizationId: '' }));
-                                }}
-                              >
-                                <SelectTrigger className="h-10" data-testid="select-organization">
-                                  <SelectValue placeholder="Select your organization" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {organizations.map(org => (
-                                    <SelectItem key={org.id} value={org.id}>
-                                      <div className="flex items-center gap-2">
-                                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                                        {org.name}
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {fieldErrors.organizationId && (
-                                <p className="text-[11px] text-destructive" data-testid="error-organization">{fieldErrors.organizationId}</p>
-                              )}
-                            </div>
+                            <OrgPicker
+                              organizations={organizations}
+                              value={form.organizationId}
+                              onChange={v => {
+                                setForm({ ...form, organizationId: v });
+                                setFieldErrors(prev => ({ ...prev, organizationId: '' }));
+                              }}
+                              error={fieldErrors.organizationId}
+                            />
 
                             {selectedOrg && (
                               <motion.div
