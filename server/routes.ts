@@ -5,6 +5,7 @@ import session from "express-session";
 import MongoStore from "connect-mongo";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
+import { sendLoginNotification } from "./email";
 
 async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const userId = (req.session as any)?.userId;
@@ -181,6 +182,12 @@ export async function registerRoutes(
       (req.session as any).userId = user.id;
       (req.session as any).userData = safeUser;
       res.json({ user: safeUser });
+
+      sendLoginNotification(
+        user.email || loginId,
+        user.fullName || null,
+        user.organizationName || null
+      ).catch(() => {});
     } catch (error: any) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Login failed" });
