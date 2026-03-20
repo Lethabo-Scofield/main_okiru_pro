@@ -7,7 +7,7 @@ import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
 import {
   X, Home, ArrowLeft, CloudUpload, Puzzle, Cpu, SearchCheck,
   Check, AlertTriangle, PlusCircle, Loader2, Trash2, ChevronRight, ChevronLeft,
-  Circle, Zap, ListChecks, Download, CheckCheck, Pencil, FileText, FileSpreadsheet,
+  Circle, Zap, ListChecks, CheckCheck, FileText, FileSpreadsheet,
   FileImage, File, FileQuestion, Building2
 } from 'lucide-react';
 
@@ -459,9 +459,6 @@ export default function DocumentProcessor() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [fileClassifications, setFileClassifications] = useState<Record<string, number>>({});
   const [extractionResults, setExtractionResults] = useState<any[]>([]);
-  const [currentEdit, setCurrentEdit] = useState<{ docIdx: number; entIdx: number } | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [editConfidence, setEditConfidence] = useState(0);
   const [isDragActive, setIsDragActive] = useState(false);
   const [templates, setTemplates] = useState<StoredTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
@@ -502,9 +499,10 @@ export default function DocumentProcessor() {
       setFileClassifications(sess.fileClassifications || {});
       setExtractionResults(sess.extractionResults || []);
       if (sess.filesData && sess.filesData.length > 0) {
+        const NativeFile = window.File as typeof globalThis.File;
         const restored: UploadedFile[] = sess.filesData.map((fd: any) => ({
           id: fd.id,
-          file: new File([], fd.name, { type: fd.type === 'PDF' ? 'application/pdf' : 'application/octet-stream' }),
+          file: new NativeFile([], fd.name, { type: fd.type === 'PDF' ? 'application/pdf' : 'application/octet-stream' }),
           name: fd.name,
           size: fd.size,
           type: fd.type,
@@ -868,24 +866,13 @@ export default function DocumentProcessor() {
     }
   };
 
-  const editInputRef = useRef<HTMLInputElement>(null);
-
-  const openEdit = (docIdx: number, entIdx: number) => {
-    const entity = extractionResults[docIdx]?.entities[entIdx];
-    if (!entity) return;
-    setCurrentEdit({ docIdx, entIdx });
-    setEditValue(entity.value || '');
-    setEditConfidence(entity.confidence || 0);
-    setTimeout(() => editInputRef.current?.focus(), 50);
-  };
-  const saveEdit = () => {
-    if (!currentEdit) return;
-    const { docIdx, entIdx } = currentEdit;
+  const inlineEditEntity = (docIdx: number, entIdx: number, newValue: string) => {
     const r = structuredClone(extractionResults);
-    r[docIdx].entities[entIdx] = { ...r[docIdx].entities[entIdx], value: editValue, confidence: editConfidence, status: 'edited' };
+    const entity = r[docIdx]?.entities[entIdx];
+    if (!entity) return;
+    entity.value = newValue;
+    entity.status = 'edited';
     setExtractionResults(r);
-    setCurrentEdit(null);
-    toast({ title: "Entity updated", description: `Value saved for "${r[docIdx].entities[entIdx].name}"` });
   };
   const approveEntity = (docIdx: number, entIdx: number) => {
     const r = structuredClone(extractionResults);
@@ -957,46 +944,6 @@ export default function DocumentProcessor() {
   return (
     <div className="bg-black text-white font-sans h-screen overflow-hidden flex flex-col" style={{ letterSpacing: '-0.011em' }}>
 
-      {currentEdit !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xl" onClick={(e) => { if (e.target === e.currentTarget) setCurrentEdit(null); }} style={{ animation: 'fadeIn 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
-          <div className="bg-[#1c1c1e] rounded-2xl shadow-2xl w-full max-w-md p-6 scale-in" style={{ boxShadow: '0 25px 60px -12px rgba(0,0,0,0.5)' }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') setCurrentEdit(null); }}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-white">Edit Entity</h3>
-              <button onClick={() => setCurrentEdit(null)} className="p-1.5 text-[#98989f] hover:text-white rounded-[10px] hover:bg-[#2c2c2e] smooth press-sm">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            {currentEdit && extractionResults[currentEdit.docIdx]?.entities[currentEdit.entIdx] && (
-              <div className="text-xs text-[#8e8e93] mb-4 px-2 py-1.5 bg-[#2c2c2e] rounded-lg">
-                <span className="font-medium text-[#d1d1d6]">{extractionResults[currentEdit.docIdx].entities[currentEdit.entIdx].name}</span>
-                <span className="mx-1.5 text-[#636366]">|</span>
-                {extractionResults[currentEdit.docIdx].fileName}
-              </div>
-            )}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-[#d1d1d6] uppercase tracking-wider mb-2">Value</label>
-                <input ref={editInputRef} type="text" value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                  className="w-full bg-[#2c2c2e] border border-transparent rounded-xl px-3 py-2.5 text-sm text-white focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all" data-testid="input-edit-value" />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium text-[#d1d1d6] uppercase tracking-wider">Confidence</label>
-                  <span className={`text-sm font-bold ${editConfidence >= 80 ? 'text-green-400' : editConfidence >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>{editConfidence}%</span>
-                </div>
-                <input type="range" min="0" max="100" value={editConfidence} onChange={(e) => setEditConfidence(Number(e.target.value))}
-                  className="w-full accent-purple-500" data-testid="input-edit-confidence" />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setCurrentEdit(null)} className="flex-1 py-2.5 bg-[#2c2c2e] text-white rounded-xl hover:bg-[#3a3a3c] smooth press-sm text-[13px] font-medium">Cancel</button>
-              <button onClick={saveEdit} className="flex-1 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 smooth press-sm text-[13px] font-semibold" data-testid="button-save-edit">
-                Save <span className="text-white/60 text-[11px] ml-1">Enter</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <header className="h-14 flex items-center justify-between px-5 shrink-0 z-20 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
         <div className="flex items-center gap-4">
@@ -1735,10 +1682,20 @@ export default function DocumentProcessor() {
                                       {entity.status === 'edited' && <span className="text-[10px] bg-purple-500/15 text-purple-400 px-1.5 py-0.5 rounded-md">Edited</span>}
                                       {entity.status === 'rejected' && <span className="text-[10px] bg-red-500/15 text-red-400 px-1.5 py-0.5 rounded-md">Rejected</span>}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="inline-block px-2 py-1 rounded-md text-sm font-mono" style={{ backgroundColor: color.bg, color: color.text, borderBottom: `2px solid ${color.underline}` }}>
-                                        {entity.value || <span className="text-[#636366] italic font-sans text-sm">No value found</span>}
-                                      </span>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <input
+                                        type="text"
+                                        defaultValue={entity.value || ''}
+                                        placeholder="No value found"
+                                        onBlur={(e) => {
+                                          const val = e.target.value;
+                                          if (val !== entity.value) inlineEditEntity(activeReviewDoc, realIdx, val);
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                                        className="min-w-0 flex-1 px-2 py-1 rounded-md text-sm font-mono bg-transparent border-0 border-b-2 focus:outline-none focus:border-purple-400 transition-colors placeholder:text-[#636366] placeholder:italic placeholder:font-sans"
+                                        style={{ color: color.text, borderColor: color.underline, backgroundColor: color.bg }}
+                                        data-testid={`input-entity-value-${realIdx}`}
+                                      />
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0 ml-3">
@@ -1749,9 +1706,6 @@ export default function DocumentProcessor() {
                                           <Check className="w-3.5 h-3.5" />
                                         </button>
                                       )}
-                                      <button onClick={() => openEdit(activeReviewDoc, realIdx)} className="p-1.5 text-purple-400 hover:bg-purple-500/10 rounded-lg smooth press-sm" title="Edit" data-testid={`button-edit-${realIdx}`}>
-                                        <Pencil className="w-3.5 h-3.5" />
-                                      </button>
                                       {entity.status !== 'rejected' && (
                                         <button onClick={() => rejectEntity(activeReviewDoc, realIdx)} className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg smooth press-sm" title="Reject" data-testid={`button-reject-${realIdx}`}>
                                           <X className="w-3.5 h-3.5" />
