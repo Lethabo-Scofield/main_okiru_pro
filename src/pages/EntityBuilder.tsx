@@ -404,7 +404,7 @@ export default function EntityBuilder() {
     : 0;
 
   return (
-    <div className="bg-black text-white font-sans h-screen overflow-hidden flex flex-col" style={{ letterSpacing: '-0.011em' }}>
+    <div className="bg-black text-white font-sans h-screen overflow-hidden flex flex-col select-none cursor-default" style={{ letterSpacing: '-0.011em' }}>
 
       {isLoadingTemplate && (
         <div className="fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center gap-5">
@@ -935,6 +935,8 @@ export default function EntityBuilder() {
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        input, textarea { cursor: text !important; user-select: text !important; }
+        button, a { cursor: pointer !important; user-select: none !important; }
       `}</style>
     </div>
   );
