@@ -1555,47 +1555,62 @@ export default function DocumentProcessor() {
           })()}
 
 
-          {currentPage === 'review' && extractionResults.length > 0 && (
+          {currentPage === 'review' && extractionResults.length > 0 && (() => {
+            const isLastDoc = activeReviewDoc === extractionResults.length - 1;
+            const handleNext = async () => {
+              setIsSavingSession(true);
+              await persistSession('review', { results: extractionResults, complete: false });
+              setIsSavingSession(false);
+              setActiveReviewDoc(prev => prev + 1);
+              setHoveredEntity(null);
+              setReviewFilter('all');
+            };
+            const handleSubmit = async () => {
+              setIsSavingSession(true);
+              await persistSession('review', { results: extractionResults, complete: true });
+              setIsSavingSession(false);
+              setIsSubmitted(true);
+              toast({ title: "Assessment complete", description: `${totalEntities} entities across ${extractionResults.length} document${extractionResults.length !== 1 ? 's' : ''} — view in Toolkit` });
+            };
+            return (
             <div className="flex flex-col h-full -m-6">
               <div className="px-6 py-4 flex items-center justify-between bg-black shrink-0" style={{ borderBottom: '1px solid #2c2c2e' }}>
                 <div className="flex items-center gap-4">
-                  <button onClick={() => setCurrentPage('extract')} className="p-2 -ml-2 text-[#8e8e93] hover:text-white hover:bg-[#1c1c1e] rounded-[10px] smooth press-sm" data-testid="button-back-extract">
+                  <button onClick={() => {
+                    if (activeReviewDoc > 0) { setActiveReviewDoc(prev => prev - 1); setHoveredEntity(null); setReviewFilter('all'); }
+                    else setCurrentPage('extract');
+                  }} className="p-2 -ml-2 text-[#8e8e93] hover:text-white hover:bg-[#1c1c1e] rounded-[10px] smooth press-sm" data-testid="button-back-extract">
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
-                  <h2 className="text-lg font-semibold text-white">Review Results</h2>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="px-2 py-1 bg-[#1c1c1e] text-[#d1d1d6] rounded-lg">{totalEntities} entities</span>
-                    <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-lg">{approvedCount} approved</span>
+                  <div>
+                    <h2 className="text-[15px] font-semibold text-white leading-tight">Review Results</h2>
+                    <p className="text-[11px] text-[#636366] truncate max-w-[240px]">{extractionResults[activeReviewDoc]?.fileName}</p>
                   </div>
+                  {extractionResults.length > 1 && (
+                    <span className="px-2.5 py-1 bg-[#1c1c1e] text-[#8e8e93] rounded-lg text-[11px] font-medium">
+                      {activeReviewDoc + 1} / {extractionResults.length}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={async () => {
-                    setIsSavingSession(true);
-                    await persistSession('review', { results: extractionResults, complete: true });
-                    setIsSavingSession(false);
-                    setIsSubmitted(true);
-                    toast({ title: "Assessment complete", description: `${totalEntities} entities across ${extractionResults.length} documents — view in Toolkit` });
-                  }} disabled={isSubmitted || isSavingSession}
-                    className={`px-4 py-1.5 rounded-[10px] font-semibold text-[13px] smooth press-sm ${isSubmitted ? 'bg-green-600 text-white' : 'bg-purple-600 hover:bg-purple-500 text-white'}`} data-testid="button-submit">
-                    {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 inline-block animate-spin" />Saving...</> : isSubmitted ? <><Check className="w-3.5 h-3.5 mr-1.5 inline-block" />Complete</> : 'Submit & Complete'}
-                  </button>
+                  {isLastDoc ? (
+                    <button onClick={handleSubmit} disabled={isSubmitted || isSavingSession}
+                      className={`px-4 py-2 rounded-[10px] font-semibold text-[13px] smooth press-sm flex items-center gap-1.5 ${isSubmitted ? 'bg-green-600 text-white' : 'bg-purple-600 hover:bg-purple-500 text-white'}`}
+                      data-testid="button-submit">
+                      {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving...</>
+                        : isSubmitted ? <><Check className="w-3.5 h-3.5" />Complete</>
+                        : 'Submit & Complete'}
+                    </button>
+                  ) : (
+                    <button onClick={handleNext} disabled={isSavingSession}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-[10px] font-semibold text-[13px] smooth press-sm flex items-center gap-1.5 disabled:opacity-60"
+                      data-testid="button-next-doc">
+                      {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving...</>
+                        : <>Next Document <ChevronRight className="w-3.5 h-3.5" /></>}
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {extractionResults.length > 1 && (
-                <div className="px-6 py-3 bg-[#0a0a0a] flex gap-2 overflow-x-auto shrink-0" style={{ borderBottom: '1px solid #2c2c2e' }}>
-                  {extractionResults.map((result: any, idx: number) => {
-                    const ext = result.fileName.split('.').pop()?.toUpperCase() || '';
-                    const iconColor = ext === 'PDF' ? 'text-red-400' : ext === 'CSV' ? 'text-green-400' : ext === 'DOC' || ext === 'DOCX' ? 'text-purple-400' : 'text-[#636366]';
-                    return (
-                      <button key={idx} onClick={() => setActiveReviewDoc(idx)}
-                        className={`px-3 py-2 rounded-[10px] text-[13px] font-medium whitespace-nowrap smooth press-sm flex items-center gap-1.5 ${activeReviewDoc === idx ? 'bg-[#1c1c1e] text-white' : 'text-[#8e8e93] hover:text-white hover:bg-white/[0.06]'}`} data-testid={`tab-doc-${idx}`}>
-                        <FileIcon type={ext} className={`w-3.5 h-3.5 ${iconColor}`} />{result.fileName}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
 
               <div className="flex flex-1 min-h-0 overflow-hidden">
                 <div className="w-1/2 overflow-y-auto bg-[#f5f5f5]" style={{ borderRight: '1px solid #2c2c2e' }}>
@@ -1758,7 +1773,8 @@ export default function DocumentProcessor() {
                 </div>
               </div>
             </div>
-          )}
+            );
+          })()}
         </div>
       </main>
     </div>
