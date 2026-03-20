@@ -477,11 +477,10 @@ export async function registerRoutes(
           .map((w: string) => w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase())
           .filter((w: string) => w.length > 1 && !noiseWords.has(w));
 
-        const labelWords = keyWords.slice(0, 2);
-        let label = labelWords.length > 0
-          ? labelWords.map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join("")
-          : "CustomEntity";
-        if (/^\d/.test(label)) label = "Entity" + label;
+        let label = keyWords.length > 0
+          ? keyWords[0].charAt(0).toUpperCase() + keyWords[0].slice(1)
+          : "Entity";
+        if (/^\d/.test(label)) label = "Entity";
 
         let matchedType = "";
         for (const [regex, type] of typeMatchers) {
@@ -498,10 +497,22 @@ export async function registerRoutes(
         const zones = base ? base.zones : ["Email Body", "PDF Header"];
         const pattern = base ? base.pattern : "";
 
+        const definitionTemplates: Record<string, string> = {
+          date: `A date or time period value representing when ${label.toLowerCase()}-related events occur or are scheduled.`,
+          amount: `A monetary value or financial figure representing the ${label.toLowerCase()} in Rand or other currency.`,
+          percentage: `A percentage or proportional value indicating the ${label.toLowerCase()} rate or share.`,
+          name: `The name of a person, organisation, or entity associated with the ${label.toLowerCase()} context.`,
+          number: `A unique numeric or alphanumeric identifier used to reference the ${label.toLowerCase()}.`,
+          status: `A classification or status indicator describing the current ${label.toLowerCase()} state or level.`,
+        };
+        const definition = matchedType
+          ? definitionTemplates[matchedType]
+          : `The ${label.toLowerCase()} value to be extracted from the document.`;
+
         const fallbackEntity = {
           id: Date.now() + Math.random(),
           label,
-          definition: description.charAt(0).toUpperCase() + description.slice(1).trim() + (description.trim().endsWith('.') ? '' : '.'),
+          definition,
           completeness: 60,
           synonyms,
           positives,
@@ -515,11 +526,11 @@ export async function registerRoutes(
         return res.json({ entities: [fallbackEntity] });
       }
 
-      const systemPrompt = `You are an entity extraction configuration assistant. Given a user's natural language description, generate exactly ONE fully-configured entity definition.
+      const systemPrompt = `You are an entity extraction configuration assistant. The user will type a single word or short phrase. Generate exactly ONE fully-configured entity definition for it.
 
 Generate a SINGLE entity with ALL fields completely filled:
-- label: A PascalCase label (e.g. "InvoiceNumber", "DueDate")
-- definition: A clear 1-2 sentence definition of what this entity represents
+- label: A single, recognisable word in PascalCase (e.g. "Price", "Date", "Name", "Status", "Revenue"). Keep it to ONE word — never invent compound words or combine words.
+- definition: A clear 1-2 sentence paraphrased description of what this entity represents. Do NOT echo the user's input — rephrase it professionally.
 - synonyms: 3-5 alternative names or aliases for this entity
 - positives: 3-5 realistic example values that would be extracted
 - negatives: 2-3 examples of what should NOT be extracted (common false positives)
@@ -529,17 +540,17 @@ Generate a SINGLE entity with ALL fields completely filled:
 
 Respond ONLY with a valid JSON array containing exactly ONE entity object. No markdown, no explanation.
 
-Example:
+Example (user types "price"):
 [
   {
-    "label": "InvoiceNumber",
-    "definition": "The unique alphanumeric identifier assigned to the invoice document.",
-    "synonyms": ["Invoice ID", "Bill Number", "Invoice No.", "Inv #"],
-    "positives": ["INV-2024-0042", "INV-001234", "BILL-99812"],
-    "negatives": ["PO-9981-X", "REF-2024", "Customer ID"],
-    "zones": ["PDF Header", "Email Body"],
-    "keywords": {"must": ["invoice", "number"], "nice": ["bill", "reference"], "neg": ["purchase order"]},
-    "pattern": "INV-\\\\d{4}-\\\\d{4}"
+    "label": "Price",
+    "definition": "A monetary value representing the cost or selling price of a product or service.",
+    "synonyms": ["Cost", "Amount", "Rate", "Fee"],
+    "positives": ["R500.00", "R1,200", "R25,000.00"],
+    "negatives": ["Quantity: 5", "REF-2024", "50%"],
+    "zones": ["Tables", "PDF Header"],
+    "keywords": {"must": ["price", "cost"], "nice": ["amount", "rate"], "neg": ["quantity"]},
+    "pattern": "R\\s?[\\d,. ]+(\\.\d{2})?"
   }
 ]`;
 

@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
 import {
   Upload, Loader2, Check, X, Trash2, Pencil, Home, Download,
-  Shapes, Folder, FilePlus, Plus, Box, Copy, ChevronDown, AlignLeft, Tags,
+  Shapes, Folder, FilePlus, Box, Copy, ChevronDown, AlignLeft, Tags,
   Map, Code, CheckCircle2, RefreshCw, FolderOpen, ChevronLeft, Sparkles,
   Zap, ArrowRight, MoreHorizontal, GripVertical
 } from 'lucide-react';
@@ -280,12 +280,6 @@ export default function EntityBuilder() {
     toast({ title: "Entity duplicated", description: `"${source.label}" copied` });
   };
 
-  const addNewEntity = () => {
-    const newEntity = createEntity("NewEntity", "Define this entity's purpose.", 0);
-    setEntities(prev => [...prev, newEntity]);
-    markDirty();
-  };
-
   const addExample = (id: number, type: 'positives' | 'negatives', value: string) => {
     if (!value) return; markDirty();
     setEntities(prev => prev.map(e => e.id === id ? { ...e, [type]: [...e[type], value], completeness: calculateCompleteness({ ...e, [type]: [...e[type], value] }) } : e));
@@ -540,7 +534,7 @@ export default function EntityBuilder() {
                     </div>
                     <input ref={nlInputRef} type="text" id="nlInput" value={nlInput} onChange={(e) => setNlInput(e.target.value)}
                       className="w-full bg-[#1c1c1e] text-white rounded-2xl pl-11 pr-28 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500/30 smooth placeholder-[#71717a] text-[14px]"
-                      placeholder="Describe an entity to extract..."
+                      placeholder="Type a word — e.g. price, date, name..."
                       onKeyDown={(e) => e.key === 'Enter' && !isGenerating && parseNaturalLanguage()} data-testid="input-nl" />
                     <button onClick={parseNaturalLanguage} disabled={isGenerating || !nlInput.trim()} data-testid="button-generate"
                       className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-gradient-to-b from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 disabled:from-[#2c2c2e] disabled:to-[#2c2c2e] disabled:text-[#a1a1aa] text-white rounded-xl font-semibold smooth press-sm text-[12px] shadow-sm shadow-purple-500/20 disabled:shadow-none flex items-center gap-1.5">
@@ -582,23 +576,9 @@ export default function EntityBuilder() {
                         </div>
                       </div>
                       <p className="text-white text-lg font-semibold tracking-tight mb-2">No entities yet</p>
-                      <p className="text-[#b0b0b8] text-[13px] max-w-xs mx-auto leading-relaxed mb-6">
-                        Describe what you need to extract in the bar above, or add one manually.
+                      <p className="text-[#b0b0b8] text-[13px] max-w-xs mx-auto leading-relaxed">
+                        Type a word in the bar above — like <span className="text-purple-400 font-medium">price</span>, <span className="text-purple-400 font-medium">date</span>, or <span className="text-purple-400 font-medium">name</span> — and we'll create the entity for you.
                       </p>
-                      <div className="flex items-center justify-center gap-3">
-                        <button onClick={() => nlInputRef.current?.focus()}
-                          className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[13px] font-semibold smooth press-sm flex items-center gap-2 shadow-sm shadow-purple-500/20"
-                          data-testid="button-focus-ai-input">
-                          <Sparkles className="w-3.5 h-3.5" />
-                          Describe with AI
-                        </button>
-                        <button onClick={addNewEntity}
-                          className="px-4 py-2 bg-[#2c2c2e] hover:bg-[#3a3a3c] text-[#d1d1d6] rounded-xl text-[13px] font-medium smooth press-sm flex items-center gap-2"
-                          data-testid="button-add-manual-empty">
-                          <Plus className="w-3.5 h-3.5" />
-                          Add manually
-                        </button>
-                      </div>
                     </div>
                   )}
 
@@ -731,15 +711,6 @@ export default function EntityBuilder() {
                       )}
                     </div>
                   ))}
-
-                  {entities.length > 0 && (
-                    <button onClick={addNewEntity}
-                      className="w-full py-3 rounded-2xl border border-dashed border-[#3a3a3c] text-[#a1a1aa] hover:text-white hover:border-purple-500/30 hover:bg-purple-500/5 smooth press-sm text-[13px] font-medium flex items-center justify-center gap-2 group"
-                      data-testid="button-add-entity-inline">
-                      <Plus className="w-4 h-4 group-hover:text-purple-400 transition-colors" />
-                      Add entity manually
-                    </button>
-                  )}
                 </div>
               </div>
             </>
