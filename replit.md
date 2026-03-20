@@ -56,6 +56,9 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - Storage layer (`server/storage.ts`) has a `MemoryStorage` fallback when MONGODB_URI is not set, enabling full Entity Builder, auth, and template CRUD without MongoDB (data does not persist across restarts)
 - In-memory mode auto-seeds 3 predefined B-BBEE starter templates and a demo user (username: demo, password: demo) on startup
 - Entity generation without AI key fills all fields intelligently based on type detection
+- Entity Builder tracks unsaved changes for ALL templates (new and existing): amber indicators for existing template edits, purple for new drafts
+- Unsaved new template entities auto-save to localStorage (`okiru-entity-draft`) and restore on next visit (skipped when URL has template/starter params)
+- Draft cleared on publish, startNew, or loading a template from repository
 - Vercel API (`api/[...path].ts`) includes middleware to preserve pre-parsed request body for proper POST/PUT handling in serverless environment
 - Vercel API gracefully handles missing MONGODB_URI: auth uses session-only mode (any credentials accepted), templates use in-memory storage with 3 starter templates
 - Vercel routing (`vercel.json`) uses explicit `routes` array: API routes → catch-all serverless function, then filesystem, then SPA fallback to `index.html`

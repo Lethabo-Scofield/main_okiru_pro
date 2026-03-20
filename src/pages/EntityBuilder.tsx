@@ -76,6 +76,31 @@ export default function EntityBuilder() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('template') || params.get('starter')) return;
+    const draft = localStorage.getItem('okiru-entity-draft');
+    if (draft && entities.length === 0 && !editingTemplateId) {
+      try {
+        const parsed = JSON.parse(draft);
+        if (parsed.entities?.length > 0) {
+          setEntities(parsed.entities);
+          setProjectName(parsed.projectName || "My Template");
+          setHasUnsavedChanges(true);
+          toast({ title: "Draft restored", description: `${parsed.entities.length} entities recovered from last session` });
+        }
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (entities.length > 0 && !editingTemplateId) {
+      localStorage.setItem('okiru-entity-draft', JSON.stringify({ entities, projectName }));
+    } else if (entities.length === 0 && !editingTemplateId) {
+      localStorage.removeItem('okiru-entity-draft');
+    }
+  }, [entities, projectName, editingTemplateId]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
     const templateId = params.get('template');
     if (templateId && storedTemplates.length > 0 && !editingTemplateId) {
       const t = storedTemplates.find(st => st.id === Number(templateId));
@@ -107,7 +132,10 @@ export default function EntityBuilder() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        if (editingTemplateId && hasUnsavedChanges && entities.length > 0) saveChanges();
+        if (hasUnsavedChanges && entities.length > 0) {
+          if (editingTemplateId) saveChanges();
+          else setShowPublishModal(true);
+        }
       }
       if (e.key === 'Escape' && showPublishModal) setShowPublishModal(false);
       if (e.key === 'Escape' && deleteConfirm !== null) setDeleteConfirm(null);
@@ -168,7 +196,7 @@ export default function EntityBuilder() {
         const newEntity = data.entities[0];
         setEntities(prev => [...prev, newEntity]);
         setNlInput("");
-        if (editingTemplateId) setHasUnsavedChanges(true);
+        markDirty();
         toast({ title: "Entity created", description: `"${newEntity.label}" generated with AI` });
       } else {
         toast({ title: "No entity generated", description: "Try a more specific description", variant: "destructive" });
@@ -192,7 +220,7 @@ export default function EntityBuilder() {
     return Math.min(score, 100);
   };
 
-  const markDirty = () => { if (editingTemplateId) setHasUnsavedChanges(true); };
+  const markDirty = () => { setHasUnsavedChanges(true); };
 
   const saveChanges = async () => {
     if (!editingTemplateId || !entities.length) return;
@@ -248,14 +276,14 @@ export default function EntityBuilder() {
     if (!source) return;
     const newEntity = { ...source, id: Date.now() + Math.random(), label: source.label + "_copy", expanded: true };
     setEntities(prev => [...prev, newEntity]);
-    if (editingTemplateId) setHasUnsavedChanges(true);
+    markDirty();
     toast({ title: "Entity duplicated", description: `"${source.label}" copied` });
   };
 
   const addNewEntity = () => {
     const newEntity = createEntity("NewEntity", "Define this entity's purpose.", 0);
     setEntities(prev => [...prev, newEntity]);
-    if (editingTemplateId) setHasUnsavedChanges(true);
+    markDirty();
   };
 
   const addExample = (id: number, type: 'positives' | 'negatives', value: string) => {
@@ -312,6 +340,7 @@ export default function EntityBuilder() {
       if (saved.id) setEditingTemplateId(saved.id);
       setPublishStatus("published");
       setHasUnsavedChanges(false);
+      localStorage.removeItem('okiru-entity-draft');
       await fetchTemplates();
       toast({ title: editingTemplateId ? "Template updated" : "Template published", description: `"${projectName}" saved to repository` });
       setTimeout(() => { setShowPublishModal(false); setPublishStatus("idle"); }, 1200);
@@ -341,6 +370,7 @@ export default function EntityBuilder() {
     setEditingTemplateId(null);
     setHasUnsavedChanges(false);
     setSidebarTab("entities");
+    localStorage.removeItem('okiru-entity-draft');
   };
 
   const completenessColor = (pct: number) => pct >= 80 ? 'text-emerald-400' : pct >= 40 ? 'text-purple-300' : 'text-amber-400';
@@ -429,8 +459,8 @@ export default function EntityBuilder() {
           <div className="h-4 w-px bg-[#3a3a3c] mx-0.5" />
           {isEditingProjectName ? (
             <input autoFocus value={projectName} onChange={(e) => setProjectName(e.target.value)}
-              onBlur={() => { setIsEditingProjectName(false); if (editingTemplateId) markDirty(); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') { setIsEditingProjectName(false); if (editingTemplateId) markDirty(); } if (e.key === 'Escape') setIsEditingProjectName(false); }}
+              onBlur={() => { setIsEditingProjectName(false); if (entities.length > 0) markDirty(); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { setIsEditingProjectName(false); if (entities.length > 0) markDirty(); } if (e.key === 'Escape') setIsEditingProjectName(false); }}
               className="bg-[#1c1c1e] border border-purple-500/40 text-sm rounded-lg px-3 py-1 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all w-48" data-testid="input-project-name" />
           ) : (
             <button onClick={() => setIsEditingProjectName(true)} className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[13px] hover:bg-[#1c1c1e] smooth press-sm group" data-testid="button-edit-project-name">
@@ -441,10 +471,10 @@ export default function EntityBuilder() {
           {editingTemplateId && (
             <span className="text-[10px] px-2 py-0.5 bg-purple-500/15 text-purple-400 rounded-md font-medium">Editing</span>
           )}
-          {hasUnsavedChanges && (
-            <span className="text-[10px] px-2 py-0.5 bg-amber-500/15 text-amber-400 rounded-md font-medium flex items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
-              Unsaved
+          {hasUnsavedChanges && entities.length > 0 && (
+            <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium flex items-center gap-1 ${editingTemplateId ? 'bg-amber-500/15 text-amber-400' : 'bg-purple-500/15 text-purple-400'}`}>
+              <span className={`w-1 h-1 rounded-full animate-pulse ${editingTemplateId ? 'bg-amber-500' : 'bg-purple-500'}`} />
+              {editingTemplateId ? 'Unsaved' : 'Draft'}
             </span>
           )}
         </div>
@@ -453,11 +483,20 @@ export default function EntityBuilder() {
             <Download className="w-4 h-4" />
           </button>
           <div className="h-4 w-px bg-[#2c2c2e] mx-0.5" />
-          {hasUnsavedChanges && editingTemplateId && (
-            <button onClick={saveChanges} disabled={isSaving}
-              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg text-[12px] font-semibold smooth press-sm" data-testid="button-save-header">
-              {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
-            </button>
+          {hasUnsavedChanges && entities.length > 0 && (
+            editingTemplateId ? (
+              <button onClick={saveChanges} disabled={isSaving}
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg text-[12px] font-semibold smooth press-sm flex items-center gap-1.5" data-testid="button-save-header"
+                style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Check className="w-3 h-3" />Save</>}
+              </button>
+            ) : (
+              <button onClick={() => setShowPublishModal(true)}
+                className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-[12px] font-semibold smooth press-sm flex items-center gap-1.5" data-testid="button-save-new"
+                style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                <Upload className="w-3 h-3" />Save
+              </button>
+            )
           )}
           <button onClick={() => entities.length > 0 && setShowPublishModal(true)} disabled={entities.length === 0}
             className="px-4 py-1.5 bg-gradient-to-b from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 disabled:opacity-25 disabled:cursor-not-allowed text-white rounded-lg text-[12px] font-semibold smooth press-sm shadow-sm shadow-purple-500/20" data-testid="button-publish">
@@ -513,22 +552,29 @@ export default function EntityBuilder() {
 
               <div className="flex-1 overflow-y-auto px-6 py-5">
                 <div className="max-w-2xl mx-auto space-y-3">
-                  {hasUnsavedChanges && editingTemplateId && (
-                    <div className="flex items-center justify-between rounded-xl px-4 py-2.5 bg-amber-500/10 fade-in" data-testid="banner-unsaved-changes">
-                      <span className="text-[13px] text-amber-400 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                        Unsaved changes
-                        <span className="text-[11px] text-amber-500 hidden sm:inline ml-1">{navigator.platform.includes('Mac') ? '\u2318' : 'Ctrl'}+S to save</span>
+                  {hasUnsavedChanges && entities.length > 0 && (
+                    <div className={`flex items-center justify-between rounded-xl px-4 py-2.5 fade-in ${editingTemplateId ? 'bg-amber-500/10' : 'bg-purple-500/10'}`} data-testid="banner-unsaved-changes">
+                      <span className={`text-[13px] flex items-center gap-2 ${editingTemplateId ? 'text-amber-400' : 'text-purple-400'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${editingTemplateId ? 'bg-amber-500' : 'bg-purple-500'}`} />
+                        {editingTemplateId ? 'Unsaved changes' : 'Draft — not saved yet'}
+                        <span className={`text-[11px] hidden sm:inline ml-1 ${editingTemplateId ? 'text-amber-500' : 'text-purple-500'}`}>{navigator.platform.includes('Mac') ? '\u2318' : 'Ctrl'}+S to save</span>
                       </span>
-                      <button onClick={saveChanges} disabled={isSaving}
-                        className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg text-[12px] font-semibold smooth press-sm" data-testid="button-save-changes">
-                        {isSaving ? "Saving..." : "Save"}
-                      </button>
+                      {editingTemplateId ? (
+                        <button onClick={saveChanges} disabled={isSaving}
+                          className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg text-[12px] font-semibold smooth press-sm" data-testid="button-save-changes">
+                          {isSaving ? "Saving..." : "Save"}
+                        </button>
+                      ) : (
+                        <button onClick={() => setShowPublishModal(true)}
+                          className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[12px] font-semibold smooth press-sm" data-testid="button-publish-draft">
+                          Save Template
+                        </button>
+                      )}
                     </div>
                   )}
 
                   {entities.length === 0 && (
-                    <div className="text-center py-24 fade-in">
+                    <div className="text-center py-20 fade-in">
                       <div className="relative mx-auto mb-6 w-20 h-20">
                         <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/8 to-purple-400/8 ring-1 ring-purple-500/10" />
                         <div className="absolute inset-0 flex items-center justify-center">
@@ -536,19 +582,30 @@ export default function EntityBuilder() {
                         </div>
                       </div>
                       <p className="text-white text-lg font-semibold tracking-tight mb-2">No entities yet</p>
-                      <p className="text-[#b0b0b8] text-[13px] max-w-xs mx-auto leading-relaxed">
-                        Describe what you need to extract above, or add one manually from the sidebar.
+                      <p className="text-[#b0b0b8] text-[13px] max-w-xs mx-auto leading-relaxed mb-6">
+                        Describe what you need to extract in the bar above, or add one manually.
                       </p>
-                      <div className="flex items-center justify-center gap-6 mt-8">
-                        <div className="flex items-center gap-2 text-[11px] text-[#a1a1aa]">
-                          <Sparkles className="w-3.5 h-3.5 text-purple-400/50" />
-                          AI-powered
-                        </div>
-                        <div className="flex items-center gap-2 text-[11px] text-[#a1a1aa]">
-                          <Zap className="w-3.5 h-3.5 text-amber-400/50" />
-                          Instant creation
-                        </div>
+                      <div className="flex items-center justify-center gap-3">
+                        <button onClick={() => nlInputRef.current?.focus()}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[13px] font-semibold smooth press-sm flex items-center gap-2 shadow-sm shadow-purple-500/20"
+                          data-testid="button-focus-ai-input">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Describe with AI
+                        </button>
+                        <button onClick={addNewEntity}
+                          className="px-4 py-2 bg-[#2c2c2e] hover:bg-[#3a3a3c] text-[#d1d1d6] rounded-xl text-[13px] font-medium smooth press-sm flex items-center gap-2"
+                          data-testid="button-add-manual-empty">
+                          <Plus className="w-3.5 h-3.5" />
+                          Add manually
+                        </button>
                       </div>
+                    </div>
+                  )}
+
+                  {entities.length > 0 && (
+                    <div className="flex items-center gap-2 text-[12px] text-[#b0b0b8]">
+                      <span className="font-medium">{entities.length} {entities.length === 1 ? 'entity' : 'entities'}</span>
+                      <div className="flex-1 h-px bg-[#2c2c2e]" />
                     </div>
                   )}
 
@@ -674,6 +731,15 @@ export default function EntityBuilder() {
                       )}
                     </div>
                   ))}
+
+                  {entities.length > 0 && (
+                    <button onClick={addNewEntity}
+                      className="w-full py-3 rounded-2xl border border-dashed border-[#3a3a3c] text-[#a1a1aa] hover:text-white hover:border-purple-500/30 hover:bg-purple-500/5 smooth press-sm text-[13px] font-medium flex items-center justify-center gap-2 group"
+                      data-testid="button-add-entity-inline">
+                      <Plus className="w-4 h-4 group-hover:text-purple-400 transition-colors" />
+                      Add entity manually
+                    </button>
+                  )}
                 </div>
               </div>
             </>
