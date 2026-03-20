@@ -149,8 +149,8 @@ function getEntityColors(_dark?: boolean) {
   ];
 }
 
-function HighlightedDocument({ text, entities, hoveredEntity, onHoverEntity, isDark = true }: {
-  text: string; entities: any[]; isDark?: boolean;
+function HighlightedDocument({ text, entities, hoveredEntity, onHoverEntity }: {
+  text: string; entities: any[];
   hoveredEntity: number | null; onHoverEntity: (idx: number | null) => void;
 }) {
   const highlighted = useMemo(() => {
@@ -196,42 +196,44 @@ function HighlightedDocument({ text, entities, hoveredEntity, onHoverEntity, isD
   }, [text, entities]);
 
   return (
-    <pre className="text-sm text-[#d1d1d6] whitespace-pre-wrap font-mono leading-relaxed break-words">
-      {highlighted.map((seg, i) => {
-        if (!seg.highlight) return <span key={i}>{seg.text}</span>;
-        const colors = getEntityColors(isDark);
-        const color = colors[seg.entityIdx % colors.length];
-        const isHovered = hoveredEntity === seg.entityIdx;
-        const entityName = entities[seg.entityIdx]?.name || '';
-        return (
-          <span key={i} className="relative inline-block group/mark"
-            onMouseEnter={() => onHoverEntity(seg.entityIdx)}
-            onMouseLeave={() => onHoverEntity(null)}
-          >
-            <span className="absolute -top-5 left-0 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap px-1.5 py-0.5 rounded-t-md z-10 pointer-events-none"
-              style={{
-                backgroundColor: color.underline,
-                color: '#fff',
-                opacity: isHovered ? 1 : 0,
-                transition: 'opacity 0.15s',
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 min-h-[400px]">
+      <p className="text-[15px] text-gray-900 whitespace-pre-wrap font-sans leading-[1.8] break-words" style={{ fontFamily: 'Georgia, "Times New Roman", serif', letterSpacing: '0' }}>
+        {highlighted.map((seg, i) => {
+          if (!seg.highlight) return <span key={i}>{seg.text}</span>;
+          const colors = getEntityColors(false);
+          const color = colors[seg.entityIdx % colors.length];
+          const isHovered = hoveredEntity === seg.entityIdx;
+          const entityName = entities[seg.entityIdx]?.name || '';
+          return (
+            <span key={i} className="relative inline-block group/mark"
+              onMouseEnter={() => onHoverEntity(seg.entityIdx)}
+              onMouseLeave={() => onHoverEntity(null)}
+            >
+              <span className="absolute -top-5 left-0 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap px-1.5 py-0.5 rounded-t-md z-10 pointer-events-none"
+                style={{
+                  backgroundColor: color.underline,
+                  color: '#fff',
+                  opacity: isHovered ? 1 : 0,
+                  transition: 'opacity 0.15s',
+                }}>
+                {entityName}
+              </span>
+              <mark style={{
+                backgroundColor: isHovered ? color.bg.replace('0.15', '0.35') : color.bg,
+                borderBottom: `3px solid ${color.underline}`,
+                color: '#111827',
+                padding: '2px 3px',
+                borderRadius: '3px',
+                transition: 'background-color 0.15s',
+                fontWeight: isHovered ? 600 : 400,
               }}>
-              {entityName}
+                {seg.text}
+              </mark>
             </span>
-            <mark style={{
-              backgroundColor: isHovered ? color.bg.replace('0.15', '0.35') : color.bg,
-              borderBottom: `3px solid ${color.underline}`,
-              color: color.text,
-              padding: '2px 4px',
-              borderRadius: '4px',
-              transition: 'background-color 0.15s',
-              fontWeight: isHovered ? 600 : 400,
-            }}>
-              {seg.text}
-            </mark>
-          </span>
-        );
-      })}
-    </pre>
+          );
+        })}
+      </p>
+    </div>
   );
 }
 
@@ -1481,15 +1483,6 @@ export default function DocumentProcessor() {
                             ))}
                           </div>
                         )}
-                        {!anyProcessing && status !== 'done' && (
-                          <button
-                            onClick={() => extractSingleDocument(idx)}
-                            className="px-3 py-1.5 bg-[#2c2c2e] hover:bg-[#3a3a3c] text-[#d1d1d6] hover:text-white rounded-[10px] text-[11px] font-medium smooth press-sm"
-                            data-testid={`button-extract-single-${idx}`}
-                          >
-                            <Zap className="w-2.5 h-2.5 mr-1 inline-block" />Extract
-                          </button>
-                        )}
                         {status === 'done' && (
                           <span className="text-xs text-green-400 font-medium inline-flex items-center gap-1"><Check className="w-2.5 h-2.5" />Done</span>
                         )}
@@ -1559,12 +1552,6 @@ export default function DocumentProcessor() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={exportResults} className="px-3 py-1.5 bg-[#1c1c1e] hover:bg-[#2c2c2e] text-[#d1d1d6] hover:text-white rounded-[10px] text-[13px] smooth press-sm" data-testid="button-export-results">
-                    <Download className="w-3.5 h-3.5 mr-1.5 inline-block" />JSON
-                  </button>
-                  <button onClick={exportCSV} className="px-3 py-1.5 bg-[#1c1c1e] hover:bg-[#2c2c2e] text-[#d1d1d6] hover:text-white rounded-[10px] text-[13px] smooth press-sm" data-testid="button-export-csv">
-                    <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5 inline-block" />CSV
-                  </button>
                   <button onClick={async () => {
                     setIsSavingSession(true);
                     await persistSession('review', { results: extractionResults, complete: true });
@@ -1594,12 +1581,12 @@ export default function DocumentProcessor() {
               )}
 
               <div className="flex flex-1 min-h-0 overflow-hidden">
-                <div className="w-1/2 overflow-y-auto bg-[#0a0a0a]" style={{ borderRight: '1px solid #2c2c2e' }}>
-                  <div className="px-5 py-4 sticky top-0 bg-[#0a0a0a] z-10" style={{ borderBottom: '1px solid #2c2c2e' }}>
+                <div className="w-1/2 overflow-y-auto bg-[#f5f5f5]" style={{ borderRight: '1px solid #2c2c2e' }}>
+                  <div className="px-5 py-4 sticky top-0 bg-[#f5f5f5] z-10" style={{ borderBottom: '1px solid #d1d5db' }}>
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-[#636366]" />
-                      <span className="text-sm font-medium text-[#d1d1d6]">{isPdfFile ? 'Document Viewer' : 'Document Preview'}</span>
-                      {!isPdfFile && <span className="text-xs text-[#636366] ml-auto">{activeDocText.length.toLocaleString()} chars</span>}
+                      <FileText className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-700">{isPdfFile ? 'Document Viewer' : 'Document'}</span>
+                      {!isPdfFile && <span className="text-xs text-gray-400 ml-auto">{activeDocText.length.toLocaleString()} chars</span>}
                     </div>
                     <div className="flex flex-wrap gap-2 mt-3">
                       {extractionResults[activeReviewDoc]?.entities
@@ -1626,7 +1613,7 @@ export default function DocumentProcessor() {
                         })}
                     </div>
                   </div>
-                  <div className={isPdfFile ? "px-2" : "p-5"}>
+                  <div className={isPdfFile ? "px-2 py-2" : "p-5"}>
                     {isPdfFile && activeDocFile ? (
                       <PDFDocumentViewer
                         file={activeDocFile.file}
@@ -1635,11 +1622,11 @@ export default function DocumentProcessor() {
                         onHoverEntity={setHoveredEntity}
                       />
                     ) : activeDocText ? (
-                      <HighlightedDocument text={activeDocText} entities={extractionResults[activeReviewDoc]?.entities || []} hoveredEntity={hoveredEntity} onHoverEntity={setHoveredEntity} isDark={isDark} />
+                      <HighlightedDocument text={activeDocText} entities={extractionResults[activeReviewDoc]?.entities || []} hoveredEntity={hoveredEntity} onHoverEntity={setHoveredEntity} />
                     ) : (
-                      <div className="text-center py-12">
-                        <FileQuestion className="w-8 h-8 text-[#636366] mb-3" />
-                        <p className="text-[#636366] text-sm">Document text not available</p>
+                      <div className="bg-white rounded-lg border border-gray-200 flex flex-col items-center justify-center py-16 text-center">
+                        <FileQuestion className="w-8 h-8 text-gray-300 mb-3" />
+                        <p className="text-gray-400 text-sm">Document content not available</p>
                       </div>
                     )}
                   </div>
@@ -1674,6 +1661,24 @@ export default function DocumentProcessor() {
                         if (reviewFilter === 'edited') return e.status === 'edited';
                         return true;
                       });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="w-12 h-12 rounded-2xl bg-[#1c1c1e] flex items-center justify-center mb-4">
+                              <FileQuestion className="w-5 h-5 text-[#636366]" />
+                            </div>
+                            <p className="text-[#d1d1d6] text-sm font-medium mb-1">
+                              {reviewFilter === 'all' ? 'No entities found' : `No ${reviewFilter === 'low' ? 'low-confidence' : 'edited'} entities`}
+                            </p>
+                            <p className="text-[#636366] text-xs">
+                              {reviewFilter === 'all'
+                                ? 'The template entities were not detected in this document'
+                                : 'Try switching to "all" to see all extracted entities'}
+                            </p>
+                          </div>
+                        );
+                      }
 
                       return filtered.map((entity: any) => {
                         const realIdx = entities.indexOf(entity);
