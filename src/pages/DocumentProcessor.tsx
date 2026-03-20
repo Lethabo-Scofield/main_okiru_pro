@@ -50,6 +50,7 @@ interface CompanyInfo {
   contactPhone: string;
   currentBBEELevel: string;
   notes: string;
+  logo?: string;
 }
 
 interface ProcessorSession {
@@ -1028,6 +1029,66 @@ export default function DocumentProcessor() {
                     </div>
                     <h2 className="text-2xl font-bold text-white mb-1">New Client Assessment</h2>
                     <p className="text-[#8e8e93] text-sm">Enter the client company's details before uploading documents</p>
+                  </div>
+
+                  <div className="mb-6">
+                    <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-3">Company Logo</p>
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="w-20 h-20 rounded-2xl bg-[#1c1c1e] border-2 border-dashed border-[#3a3a3c] flex items-center justify-center overflow-hidden shrink-0 cursor-pointer hover:border-purple-500/50 transition-colors"
+                        onClick={() => (document.getElementById('logo-input') as HTMLInputElement)?.click()}
+                        data-testid="logo-upload-zone"
+                      >
+                        {companyInfo.logo ? (
+                          <img src={companyInfo.logo} alt="Company logo" className="w-full h-full object-contain" />
+                        ) : (
+                          <Building2 className="w-7 h-7 text-[#3a3a3c]" />
+                        )}
+                      </div>
+                      <div>
+                        <input
+                          id="logo-input"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          data-testid="input-logo"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 2 * 1024 * 1024) {
+                              toast({ title: 'File too large', description: 'Logo must be under 2 MB.', variant: 'destructive' });
+                              e.target.value = '';
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              setCompanyInfo(p => ({ ...p, logo: ev.target?.result as string }));
+                            };
+                            reader.readAsDataURL(file);
+                            e.target.value = '';
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => (document.getElementById('logo-input') as HTMLInputElement)?.click()}
+                          className="px-4 py-2 rounded-xl bg-[#1c1c1e] hover:bg-[#2c2c2e] text-[#d1d1d6] text-[12px] font-medium smooth press-sm border border-[#3a3a3c]"
+                          data-testid="button-upload-logo"
+                        >
+                          {companyInfo.logo ? 'Change Logo' : 'Upload Logo'}
+                        </button>
+                        {companyInfo.logo && (
+                          <button
+                            type="button"
+                            onClick={() => setCompanyInfo(p => ({ ...p, logo: '' }))}
+                            className="ml-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[12px] font-medium smooth press-sm"
+                            data-testid="button-remove-logo"
+                          >
+                            Remove
+                          </button>
+                        )}
+                        <p className="text-[11px] text-[#636366] mt-2">PNG, JPG or SVG · max 2 MB</p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="mb-3">

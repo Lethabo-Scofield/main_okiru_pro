@@ -259,6 +259,7 @@ const processorSessionSchema = new Schema({
     contactPhone: { type: String, default: '' },
     currentBBEELevel: { type: String, default: '' },
     notes: { type: String, default: '' },
+    logo: { type: String, default: '' },
   },
   currentStep: { type: String, default: 'company-info' },
   filesData: { type: Schema.Types.Mixed, default: [] },
