@@ -55,7 +55,7 @@ export default function Dashboard() {
   const [page, setPage] = useState<Page>('home');
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { user, isLoading: authLoading, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [templateSearch, setTemplateSearch] = useState('');
   const [companySearch, setCompanySearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
@@ -141,12 +141,6 @@ export default function Dashboard() {
     compliant: companies.filter(c => c.status === 'compliant').length,
   }), [industries]);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
-
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
 
   const deleteTemplate = async (id: number) => {
@@ -172,18 +166,6 @@ export default function Dashboard() {
     setPage(p);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="h-10 w-10 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
 
   return (
     <div className="font-sans min-h-screen bg-black" style={{ letterSpacing: '-0.011em', color: '#f5f5f7' }}>
@@ -227,7 +209,7 @@ export default function Dashboard() {
               <span className="text-[#d1d1d6] font-medium">{user?.fullName || user?.username || ''}</span>
             </div>
             <button
-              onClick={() => { logout(); navigate('/'); }}
+              onClick={async () => { await logout(); navigate('/auth'); }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1c1c1e] hover:bg-[#3a3a3c] text-[12px] smooth press-sm text-[#8e8e93] hover:text-[#d1d1d6]"
               data-testid="button-sign-out"
             >

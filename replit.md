@@ -34,8 +34,10 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - Templates are user-scoped: each user sees their own templates + shared ones (userId: null)
 - Users can only edit/delete their own templates — shared templates are read-only
 - Auth provider (`Toolkit/src/lib/auth.tsx`) properly throws errors on failed login/register
-- Unauthenticated users are redirected to `/auth` from protected routes
-- Landing page (`/`) always shows on reload regardless of auth state
+- Centralized route guards (`src/components/RouteGuards.tsx`): `ProtectedRoute` redirects to `/auth` if not logged in; `GuestRoute` redirects to `/dashboard` if already logged in
+- Protected routes: `/dashboard`, `/builder`, `/processor`, `/toolkit/:clientId`
+- Guest-only routes: `/` (landing), `/auth` (login/register)
+- 404 page is auth-aware: links to Dashboard if logged in, Home if not
 - Toolkit client data (ownership, management, skills, procurement) will move to ArangoDB (not yet implemented)
 
 ## Registration Wizard (4-step flow)
