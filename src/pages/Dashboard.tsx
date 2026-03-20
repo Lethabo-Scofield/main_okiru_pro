@@ -3,9 +3,36 @@ import { Link, useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@toolkit/lib/auth';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
-import { Trash2, Loader2, LogOut, Pencil, ChevronLeft, Search, ChevronRight, Plus, FileText, Building2, Sparkles, HelpCircle } from 'lucide-react';
+import { Trash2, Loader2, LogOut, Pencil, ChevronLeft, Search, ChevronRight, Plus, FileText, Building2, Sparkles, HelpCircle, Play, UploadCloud } from 'lucide-react';
 import { starterTemplates as staticTemplates } from '@/data/starterTemplates';
 import { useOnboarding, OnboardingWelcome, OnboardingTour } from '@/components/OnboardingTour';
+
+const SESSIONS_KEY = 'okiru-processor-sessions';
+
+interface ProcessorSession {
+  id: string;
+  companyInfo: { name: string; sector: string; registrationNumber: string };
+  createdAt: string;
+  updatedAt: string;
+  currentStep: string;
+  filesData: { id: number; name: string; size: string; type: string; textContent: string }[];
+  fileClassifications: Record<string, number>;
+  extractionResults: any[];
+  isComplete: boolean;
+}
+
+interface CompanyRow {
+  name: string;
+  id: string;
+  industry: string;
+  status: 'new' | 'in_progress' | 'compliant';
+  sessionId?: string;
+  subtitle?: string;
+}
+
+function readSessions(): ProcessorSession[] {
+  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch { return []; }
+}
 
 interface StoredTemplate {
   id: number;
@@ -17,15 +44,15 @@ interface StoredTemplate {
   updatedAt: string;
 }
 
-const companies = [
-  { name: "Moyo Retail (Pty) Ltd", id: "C-10483", industry: "Retail", status: "new" as const },
-  { name: "Karoo Telecom", id: "C-21907", industry: "Telecoms", status: "in_progress" as const },
-  { name: "Umhlaba Insurance Group", id: "C-88712", industry: "Insurance", status: "compliant" as const },
-  { name: "Aurum Financial Services", id: "C-54011", industry: "Financial Services", status: "in_progress" as const },
-  { name: "Blue Crane Logistics", id: "C-66309", industry: "Logistics", status: "new" as const },
-  { name: "Saffron Health Network", id: "C-77201", industry: "Healthcare", status: "compliant" as const },
-  { name: "Vula Energy Partners", id: "C-30118", industry: "Energy", status: "new" as const },
-  { name: "CapeTech Manufacturing", id: "C-91145", industry: "Manufacturing", status: "in_progress" as const },
+const baseCompanies: CompanyRow[] = [
+  { name: "Moyo Retail (Pty) Ltd", id: "C-10483", industry: "Retail", status: "new" },
+  { name: "Karoo Telecom", id: "C-21907", industry: "Telecoms", status: "in_progress" },
+  { name: "Umhlaba Insurance Group", id: "C-88712", industry: "Insurance", status: "compliant" },
+  { name: "Aurum Financial Services", id: "C-54011", industry: "Financial Services", status: "in_progress" },
+  { name: "Blue Crane Logistics", id: "C-66309", industry: "Logistics", status: "new" },
+  { name: "Saffron Health Network", id: "C-77201", industry: "Healthcare", status: "compliant" },
+  { name: "Vula Energy Partners", id: "C-30118", industry: "Energy", status: "new" },
+  { name: "CapeTech Manufacturing", id: "C-91145", industry: "Manufacturing", status: "in_progress" },
 ];
 
 type Page = 'home' | 'templates' | 'scorecards';
@@ -67,6 +94,11 @@ export default function Dashboard() {
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [publishingKey, setPublishingKey] = useState<string | null>(null);
   const { needsOnboarding, showTour, startTour, completeTour, dismissTour } = useOnboarding(user?.id);
+  const [processorSessions, setProcessorSessions] = useState<ProcessorSession[]>([]);
+
+  useEffect(() => {
+    setProcessorSessions(readSessions());
+  }, [page]);
 
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
@@ -111,16 +143,34 @@ export default function Dashboard() {
     }
   }, [publishingKey, fetchTemplates, toast, navigate]);
 
-  const industries = useMemo(() => Array.from(new Set(companies.map(c => c.industry))).sort(), []);
+  const allCompanies = useMemo<CompanyRow[]>(() => {
+    const sessionRows: CompanyRow[] = processorSessions.map(s => ({
+      name: s.companyInfo.name,
+      id: s.id,
+      industry: s.companyInfo.sector || 'Other',
+      status: s.isComplete ? 'compliant' : 'in_progress',
+      sessionId: s.id,
+      subtitle: s.isComplete
+        ? `${s.extractionResults.length} doc${s.extractionResults.length !== 1 ? 's' : ''} processed`
+        : s.currentStep === 'review'
+        ? 'Extraction complete — awaiting review'
+        : `In progress · ${s.filesData.length} doc${s.filesData.length !== 1 ? 's' : ''} uploaded`,
+    }));
+    const sessionNames = new Set(sessionRows.map(r => r.name.toLowerCase()));
+    const base = baseCompanies.filter(c => !sessionNames.has(c.name.toLowerCase()));
+    return [...sessionRows, ...base];
+  }, [processorSessions]);
+
+  const industries = useMemo(() => Array.from(new Set(allCompanies.map(c => c.industry))).sort(), [allCompanies]);
 
   const filteredCompanies = useMemo(() => {
-    let result = companies.slice();
+    let result = allCompanies.slice();
     const q = companySearch.toLowerCase();
     if (q) result = result.filter(c => c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q));
     if (industryFilter !== 'all') result = result.filter(c => c.industry === industryFilter);
     if (statusFilter !== 'all') result = result.filter(c => c.status === statusFilter);
     return result;
-  }, [companySearch, industryFilter, statusFilter]);
+  }, [allCompanies, companySearch, industryFilter, statusFilter]);
 
   const filteredStaticTemplates = useMemo(() => {
     const q = templateSearch.toLowerCase();
@@ -135,13 +185,13 @@ export default function Dashboard() {
   }, [templateSearch, storedTemplates]);
 
   const stats = useMemo(() => ({
-    total: companies.length,
+    total: allCompanies.length,
     industries: industries.length,
     industryList: industries.join(' \u2022 '),
-    new: companies.filter(c => c.status === 'new').length,
-    inProgress: companies.filter(c => c.status === 'in_progress').length,
-    compliant: companies.filter(c => c.status === 'compliant').length,
-  }), [industries]);
+    new: allCompanies.filter(c => c.status === 'new').length,
+    inProgress: allCompanies.filter(c => c.status === 'in_progress').length,
+    compliant: allCompanies.filter(c => c.status === 'compliant').length,
+  }), [allCompanies, industries]);
 
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
 
@@ -499,6 +549,14 @@ export default function Dashboard() {
                 <h1 className="text-[28px] font-bold tracking-[-0.03em] text-white">Company Scorecards</h1>
                 <p className="text-[14px] text-[#98989f] mt-1">Search and filter companies by industry and status.</p>
               </div>
+              <Link
+                href="/processor"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[13px] font-semibold smooth press-sm shadow-sm shadow-purple-500/20 shrink-0 mt-8"
+                data-testid="button-new-assessment"
+              >
+                <UploadCloud className="h-4 w-4" />
+                New Assessment
+              </Link>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -593,23 +651,55 @@ export default function Dashboard() {
                     {filteredCompanies.map(c => (
                       <tr key={c.id} className="hover:bg-white/[0.03] smooth" data-testid={`company-row-${c.id}`}>
                         <td className="px-5 py-3.5">
-                          <div className="font-semibold text-white">{c.name}</div>
-                          <div className="text-[10px] text-[#636366] mt-0.5">Scorecard ready</div>
+                          <div className="flex items-center gap-2">
+                            <div className="font-semibold text-white">{c.name}</div>
+                            {c.sessionId && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 font-semibold tracking-wider uppercase">Active</span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-[#636366] mt-0.5">
+                            {c.subtitle || 'Scorecard ready'}
+                          </div>
                         </td>
-                        <td className="px-5 py-3.5 text-[#98989f] font-mono text-[11px]">{c.id}</td>
+                        <td className="px-5 py-3.5 text-[#98989f] font-mono text-[11px]">{c.sessionId ? c.sessionId.slice(0, 16) + '…' : c.id}</td>
                         <td className="px-5 py-3.5 text-[#8e8e93]">{c.industry}</td>
                         <td className="px-5 py-3.5">
                           <span className={statusPillClass(c.status)}>{statusLabel(c.status)}</span>
                         </td>
                         <td className="px-5 py-3.5 text-right">
-                          <button
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[12px] font-medium smooth press-sm text-[#8e8e93]"
-                            onClick={() => navigate(`/toolkit/${c.id}`)}
-                            data-testid={`button-view-${c.id}`}
-                          >
-                            View
-                            <ChevronRight className="h-3 w-3 text-[#636366]" />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            {c.sessionId ? (
+                              <>
+                                <Link
+                                  href={`/processor?session=${c.sessionId}`}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[12px] font-semibold smooth press-sm"
+                                  data-testid={`button-resume-${c.id}`}
+                                >
+                                  <Play className="h-2.5 w-2.5" />
+                                  Resume
+                                </Link>
+                              </>
+                            ) : (
+                              <>
+                                <Link
+                                  href="/processor"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[12px] font-medium smooth press-sm text-[#8e8e93]"
+                                  data-testid={`button-upload-${c.id}`}
+                                >
+                                  <UploadCloud className="h-3 w-3" />
+                                  Upload Docs
+                                </Link>
+                                <button
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[12px] font-medium smooth press-sm text-[#8e8e93]"
+                                  onClick={() => navigate(`/toolkit/${c.id}`)}
+                                  data-testid={`button-view-${c.id}`}
+                                >
+                                  View
+                                  <ChevronRight className="h-3 w-3 text-[#636366]" />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

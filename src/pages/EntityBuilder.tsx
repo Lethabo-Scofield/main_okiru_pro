@@ -480,14 +480,12 @@ export default function EntityBuilder() {
           {hasUnsavedChanges && entities.length > 0 && (
             editingTemplateId ? (
               <button onClick={saveChanges} disabled={isSaving}
-                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg text-[12px] font-semibold smooth press-sm flex items-center gap-1.5" data-testid="button-save-header"
-                style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg text-[12px] font-semibold smooth press-sm flex items-center gap-1.5" data-testid="button-save-header">
                 {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Check className="w-3 h-3" />Save</>}
               </button>
             ) : (
               <button onClick={() => setShowPublishModal(true)}
-                className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-[12px] font-semibold smooth press-sm flex items-center gap-1.5" data-testid="button-save-new"
-                style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-[12px] font-semibold smooth press-sm flex items-center gap-1.5" data-testid="button-save-new">
                 <Upload className="w-3 h-3" />Save
               </button>
             )
@@ -589,8 +587,8 @@ export default function EntityBuilder() {
                     </div>
                   )}
 
-                  {entities.map((entity, idx) => (
-                    <div key={entity.id} className={`rounded-2xl overflow-hidden smooth hover:bg-[#2c2c2e] fade-in stagger-${Math.min(idx + 1, 6)} bg-[#1c1c1e]`} data-testid={`card-entity-${entity.id}`}>
+                  {entities.map((entity) => (
+                    <div key={entity.id} className="rounded-2xl overflow-hidden bg-[#1c1c1e]" data-testid={`card-entity-${entity.id}`}>
                       <div className="px-5 py-3.5 flex items-center justify-between cursor-pointer smooth" onClick={() => updateEntity(entity.id, 'expanded', !entity.expanded)}>
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0 bg-purple-500/10 text-purple-400">
