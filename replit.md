@@ -59,6 +59,7 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - Entity Builder tracks unsaved changes for ALL templates (new and existing): amber indicators for existing template edits, purple for new drafts
 - Unsaved new template entities auto-save to localStorage (`okiru-entity-draft`) and restore on next visit (skipped when URL has template/starter params)
 - Draft cleared on publish, startNew, or loading a template from repository
+- Onboarding tour (`src/components/OnboardingTour.tsx`): welcome modal + 5-step guided tour for new users. Completion tracked per-user in localStorage (`okiru-onboarding-complete:{userId}`). Help button (?) in dashboard header replays tour. Dismissing (X/backdrop) does not mark as complete; only explicit skip or finishing all steps does.
 - Vercel API (`api/[...path].ts`) includes middleware to preserve pre-parsed request body for proper POST/PUT handling in serverless environment
 - Vercel API gracefully handles missing MONGODB_URI: auth uses session-only mode (any credentials accepted), templates use in-memory storage with 3 starter templates
 - Vercel routing (`vercel.json`) uses explicit `routes` array: API routes → catch-all serverless function, then filesystem, then SPA fallback to `index.html`

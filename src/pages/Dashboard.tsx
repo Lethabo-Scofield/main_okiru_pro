@@ -3,8 +3,9 @@ import { Link, useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@toolkit/lib/auth';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
-import { Trash2, Loader2, LogOut, Pencil, ChevronLeft, Search, ChevronRight, Plus, FileText, Building2, Sparkles } from 'lucide-react';
+import { Trash2, Loader2, LogOut, Pencil, ChevronLeft, Search, ChevronRight, Plus, FileText, Building2, Sparkles, HelpCircle } from 'lucide-react';
 import { starterTemplates as staticTemplates } from '@/data/starterTemplates';
+import { useOnboarding, OnboardingWelcome, OnboardingTour } from '@/components/OnboardingTour';
 
 interface StoredTemplate {
   id: number;
@@ -65,6 +66,7 @@ export default function Dashboard() {
   const [storedTemplates, setStoredTemplates] = useState<StoredTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [publishingKey, setPublishingKey] = useState<string | null>(null);
+  const { needsOnboarding, showTour, startTour, completeTour, dismissTour } = useOnboarding(user?.id);
 
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
@@ -170,6 +172,11 @@ export default function Dashboard() {
   return (
     <div className="font-sans min-h-screen bg-black" style={{ letterSpacing: '-0.011em', color: '#f5f5f7' }}>
 
+      {needsOnboarding && !showTour && page === 'home' && (
+        <OnboardingWelcome onStart={startTour} onSkip={completeTour} userName={user?.fullName} />
+      )}
+      {showTour && page === 'home' && <OnboardingTour onComplete={completeTour} onDismiss={dismissTour} />}
+
       {deleteConfirm !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ animation: 'fadeIn 0.2s cubic-bezier(0.16,1,0.3,1)' }} data-testid="modal-delete-overlay">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-xl" onClick={() => { if (!isDeleting) setDeleteConfirm(null); }} />
@@ -202,6 +209,15 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setPage('home'); startTour(); }}
+              className="p-2 rounded-full bg-[#1c1c1e] hover:bg-[#3a3a3c] smooth press-sm text-[#8e8e93] hover:text-purple-400"
+              title="Take a tour"
+              aria-label="Take a guided tour"
+              data-testid="button-help-tour"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
             <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1c1c1e] text-[12px]" data-testid="user-menu">
               <span className="inline-flex h-5 w-5 rounded-full bg-purple-600 items-center justify-center text-white font-semibold text-[9px]">
                 {(user?.fullName || user?.username || 'U').charAt(0).toUpperCase()}
