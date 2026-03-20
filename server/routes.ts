@@ -20,7 +20,7 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-const groqApiKey = process.env.GROQ_API_KEY;
+let groqApiKey = process.env.GROQ_API_KEY;
 if (!groqApiKey) {
   console.warn("WARNING: GROQ_API_KEY is not set. AI endpoints will return errors.");
 }
@@ -558,10 +558,25 @@ Example (user types "price"):
 
       let entities;
       try {
-        const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        let cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, (ch) => {
+          if (ch === '\n' || ch === '\r' || ch === '\t') return ch;
+          return '';
+        });
         entities = JSON.parse(cleaned);
-      } catch {
-        entities = [];
+      } catch (parseErr) {
+        try {
+          const arrayMatch = content.match(/\[[\s\S]*\]/);
+          if (arrayMatch) {
+            entities = JSON.parse(arrayMatch[0]);
+          } else {
+            console.error("Failed to parse Groq response:", content);
+            entities = [];
+          }
+        } catch {
+          console.error("Failed to parse Groq response (retry):", content);
+          entities = [];
+        }
       }
 
       if (!Array.isArray(entities)) {
