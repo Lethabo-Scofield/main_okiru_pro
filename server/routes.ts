@@ -527,35 +527,50 @@ export async function registerRoutes(
         return res.json({ entities: [fallbackEntity] });
       }
 
-      const systemPrompt = `You are an entity extraction configuration assistant. The user will type a single word or short phrase. Generate exactly ONE fully-configured entity definition for it.
+      const systemPrompt = `You are an expert NLP entity extraction configuration assistant for a B-BBEE compliance document intelligence platform used by South African businesses.
 
-Generate a SINGLE entity with ALL fields completely filled:
-- label: A single, recognisable word in PascalCase (e.g. "Price", "Date", "Name", "Status", "Revenue"). Keep it to ONE word — never invent compound words or combine words.
-- definition: A clear 1-2 sentence paraphrased description of what this entity represents. Do NOT echo the user's input — rephrase it professionally.
-- synonyms: 3-5 alternative names or aliases for this entity
-- positives: 3-5 realistic example values that would be extracted
-- negatives: 2-3 examples of what should NOT be extracted (common false positives)
-- zones: Likely document zones (from: "Email Subject", "Email Body", "PDF Header", "Tables", "Footer", "Signature Block")
-- keywords: Object with must (2-3 required keywords), nice (2-3 nice-to-have), neg (1-2 negative keywords)
-- pattern: A regex pattern if applicable, empty string if not
+Your job: read the user's natural language description (it may be a single word, a phrase, or a full sentence) and deeply understand WHAT data they are trying to extract from documents. Then generate exactly ONE perfectly-configured entity definition.
 
-Respond ONLY with a valid JSON array containing exactly ONE entity object. No markdown, no explanation.
+CONTEXT: Documents processed include B-BBEE certificates, scorecards, verification letters, audited financial statements, company registration documents, employment equity reports, and supplier invoices — all in a South African business context.
 
-Example (user types "price"):
-[
-  {
-    "label": "Price",
-    "definition": "A monetary value representing the cost or selling price of a product or service.",
-    "synonyms": ["Cost", "Amount", "Rate", "Fee"],
-    "positives": ["R500.00", "R1,200", "R25,000.00"],
-    "negatives": ["Quantity: 5", "REF-2024", "50%"],
-    "zones": ["Tables", "PDF Header"],
-    "keywords": {"must": ["price", "cost"], "nice": ["amount", "rate"], "neg": ["quantity"]},
-    "pattern": "R\\s?[\\d,. ]+(\\.\d{2})?"
-  }
-]`;
+INSTRUCTIONS:
+1. Parse the user's intent — even if they write casually, e.g. "I want the expiry date of the certificate" → entity: CertificateExpiryDate
+2. Infer the data type: date, monetary amount (Rand), percentage, name/organisation, identifier/reference, level/status, count, address, etc.
+3. Generate a label in PascalCase that is specific and descriptive (2-3 words is fine, e.g. "BBBEELevel", "CertificateExpiryDate", "BlackOwnership")
+4. Write a professional definition that explains exactly what the entity represents and when it appears in documents
+5. Synonyms: realistic alternative names as they appear in actual B-BBEE documents
+6. Positives: realistic South African examples of actual values (use Rand amounts like R1,200,000, percentages like 51%, dates like 31 March 2025, levels like "Level 2 Contributor")
+7. Negatives: common false positives — values that look similar but are NOT this entity
+8. Zones: where in documents this typically appears (from: "Email Subject", "Email Body", "PDF Header", "Tables", "Footer", "Signature Block")
+9. Keywords: actual words that appear near this value in documents (must = required co-occurrence, nice = helpful, neg = words that rule it out)
+10. Pattern: a precise regex if the value has a predictable format, otherwise ""
 
-      const content = await llmGenerate(systemPrompt, `User request: ${description}`);
+RESPOND ONLY with a valid JSON array containing exactly ONE entity object. No markdown, no code fences, no explanation — raw JSON only.
+
+Schema:
+{
+  "label": "PascalCaseLabel",
+  "definition": "Professional 1-2 sentence description.",
+  "synonyms": ["Alias1", "Alias2", "Alias3"],
+  "positives": ["Example1", "Example2", "Example3"],
+  "negatives": ["FalsePositive1", "FalsePositive2"],
+  "zones": ["PDF Header", "Tables"],
+  "keywords": {"must": ["word1", "word2"], "nice": ["word3"], "neg": ["word4"]},
+  "pattern": "regex_or_empty_string"
+}
+
+Examples:
+
+User: "bee level" →
+[{"label":"BBBEELevel","definition":"The B-BBEE contributor level (1–8) or Non-Compliant status assigned to the measured entity by a SANAS-accredited verification agency.","synonyms":["BEE Level","Contributor Level","B-BBEE Status","BBBEE Rating"],"positives":["Level 1 Contributor","Level 4","Level 8 Contributor","Non-Compliant"],"negatives":["Risk Level","Service Level Agreement","Employment Level"],"zones":["PDF Header","Tables"],"keywords":{"must":["level","contributor"],"nice":["B-BBEE","status","compliant"],"neg":["risk","service","agreement"]},"pattern":"Level\\s*[1-8](\\s*Contributor)?|Non-Compliant"}]
+
+User: "I want to know when the certificate expires" →
+[{"label":"CertificateExpiryDate","definition":"The date on which the B-BBEE certificate expires and re-verification becomes required for the measured entity.","synonyms":["Expiry Date","Valid Until","Certificate End Date","Validity Period End","Expiration Date"],"positives":["31 March 2026","2026-03-31","31/03/2026","30 June 2025"],"negatives":["Issue Date","Measurement Date","Financial Year End","Contract Expiry"],"zones":["PDF Header","Tables"],"keywords":{"must":["expir","valid"],"nice":["until","end","certificate"],"neg":["issue","start","financial year"]},"pattern":"\\d{1,2}\\s+(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{4}|\\d{4}[-/]\\d{2}[-/]\\d{2}"}]
+
+User: "the rand amount of their annual turnover" →
+[{"label":"AnnualTurnover","definition":"The total annual revenue or turnover of the measured entity as reported in their audited financial statements, used to determine the applicable B-BBEE scorecard.","synonyms":["Annual Revenue","Total Turnover","Gross Revenue","Annual Sales"],"positives":["R12,500,000","R 5,000,000.00","R2.3M","R150,000,000"],"negatives":["Monthly Revenue","Net Profit","Operating Expenses","Tax Amount"],"zones":["Tables","PDF Header"],"keywords":{"must":["turnover","revenue"],"nice":["annual","total","gross"],"neg":["monthly","net","profit","expenses"]},"pattern":"R\\s?[\\d,\\s]+(\\s*M|\\s*million|\\.\\d{2})?"}]`;
+
+      const content = await llmGenerate(systemPrompt, `User description: "${description}"\n\nGenerate the entity JSON now:`, { temperature: 0.3, maxTokens: 1200 });
 
       let entities;
       try {
