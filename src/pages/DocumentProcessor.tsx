@@ -961,10 +961,10 @@ export default function DocumentProcessor() {
 
       <header className="h-14 flex items-center justify-between px-5 shrink-0 z-20 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors duration-200 press-sm group" data-testid="btn-back">
+          <button onClick={() => window.history.back()} className="flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors duration-200 press-sm group" data-testid="btn-back">
             <ChevronLeft className="h-5 w-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
             <img src={logoCircle} alt="Okiru" className="h-8 w-8 rounded-lg" />
-          </Link>
+          </button>
           <span className="text-lg font-semibold tracking-tight">
             <span className="text-purple-400">Okiru</span><span className="text-white"> Processor</span>
           </span>
