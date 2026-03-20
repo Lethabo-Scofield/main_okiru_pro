@@ -144,38 +144,23 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
 
   const pageVariants = {
     enter: (dir: number) => ({
-      x: dir > 0 ? 300 : -300,
-      rotateY: dir > 0 ? 15 : -15,
-      scale: 0.92,
+      x: dir > 0 ? 40 : -40,
       opacity: 0,
-      zIndex: 10,
     }),
     center: {
       x: 0,
-      rotateY: 0,
-      scale: 1,
       opacity: 1,
-      zIndex: 10,
     },
     exit: (dir: number) => ({
-      x: dir > 0 ? -300 : 300,
-      rotateY: dir > 0 ? -25 : 25,
-      scale: 0.85,
+      x: dir > 0 ? -40 : 40,
       opacity: 0,
-      zIndex: 0,
     }),
   };
 
   const pageTransition = {
-    type: "spring" as const,
-    stiffness: 300,
-    damping: 30,
-    mass: 0.8,
+    duration: 0.15,
+    ease: "easeOut",
   };
-
-  const behindCards = mode === 'register'
-    ? Array.from({ length: TOTAL_STEPS - step }, (_, i) => i)
-    : [];
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -184,36 +169,21 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
         className="w-full max-w-[420px]"
-        style={{ perspective: 1200 }}
       >
         <div className="flex justify-center mb-8">
           <img src={okiruLogo} alt="Okiru" className="h-14 w-14 rounded-full object-contain" data-testid="img-logo-auth" />
         </div>
 
-        <div className="relative" style={{ perspective: 1200 }}>
-          {behindCards.map((i) => (
-            <div
-              key={`bg-${i}`}
-              className="absolute inset-0 rounded-xl border border-border/20 bg-card/60"
-              style={{
-                transform: `translateY(${(i + 1) * 6}px) scale(${1 - (i + 1) * 0.02})`,
-                zIndex: -i - 1,
-                opacity: Math.max(0.15, 0.5 - i * 0.15),
-              }}
-            />
-          ))}
-
-          <AnimatePresence mode="wait" custom={direction} initial={false}>
-            <motion.div
-              key={mode === 'login' ? 'login' : `step-${step}`}
-              custom={direction}
-              variants={pageVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={pageTransition}
-              style={{ transformStyle: "preserve-3d" }}
-            >
+        <AnimatePresence mode="wait" custom={direction} initial={false}>
+          <motion.div
+            key={mode === 'login' ? 'login' : `step-${step}`}
+            custom={direction}
+            variants={pageVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={pageTransition}
+          >
               <Card className="border border-border/50 shadow-lg bg-card overflow-hidden">
                 <div className="text-center pt-8 pb-3 px-6">
                   <h2 className="text-lg font-heading font-semibold tracking-tight" data-testid="text-auth-title">
@@ -597,8 +567,7 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
                 </CardContent>
               </Card>
             </motion.div>
-          </AnimatePresence>
-        </div>
+        </AnimatePresence>
       </motion.div>
     </div>
   );
