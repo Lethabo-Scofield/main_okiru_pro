@@ -343,7 +343,7 @@ export default function EntityBuilder() {
     setSidebarTab("entities");
   };
 
-  const completenessColor = (pct: number) => pct >= 80 ? 'text-emerald-400' : pct >= 40 ? 'text-purple-400' : 'text-amber-400';
+  const completenessColor = (pct: number) => pct >= 80 ? 'text-emerald-400' : pct >= 40 ? 'text-purple-300' : 'text-amber-400';
   const completenessBarColor = (pct: number) => pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-purple-500' : 'bg-amber-500';
 
   return (
@@ -359,13 +359,13 @@ export default function EntityBuilder() {
                   <Upload className="text-purple-400 w-7 h-7" />
                 </div>
                 <h3 className="text-xl font-semibold text-white text-center mb-1.5 tracking-tight">{editingTemplateId ? "Update Template" : "Publish Template"}</h3>
-                <p className="text-sm text-[#8e8e93] text-center mb-8">{editingTemplateId ? `Save changes to "${projectName}"` : `Publish ${entities.length} entities to the repository`}</p>
+                <p className="text-sm text-[#b0b0b8] text-center mb-8">{editingTemplateId ? `Save changes to "${projectName}"` : `Publish ${entities.length} entities to the repository`}</p>
                 <div className="rounded-2xl p-4 mb-8 space-y-3 bg-[#2c2c2e]">
-                  <div className="flex justify-between text-sm"><span className="text-[#8e8e93]">Template</span><span className="text-white font-medium">{projectName}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#b0b0b8]">Template</span><span className="text-white font-medium">{projectName}</span></div>
                   <div className="h-px bg-[#3a3a3c]" />
-                  <div className="flex justify-between text-sm"><span className="text-[#8e8e93]">Entities</span><span className="text-white font-medium">{entities.length}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#b0b0b8]">Entities</span><span className="text-white font-medium">{entities.length}</span></div>
                   <div className="h-px bg-[#3a3a3c]" />
-                  <div className="flex justify-between text-sm"><span className="text-[#8e8e93]">Avg. completeness</span><span className={`font-semibold ${completenessColor(entities.length > 0 ? Math.round(entities.reduce((a, e) => a + e.completeness, 0) / entities.length) : 0)}`}>{entities.length > 0 ? Math.round(entities.reduce((a, e) => a + e.completeness, 0) / entities.length) : 0}%</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#b0b0b8]">Avg. completeness</span><span className={`font-semibold ${completenessColor(entities.length > 0 ? Math.round(entities.reduce((a, e) => a + e.completeness, 0) / entities.length) : 0)}`}>{entities.length > 0 ? Math.round(entities.reduce((a, e) => a + e.completeness, 0) / entities.length) : 0}%</span></div>
                 </div>
                 <div className="flex gap-3">
                   <button onClick={() => setShowPublishModal(false)} className="flex-1 py-3 rounded-xl font-medium text-[14px] smooth press-sm text-white bg-[#2c2c2e]">Cancel</button>
@@ -378,7 +378,7 @@ export default function EntityBuilder() {
             {publishStatus === "publishing" && (
               <div className="py-12 text-center">
                 <Loader2 className="text-purple-400 w-8 h-8 mb-4 animate-spin mx-auto" />
-                <p className="text-[#8e8e93]">Saving to repository...</p>
+                <p className="text-[#b0b0b8]">Saving to repository...</p>
               </div>
             )}
             {publishStatus === "published" && (
@@ -387,7 +387,7 @@ export default function EntityBuilder() {
                   <Check className="text-emerald-400 w-7 h-7" />
                 </div>
                 <p className="text-white font-semibold text-lg">Saved Successfully</p>
-                <p className="text-sm text-[#8e8e93] mt-1">Your template is ready to use</p>
+                <p className="text-sm text-[#b0b0b8] mt-1">Your template is ready to use</p>
               </div>
             )}
             {publishStatus === "error" && (
@@ -396,7 +396,7 @@ export default function EntityBuilder() {
                   <X className="text-red-400 w-7 h-7" />
                 </div>
                 <p className="text-white font-semibold text-lg">Failed to Save</p>
-                <p className="text-sm text-[#8e8e93] mt-1">Please try again</p>
+                <p className="text-sm text-[#b0b0b8] mt-1">Please try again</p>
               </div>
             )}
           </div>
@@ -411,7 +411,7 @@ export default function EntityBuilder() {
               <Trash2 className="text-red-400 w-6 h-6" />
             </div>
             <h3 className="text-lg font-semibold text-white text-center mb-2 tracking-tight">Delete Template?</h3>
-            <p className="text-sm text-[#8e8e93] text-center mb-7 leading-relaxed">This cannot be undone. The template will be permanently removed.</p>
+            <p className="text-sm text-[#b0b0b8] text-center mb-7 leading-relaxed">This cannot be undone. The template will be permanently removed.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 rounded-xl font-medium text-sm smooth press-sm text-white bg-[#2c2c2e]">Cancel</button>
               <button onClick={() => deleteTemplateFromRepo(deleteConfirm)} className="flex-1 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-400 smooth press-sm font-semibold text-sm shadow-lg shadow-red-500/20" data-testid="button-confirm-delete">Delete</button>
@@ -435,7 +435,7 @@ export default function EntityBuilder() {
           ) : (
             <button onClick={() => setIsEditingProjectName(true)} className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[13px] hover:bg-[#1c1c1e] smooth press-sm group" data-testid="button-edit-project-name">
               <span className="text-white font-medium">{projectName}</span>
-              <Pencil className="w-2.5 h-2.5 text-[#636366] opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Pencil className="w-2.5 h-2.5 text-[#a1a1aa] opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
           )}
           {editingTemplateId && (
@@ -449,7 +449,7 @@ export default function EntityBuilder() {
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          <button onClick={exportEntities} disabled={entities.length === 0} className="p-2 text-[#8e8e93] hover:text-white smooth press-sm rounded-lg hover:bg-[#1c1c1e] disabled:opacity-25" data-testid="button-export" title="Export JSON">
+          <button onClick={exportEntities} disabled={entities.length === 0} className="p-2 text-[#c0c0c8] hover:text-white smooth press-sm rounded-lg hover:bg-[#1c1c1e] disabled:opacity-25" data-testid="button-export" title="Export JSON">
             <Download className="w-4 h-4" />
           </button>
           <div className="h-4 w-px bg-[#2c2c2e] mx-0.5" />
@@ -469,28 +469,25 @@ export default function EntityBuilder() {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-52 flex flex-col shrink-0 bg-[#1c1c1e]" style={{ borderRight: '1px solid #2c2c2e' }}>
           <nav className="flex-1 p-2.5 space-y-0.5">
-            <button onClick={() => setSidebarTab("entities")} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium smooth press-sm relative ${sidebarTab === 'entities' ? 'bg-[#2c2c2e] text-white shadow-sm' : 'text-[#8e8e93] hover:text-white hover:bg-white/[0.06]'}`} data-testid="tab-entities">
+            <button onClick={() => setSidebarTab("entities")} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium smooth press-sm relative ${sidebarTab === 'entities' ? 'bg-[#2c2c2e] text-white shadow-sm' : 'text-[#b0b0b8] hover:text-white hover:bg-white/[0.06]'}`} data-testid="tab-entities">
               {sidebarTab === 'entities' && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-purple-500" />}
               <Shapes className="w-4 h-4" /> Entities
               {entities.length > 0 && <span className="ml-auto text-[10px] bg-purple-500/15 text-purple-400 px-1.5 py-0.5 rounded-full font-semibold tabular-nums">{entities.length}</span>}
             </button>
-            <button onClick={() => { setSidebarTab("repository"); fetchTemplates(); }} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium smooth press-sm relative ${sidebarTab === 'repository' ? 'bg-[#2c2c2e] text-white shadow-sm' : 'text-[#8e8e93] hover:text-white hover:bg-white/[0.06]'}`} data-testid="tab-repository">
+            <button onClick={() => { setSidebarTab("repository"); fetchTemplates(); }} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium smooth press-sm relative ${sidebarTab === 'repository' ? 'bg-[#2c2c2e] text-white shadow-sm' : 'text-[#c0c0c8] hover:text-white hover:bg-white/[0.06]'}`} data-testid="tab-repository">
               {sidebarTab === 'repository' && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-purple-500" />}
               <Folder className="w-4 h-4" /> Templates
               {storedTemplates.length > 0 && <span className="ml-auto text-[10px] bg-[#2c2c2e] px-1.5 py-0.5 rounded-full font-semibold tabular-nums">{storedTemplates.length}</span>}
             </button>
           </nav>
 
-          <div className="p-2.5 border-t border-[#2c2c2e] space-y-1.5">
-            {editingTemplateId && (
-              <button onClick={startNew} className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[#8e8e93] hover:text-white rounded-lg text-[11px] smooth press-sm hover:bg-[#2c2c2e]" data-testid="button-start-new">
+          {editingTemplateId && (
+            <div className="p-2.5 border-t border-[#2c2c2e]">
+              <button onClick={startNew} className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[#b0b0b8] hover:text-white rounded-lg text-[11px] smooth press-sm hover:bg-[#2c2c2e]" data-testid="button-start-new">
                 <FilePlus className="w-3 h-3" /> New Template
               </button>
-            )}
-            <button onClick={addNewEntity} className="w-full flex items-center justify-center gap-1.5 px-2 py-2 border border-dashed border-[#3a3a3c] text-[#8e8e93] hover:text-purple-400 hover:border-purple-500/40 rounded-lg text-[12px] smooth press-sm" data-testid="button-new-entity">
-              <Plus className="w-3.5 h-3.5" /> Add Entity
-            </button>
-          </div>
+            </div>
+          )}
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 bg-black overflow-hidden">
@@ -500,14 +497,14 @@ export default function EntityBuilder() {
                 <div className="max-w-2xl mx-auto">
                   <div className="relative group">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <Sparkles className={`w-4 h-4 transition-colors duration-300 ${nlInput.trim() ? 'text-purple-400' : 'text-[#636366]'}`} />
+                      <Sparkles className={`w-4 h-4 transition-colors duration-300 ${nlInput.trim() ? 'text-purple-400' : 'text-[#a1a1aa]'}`} />
                     </div>
                     <input ref={nlInputRef} type="text" id="nlInput" value={nlInput} onChange={(e) => setNlInput(e.target.value)}
-                      className="w-full bg-[#1c1c1e] text-white rounded-2xl pl-11 pr-28 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500/30 smooth placeholder-[#48484a] text-[14px]"
+                      className="w-full bg-[#1c1c1e] text-white rounded-2xl pl-11 pr-28 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500/30 smooth placeholder-[#71717a] text-[14px]"
                       placeholder="Describe an entity to extract..."
                       onKeyDown={(e) => e.key === 'Enter' && !isGenerating && parseNaturalLanguage()} data-testid="input-nl" />
                     <button onClick={parseNaturalLanguage} disabled={isGenerating || !nlInput.trim()} data-testid="button-generate"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-gradient-to-b from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 disabled:from-[#2c2c2e] disabled:to-[#2c2c2e] disabled:text-[#636366] text-white rounded-xl font-semibold smooth press-sm text-[12px] shadow-sm shadow-purple-500/20 disabled:shadow-none flex items-center gap-1.5">
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-gradient-to-b from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 disabled:from-[#2c2c2e] disabled:to-[#2c2c2e] disabled:text-[#a1a1aa] text-white rounded-xl font-semibold smooth press-sm text-[12px] shadow-sm shadow-purple-500/20 disabled:shadow-none flex items-center gap-1.5">
                       {isGenerating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating...</> : <><Zap className="w-3.5 h-3.5" />Create</>}
                     </button>
                   </div>
@@ -539,15 +536,15 @@ export default function EntityBuilder() {
                         </div>
                       </div>
                       <p className="text-white text-lg font-semibold tracking-tight mb-2">No entities yet</p>
-                      <p className="text-[#8e8e93] text-[13px] max-w-xs mx-auto leading-relaxed">
+                      <p className="text-[#b0b0b8] text-[13px] max-w-xs mx-auto leading-relaxed">
                         Describe what you need to extract above, or add one manually from the sidebar.
                       </p>
                       <div className="flex items-center justify-center gap-6 mt-8">
-                        <div className="flex items-center gap-2 text-[11px] text-[#636366]">
+                        <div className="flex items-center gap-2 text-[11px] text-[#a1a1aa]">
                           <Sparkles className="w-3.5 h-3.5 text-purple-400/50" />
                           AI-powered
                         </div>
-                        <div className="flex items-center gap-2 text-[11px] text-[#636366]">
+                        <div className="flex items-center gap-2 text-[11px] text-[#a1a1aa]">
                           <Zap className="w-3.5 h-3.5 text-amber-400/50" />
                           Instant creation
                         </div>
@@ -564,7 +561,7 @@ export default function EntityBuilder() {
                           </div>
                           <div className="min-w-0">
                             <h3 className="font-semibold text-white text-[14px] tracking-tight truncate">{entity.label}</h3>
-                            <p className="text-[11px] text-[#98989f] max-w-md truncate mt-0.5">{entity.definition}</p>
+                            <p className="text-[11px] text-[#b8b8c0] max-w-md truncate mt-0.5">{entity.definition}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 ml-3">
@@ -576,13 +573,13 @@ export default function EntityBuilder() {
                               <span className={`text-[10px] font-semibold tabular-nums w-6 text-right ${completenessColor(entity.completeness)}`}>{entity.completeness}%</span>
                             </div>
                           </div>
-                          <button onClick={(e) => { e.stopPropagation(); duplicateEntity(entity.id); }} className="p-1.5 text-[#636366] hover:text-[#d1d1d6] rounded-lg hover:bg-white/[0.06] smooth press-sm" title="Duplicate" data-testid={`button-duplicate-${entity.id}`}>
+                          <button onClick={(e) => { e.stopPropagation(); duplicateEntity(entity.id); }} className="p-1.5 text-[#a1a1aa] hover:text-[#d1d1d6] rounded-lg hover:bg-white/[0.06] smooth press-sm" title="Duplicate" data-testid={`button-duplicate-${entity.id}`}>
                             <Copy className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={(e) => { e.stopPropagation(); deleteEntity(entity.id); }} className="p-1.5 text-[#636366] hover:text-red-400 rounded-lg hover:bg-red-500/10 smooth press-sm" title="Delete" data-testid={`button-delete-${entity.id}`}>
+                          <button onClick={(e) => { e.stopPropagation(); deleteEntity(entity.id); }} className="p-1.5 text-[#a1a1aa] hover:text-red-400 rounded-lg hover:bg-red-500/10 smooth press-sm" title="Delete" data-testid={`button-delete-${entity.id}`}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                          <ChevronDown className={`text-[#636366] w-3.5 h-3.5 transition-transform duration-300 ease-out ml-0.5 ${entity.expanded ? "rotate-180" : ""}`} />
+                          <ChevronDown className={`text-[#a1a1aa] w-3.5 h-3.5 transition-transform duration-300 ease-out ml-0.5 ${entity.expanded ? "rotate-180" : ""}`} />
                         </div>
                       </div>
 
@@ -591,7 +588,7 @@ export default function EntityBuilder() {
                           <div className="flex border-b border-[#2c2c2e] px-5 gap-0.5">
                             {(["definition", "hints", "validation"] as const).map(tab => (
                               <button key={tab} onClick={() => updateEntity(entity.id, 'activeTab', tab)}
-                                className={`py-2.5 px-3.5 text-[12px] font-medium border-b-2 smooth capitalize transition-all duration-200 ${entity.activeTab === tab ? 'border-purple-500 text-white' : 'border-transparent text-[#636366] hover:text-[#d1d1d6]'}`}>
+                                className={`py-2.5 px-3.5 text-[12px] font-medium border-b-2 smooth capitalize transition-all duration-200 ${entity.activeTab === tab ? 'border-purple-500 text-white' : 'border-transparent text-[#a1a1aa] hover:text-[#d1d1d6]'}`}>
                                 {tab}
                               </button>
                             ))}
@@ -602,18 +599,18 @@ export default function EntityBuilder() {
                               <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="block text-[11px] font-medium text-[#8e8e93] uppercase tracking-wider mb-1.5">Label</label>
+                                    <label className="block text-[11px] font-medium text-[#b0b0b8] uppercase tracking-wider mb-1.5">Label</label>
                                     <input type="text" className="w-full bg-[#2c2c2e] border border-transparent rounded-xl px-3 py-2 text-sm text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
                                       value={entity.label} onChange={(e) => updateEntity(entity.id, 'label', e.target.value)} data-testid={`input-label-${entity.id}`} />
                                   </div>
                                   <div>
-                                    <label className="block text-[11px] font-medium text-[#8e8e93] uppercase tracking-wider mb-1.5">Pattern</label>
+                                    <label className="block text-[11px] font-medium text-[#b0b0b8] uppercase tracking-wider mb-1.5">Pattern</label>
                                     <input type="text" className="w-full bg-[#2c2c2e] border border-transparent rounded-xl px-3 py-2 text-sm text-white font-mono focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
                                       placeholder="e.g. INV-\d{4}" value={entity.pattern} onChange={(e) => updateEntity(entity.id, 'pattern', e.target.value)} data-testid={`input-pattern-${entity.id}`} />
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-[11px] font-medium text-[#8e8e93] uppercase tracking-wider mb-1.5">Definition</label>
+                                  <label className="block text-[11px] font-medium text-[#b0b0b8] uppercase tracking-wider mb-1.5">Definition</label>
                                   <textarea className="w-full bg-[#2c2c2e] border border-transparent rounded-xl px-3 py-2 text-sm text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all resize-none"
                                     rows={2} value={entity.definition} onChange={(e) => updateEntity(entity.id, 'definition', e.target.value)} data-testid={`input-definition-${entity.id}`} />
                                 </div>
@@ -626,11 +623,11 @@ export default function EntityBuilder() {
                             {entity.activeTab === 'hints' && (
                               <div className="space-y-4">
                                 <div>
-                                  <label className="block text-[11px] font-medium text-[#8e8e93] uppercase tracking-wider mb-2">Zones</label>
+                                  <label className="block text-[11px] font-medium text-[#b0b0b8] uppercase tracking-wider mb-2">Zones</label>
                                   <div className="flex flex-wrap gap-1.5">
                                     {["Email Subject", "Email Body", "PDF Header", "Tables", "Footer", "Signature Block"].map(zone => (
                                       <button key={zone} onClick={() => toggleZone(entity.id, zone)}
-                                        className={`px-3 py-1.5 rounded-lg text-[12px] smooth press-sm transition-all ${entity.zones.includes(zone) ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25 shadow-sm shadow-purple-500/10' : 'bg-[#2c2c2e] text-[#636366] border border-transparent hover:bg-[#3a3a3c] hover:text-[#8e8e93]'}`}>
+                                        className={`px-3 py-1.5 rounded-lg text-[12px] smooth press-sm transition-all ${entity.zones.includes(zone) ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25 shadow-sm shadow-purple-500/10' : 'bg-[#2c2c2e] text-[#a1a1aa] border border-transparent hover:bg-[#3a3a3c] hover:text-[#b0b0b8]'}`}>
                                         {zone}
                                       </button>
                                     ))}
@@ -656,14 +653,14 @@ export default function EntityBuilder() {
                                     { check: !!entity.pattern, text: "Pattern", Icon: Code },
                                   ].map((item, i) => (
                                     <div key={i} className={`flex items-center gap-2.5 py-2 px-3 rounded-xl text-[12px] transition-all ${item.check ? 'bg-emerald-500/8 border border-emerald-500/12' : 'bg-[#2c2c2e] border border-transparent'}`}>
-                                      {item.check ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <item.Icon className="w-3.5 h-3.5 text-[#636366] shrink-0" />}
-                                      <span className={item.check ? 'text-white' : 'text-[#636366]'}>{item.text}</span>
+                                      {item.check ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <item.Icon className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" />}
+                                      <span className={item.check ? 'text-white' : 'text-[#a1a1aa]'}>{item.text}</span>
                                     </div>
                                   ))}
                                 </div>
                                 <div className="rounded-xl p-4 bg-[#2c2c2e]">
                                   <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[12px] font-medium text-[#8e8e93]">Overall Completeness</span>
+                                    <span className="text-[12px] font-medium text-[#b0b0b8]">Overall Completeness</span>
                                     <span className={`text-[13px] font-bold tabular-nums ${completenessColor(entity.completeness)}`}>{entity.completeness}%</span>
                                   </div>
                                   <div className="h-1.5 bg-[#1c1c1e] rounded-full overflow-hidden">
@@ -688,9 +685,9 @@ export default function EntityBuilder() {
                 <div className="flex items-center justify-between mb-5">
                   <div>
                     <h2 className="text-lg font-semibold text-white tracking-tight">Templates</h2>
-                    <p className="text-[12px] text-[#98989f] mt-0.5">Published templates for document processing</p>
+                    <p className="text-[12px] text-[#b8b8c0] mt-0.5">Published templates for document processing</p>
                   </div>
-                  <button onClick={fetchTemplates} className="p-2 text-[#98989f] hover:text-white smooth press-sm rounded-lg hover:bg-[#1c1c1e]" data-testid="button-refresh-templates" title="Refresh">
+                  <button onClick={fetchTemplates} className="p-2 text-[#b8b8c0] hover:text-white smooth press-sm rounded-lg hover:bg-[#1c1c1e]" data-testid="button-refresh-templates" title="Refresh">
                     <RefreshCw className={`w-4 h-4 ${loadingTemplates ? 'animate-spin' : ''}`} />
                   </button>
                 </div>
@@ -720,7 +717,7 @@ export default function EntityBuilder() {
                       </div>
                     </div>
                     <p className="text-white font-semibold tracking-tight mb-1">No templates yet</p>
-                    <p className="text-[#98989f] text-[13px]">Create entities and publish them</p>
+                    <p className="text-[#b8b8c0] text-[13px]">Create entities and publish them</p>
                   </div>
                 )}
 
@@ -742,7 +739,7 @@ export default function EntityBuilder() {
                                   <span className="text-[9px] px-1.5 py-0.5 bg-purple-500/12 text-purple-400 rounded font-medium shrink-0">Active</span>
                                 )}
                               </div>
-                              <p className="text-[11px] text-[#98989f] mt-0.5">{template.entities.length} entities · v{template.version || '1.0'}</p>
+                              <p className="text-[11px] text-[#b8b8c0] mt-0.5">{template.entities.length} entities · v{template.version || '1.0'}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0 ml-3">
@@ -751,7 +748,7 @@ export default function EntityBuilder() {
                               Load
                             </button>
                             <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(template.id); }}
-                              className="p-1.5 text-[#636366] hover:text-red-400 rounded-lg hover:bg-red-500/10 smooth press-sm" data-testid={`button-delete-template-${template.id}`}>
+                              className="p-1.5 text-[#a1a1aa] hover:text-red-400 rounded-lg hover:bg-red-500/10 smooth press-sm" data-testid={`button-delete-template-${template.id}`}>
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -760,7 +757,7 @@ export default function EntityBuilder() {
                           <div className="mt-3 pt-3 border-t border-[#2c2c2e]">
                             <div className="flex flex-wrap gap-1.5">
                               {template.entities.map((e: any, i: number) => (
-                                <span key={i} className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[#2c2c2e] text-[#8e8e93]">{e.label}</span>
+                                <span key={i} className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[#2c2c2e] text-[#b0b0b8]">{e.label}</span>
                               ))}
                             </div>
                           </div>
@@ -797,7 +794,7 @@ function TagField({ label, color, items, onAdd, onRemove, placeholder }: {
 
   return (
     <div>
-      <label className="block text-[11px] font-medium text-[#8e8e93] uppercase tracking-wider mb-1.5">{label}</label>
+      <label className="block text-[11px] font-medium text-[#b0b0b8] uppercase tracking-wider mb-1.5">{label}</label>
       <div className="flex flex-wrap gap-1.5 p-2.5 bg-[#2c2c2e] border border-transparent rounded-xl min-h-[40px] items-center focus-within:border-purple-500/30 focus-within:ring-2 focus-within:ring-purple-500/8 transition-all">
         {items.map((item: string, i: number) => (
           <span key={i} className={`${c.bg} ${c.text} text-[11px] px-2 py-0.5 rounded-md border ${c.border} flex items-center gap-1 transition-all hover:scale-105`}>
@@ -805,7 +802,7 @@ function TagField({ label, color, items, onAdd, onRemove, placeholder }: {
             <button onClick={() => onRemove(i)} className="opacity-50 hover:opacity-100 transition-opacity ml-0.5"><X className="w-2.5 h-2.5" /></button>
           </span>
         ))}
-        <input type="text" className="bg-transparent border-none outline-none text-[13px] text-white flex-1 min-w-[80px] placeholder-[#48484a]" placeholder={placeholder}
+        <input type="text" className="bg-transparent border-none outline-none text-[13px] text-white flex-1 min-w-[80px] placeholder-[#71717a]" placeholder={placeholder}
           onKeyDown={(e) => { if (e.key === 'Enter' && e.currentTarget.value.trim()) { onAdd(e.currentTarget.value.trim()); e.currentTarget.value = ''; e.preventDefault(); }}} />
       </div>
     </div>
