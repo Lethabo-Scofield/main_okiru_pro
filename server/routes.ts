@@ -430,100 +430,78 @@ export async function registerRoutes(
         return res.status(400).json({ error: "description is required" });
       }
 
+      const descLower = description.toLowerCase();
+
       if (!groqApiKey) {
-        const descLower = description.toLowerCase();
-        const stopWords = new Set(["the", "a", "an", "of", "for", "in", "on", "to", "and", "or", "is", "are", "was", "were", "that", "this", "which", "with", "from", "by", "as", "at", "it", "its", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "should", "could", "can", "may", "might", "must", "shall", "i", "we", "you", "they", "he", "she", "my", "our", "your", "their", "what", "how", "when", "where", "why", "who", "need", "want", "like", "extract", "find", "get", "identify", "capture", "detect", "look", "looking", "trying", "create", "describe"]);
+        const noiseWords = new Set([
+          "the", "a", "an", "of", "for", "in", "on", "to", "and", "or", "is", "are", "was", "were",
+          "that", "this", "which", "with", "from", "by", "as", "at", "it", "its", "be", "been", "being",
+          "have", "has", "had", "do", "does", "did", "will", "would", "should", "could", "can", "may",
+          "might", "must", "shall", "i", "we", "you", "they", "he", "she", "my", "our", "your", "their",
+          "what", "how", "when", "where", "why", "who", "need", "want", "like", "also", "just", "very",
+          "really", "about", "into", "then", "than", "but", "not", "no", "so", "if", "only", "each",
+          "every", "all", "any", "some", "many", "more", "most", "other", "such", "these", "those",
+          "extract", "find", "get", "identify", "capture", "detect", "look", "looking", "trying",
+          "create", "describe", "pull", "grab", "fetch", "retrieve", "show", "display", "give", "tell",
+          "usually", "typically", "generally", "often", "always", "sometimes", "never", "here", "there",
+          "appear", "appears", "appearing", "first", "second", "third", "last", "next", "previous",
+          "document", "documents", "file", "files", "page", "pages", "paragraph", "paragraphs",
+          "section", "sections", "field", "fields", "data", "information", "details", "value", "values",
+          "text", "word", "words", "letter", "letters", "line", "lines", "column", "columns", "row", "rows",
+          "table", "tables", "form", "forms", "header", "footer", "body", "content", "record", "records",
+          "used", "use", "using", "called", "known", "found", "born", "made", "given", "taken",
+          "candidate", "person", "people", "thing", "things", "item", "items", "entry", "entries",
+          "means", "refer", "refers", "related", "based", "associated", "corresponding",
+        ]);
+
+        const entityConcepts: Record<string, { label: string; synonyms: string[]; positives: string[]; negatives: string[]; zones: string[]; mustKw: string[]; niceKw: string[]; negKw: string[]; pattern: string }> = {
+          date: { label: "", synonyms: ["Date", "Period", "Valid Until", "Effective Date"], positives: ["2024-06-15", "15 June 2024", "2024/06/15", "31 March 2025"], negatives: ["Reference Number", "Amount", "Name"], zones: ["PDF Header", "Tables"], mustKw: [], niceKw: ["date", "period"], negKw: ["amount", "name"], pattern: "\\d{4}[-/]\\d{2}[-/]\\d{2}|\\d{1,2}\\s+(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{4}" },
+          amount: { label: "", synonyms: ["Amount", "Cost", "Value", "Spend"], positives: ["R500,000", "R1,200,000", "R2.5M", "R75,000.00"], negatives: ["Percentage", "Count", "Date"], zones: ["Tables"], mustKw: [], niceKw: ["amount", "value"], negKw: ["date", "name"], pattern: "R\\s?[\\d,. ]+(\\.\\d{2})?(M|K)?" },
+          percentage: { label: "", synonyms: ["Percentage", "Rate", "Proportion", "Share"], positives: ["51%", "25.1%", "100%", "30.5%"], negatives: ["Amount", "Count", "Date"], zones: ["Tables"], mustKw: [], niceKw: ["percentage", "rate"], negKw: ["amount", "count"], pattern: "\\d{1,3}(\\.\\d{1,2})?%" },
+          name: { label: "", synonyms: ["Name", "Entity", "Organisation", "Company"], positives: ["Moyo Retail (Pty) Ltd", "Karoo Telecom", "John Doe"], negatives: ["Amount", "Date", "Number"], zones: ["PDF Header", "Email Body"], mustKw: [], niceKw: ["name", "entity"], negKw: ["amount", "date"], pattern: "" },
+          number: { label: "", synonyms: ["Number", "Reference", "ID", "Code"], positives: ["REF-2024-001", "12345", "ABC-001", "N/A"], negatives: ["Name", "Amount", "Date"], zones: ["PDF Header", "Tables"], mustKw: [], niceKw: ["number", "reference"], negKw: ["name", "amount"], pattern: "[A-Z]{2,4}[-/]?\\d{3,6}" },
+          status: { label: "", synonyms: ["Status", "Level", "Type", "Category"], positives: ["Active", "Compliant", "Level 1", "Approved"], negatives: ["Amount", "Date", "Name"], zones: ["PDF Header", "Tables"], mustKw: [], niceKw: ["status", "level"], negKw: ["amount", "date"], pattern: "" },
+        };
+
+        const typeMatchers: [RegExp, string][] = [
+          [/date|period|year|expir|valid|time|fiscal/i, "date"],
+          [/amount|cost|spend|price|budget|salary|revenue|rand|fee|turnover/i, "amount"],
+          [/percent|ratio|rate|proportion|%/i, "percentage"],
+          [/name|person|company|entity|beneficiary|director|member|employee|supplier|shareholder/i, "name"],
+          [/number|count|total|quantity|id\b|ref|code|registration/i, "number"],
+          [/status|level|type|category|class|grade|tier|rating/i, "status"],
+        ];
+
         const words = description.trim().split(/\s+/);
         const keyWords = words
           .map((w: string) => w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase())
-          .filter((w: string) => w.length > 1 && !stopWords.has(w));
-        const labelWords = keyWords.slice(0, 3);
+          .filter((w: string) => w.length > 1 && !noiseWords.has(w));
+
+        const labelWords = keyWords.slice(0, 2);
         let label = labelWords.length > 0
           ? labelWords.map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join("")
           : "CustomEntity";
         if (/^\d/.test(label)) label = "Entity" + label;
-        const isDate = /date|period|year|expir|valid|time/i.test(descLower);
-        const isAmount = /amount|cost|spend|price|value|budget|salary|revenue|rand|fee/i.test(descLower);
-        const isPercentage = /percent|ratio|rate|proportion|share|%/i.test(descLower);
-        const isName = /name|person|company|entity|beneficiary|director|member|employee/i.test(descLower);
-        const isNumber = /number|count|total|quantity|id|ref|code/i.test(descLower);
-        const isStatus = /status|level|type|category|class/i.test(descLower);
 
-        let synonyms: string[] = [];
-        let positives: string[] = [];
-        let negatives: string[] = [];
-        let zones: string[] = ["Email Body", "PDF Header"];
-        let mustKw: string[] = [];
-        let niceKw: string[] = [];
-        let negKw: string[] = [];
-        let pattern = "";
-
-        if (isDate) {
-          synonyms = ["Date", "Period", "Valid Until", "Effective Date"];
-          positives = ["2024-06-15", "15 June 2024", "2024/06/15", "31 March 2025"];
-          negatives = ["Reference Number", "Amount", "Name"];
-          zones = ["PDF Header", "Tables"];
-          mustKw = keyWords.slice(0, 2);
-          niceKw = ["date", "period"];
-          negKw = ["amount", "name"];
-          pattern = "\\d{4}[-/]\\d{2}[-/]\\d{2}|\\d{1,2}\\s+(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{4}";
-        } else if (isAmount) {
-          synonyms = ["Amount", "Cost", "Value", "Spend"];
-          positives = ["R500,000", "R1,200,000", "R2.5M", "R75,000.00"];
-          negatives = ["Percentage", "Count", "Date"];
-          zones = ["Tables"];
-          mustKw = keyWords.slice(0, 2);
-          niceKw = ["amount", "value"];
-          negKw = ["date", "name"];
-          pattern = "R\\s?[\\d,. ]+(\\.\\d{2})?(M|K)?";
-        } else if (isPercentage) {
-          synonyms = ["Percentage", "Rate", "Proportion", "Share"];
-          positives = ["51%", "25.1%", "100%", "30.5%"];
-          negatives = ["Amount", "Count", "Date"];
-          zones = ["Tables"];
-          mustKw = keyWords.slice(0, 2);
-          niceKw = ["percentage", "rate"];
-          negKw = ["amount", "count"];
-          pattern = "\\d{1,3}(\\.\\d{1,2})?%";
-        } else if (isName) {
-          synonyms = ["Name", "Entity", "Organisation", "Company"];
-          positives = ["Moyo Retail (Pty) Ltd", "Karoo Telecom", "John Doe"];
-          negatives = ["Amount", "Date", "Number"];
-          zones = ["PDF Header", "Email Body"];
-          mustKw = keyWords.slice(0, 2);
-          niceKw = ["name", "entity"];
-          negKw = ["amount", "date"];
-        } else if (isNumber) {
-          synonyms = ["Number", "Reference", "ID", "Code"];
-          positives = ["REF-2024-001", "12345", "ABC-001", "N/A"];
-          negatives = ["Name", "Amount", "Date"];
-          zones = ["PDF Header", "Tables"];
-          mustKw = keyWords.slice(0, 2);
-          niceKw = ["number", "reference"];
-          negKw = ["name", "amount"];
-          pattern = "[A-Z]{2,4}[-/]?\\d{3,6}";
-        } else if (isStatus) {
-          synonyms = ["Status", "Level", "Type", "Category"];
-          positives = ["Active", "Compliant", "Level 1", "Approved"];
-          negatives = ["Amount", "Date", "Name"];
-          zones = ["PDF Header", "Tables"];
-          mustKw = keyWords.slice(0, 2);
-          niceKw = ["status", "level"];
-          negKw = ["amount", "date"];
-        } else {
-          synonyms = keyWords.slice(0, 3).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1));
-          if (!synonyms.includes(label)) synonyms.push(label);
-          positives = ["Example value 1", "Example value 2", "Example value 3"];
-          negatives = ["Not applicable", "Unrelated value"];
-          mustKw = keyWords.slice(0, 2);
-          niceKw = keyWords.slice(2, 4);
-          negKw = ["unrelated"];
+        let matchedType = "";
+        for (const [regex, type] of typeMatchers) {
+          if (regex.test(descLower)) { matchedType = type; break; }
         }
+
+        const base = matchedType ? entityConcepts[matchedType] : null;
+        const mustKw = keyWords.slice(0, 2);
+        const niceKw = base ? base.niceKw : keyWords.slice(2, 4);
+        const negKw = base ? base.negKw : ["unrelated"];
+        const synonyms = base ? base.synonyms : keyWords.slice(0, 3).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1));
+        const positives = base ? base.positives : ["Example value 1", "Example value 2", "Example value 3"];
+        const negatives = base ? base.negatives : ["Not applicable", "Unrelated value"];
+        const zones = base ? base.zones : ["Email Body", "PDF Header"];
+        const pattern = base ? base.pattern : "";
 
         const fallbackEntity = {
           id: Date.now() + Math.random(),
           label,
-          definition: description.charAt(0).toUpperCase() + description.slice(1) + (description.endsWith('.') ? '' : '.'),
+          definition: description.charAt(0).toUpperCase() + description.slice(1).trim() + (description.trim().endsWith('.') ? '' : '.'),
           completeness: 60,
           synonyms,
           positives,
