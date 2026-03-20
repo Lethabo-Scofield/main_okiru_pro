@@ -753,7 +753,7 @@ export default function EntityBuilder() {
           {selectedEntity && (
             <div className="flex-1 overflow-y-auto">
               <div className="px-8 py-6 sticky top-0 z-10" style={{ background: '#080808', borderBottom: '1px solid #1a1a1a' }}>
-                <div className="flex items-start justify-between gap-4">
+                <div className="max-w-3xl mx-auto flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <input
                       type="text"
@@ -784,7 +784,7 @@ export default function EntityBuilder() {
                 </div>
               </div>
 
-              <div className="px-8 py-6 space-y-8 max-w-3xl">
+              <div className="px-8 py-6 space-y-8 max-w-3xl mx-auto">
                 <Section title="Definition" icon={<AlignLeft className="w-3.5 h-3.5" />}>
                   <textarea
                     className="w-full bg-[#111111] text-[13px] text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-none leading-relaxed placeholder-[#3a3a3c]"
