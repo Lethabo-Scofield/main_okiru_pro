@@ -452,7 +452,9 @@ export default function DocumentProcessor() {
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(EMPTY_COMPANY_INFO);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isSavingSession, setIsSavingSession] = useState(false);
-  const [isLoadingSession, setIsLoadingSession] = useState(false);
+  const [isLoadingSession, setIsLoadingSession] = useState(() => {
+    return new URLSearchParams(window.location.search).has('session');
+  });
   const sessionCreatedAt = useRef<string>(new Date().toISOString());
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [fileClassifications, setFileClassifications] = useState<Record<string, number>>({});
@@ -484,7 +486,7 @@ export default function DocumentProcessor() {
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.split('?')[1] || '');
+    const params = new URLSearchParams(window.location.search);
     const sid = params.get('session');
     if (!sid) return;
     setIsLoadingSession(true);
@@ -499,13 +501,26 @@ export default function DocumentProcessor() {
       setCompanyInfo({ ...EMPTY_COMPANY_INFO, ...sess.companyInfo });
       setFileClassifications(sess.fileClassifications || {});
       setExtractionResults(sess.extractionResults || []);
-      if (sess.extractionResults && sess.extractionResults.length > 0) {
-        setCurrentPage('review');
-      } else if (sess.currentStep && sess.currentStep !== 'company-info') {
-        setCurrentPage('upload');
-      } else {
-        setCurrentPage('company-info');
+      if (sess.filesData && sess.filesData.length > 0) {
+        const restored: UploadedFile[] = sess.filesData.map((fd: any) => ({
+          id: fd.id,
+          file: new File([], fd.name, { type: fd.type === 'PDF' ? 'application/pdf' : 'application/octet-stream' }),
+          name: fd.name,
+          size: fd.size,
+          type: fd.type,
+          uploadProgress: 100,
+          status: 'ready' as const,
+          textContent: fd.textContent || '',
+        }));
+        setUploadedFiles(restored);
       }
+      const validSteps = ['company-info', 'upload', 'classify', 'extract', 'review'];
+      const step = sess.currentStep && validSteps.includes(sess.currentStep)
+        ? sess.currentStep
+        : sess.extractionResults && sess.extractionResults.length > 0 ? 'review'
+        : sess.filesData && sess.filesData.length > 0 ? 'classify'
+        : 'upload';
+      setCurrentPage(step as any);
       toast({ title: `Resumed: ${sess.companyInfo.name}`, description: 'Your session has been loaded.' });
     });
   }, [location]);
@@ -1227,11 +1242,13 @@ export default function DocumentProcessor() {
                         return;
                       }
                       setIsSavingSession(true);
-                      const newId = generateSessionId();
-                      setSessionId(newId);
-                      sessionCreatedAt.current = new Date().toISOString();
+                      const sid = sessionId || generateSessionId();
+                      if (!sessionId) {
+                        setSessionId(sid);
+                        sessionCreatedAt.current = new Date().toISOString();
+                      }
                       await apiSaveSession({
-                        id: newId, companyInfo,
+                        id: sid, companyInfo,
                         createdAt: sessionCreatedAt.current,
                         updatedAt: new Date().toISOString(),
                         currentStep: 'upload',
