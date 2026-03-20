@@ -76,6 +76,7 @@ export default function Dashboard() {
   const [companySearch, setCompanySearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
   const [industryFilter, setIndustryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [storedTemplates, setStoredTemplates] = useState<StoredTemplate[]>([]);
@@ -477,13 +478,16 @@ export default function Dashboard() {
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
-                          <Link href={`/builder?template=${t.id}`}
+                          <button
+                            onClick={() => { setEditingTemplateId(t.id); navigate(`/builder?template=${t.id}`); }}
                             className="p-2 text-[#636366] hover:text-purple-400 hover:bg-purple-500/10 rounded-lg smooth press-sm"
                             title="Edit template"
                             data-testid={`button-edit-${t.id}`}
                           >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Link>
+                            {editingTemplateId === t.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-400" />
+                              : <Pencil className="h-3.5 w-3.5" />}
+                          </button>
                         </div>
                         <Link href="/processor"
                           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-500 text-[12px] font-semibold smooth press-sm shadow-sm shadow-purple-500/15"

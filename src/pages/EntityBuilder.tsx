@@ -58,6 +58,10 @@ export default function EntityBuilder() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return !!params.get('template');
+  });
   const nlInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTemplates = useCallback(async () => {
@@ -67,6 +71,7 @@ export default function EntityBuilder() {
       if (res.ok) setStoredTemplates(await res.json());
     } catch (err) {
       console.error("Error fetching templates:", err);
+      setIsLoadingTemplate(false);
     } finally {
       setLoadingTemplates(false);
     }
@@ -104,7 +109,12 @@ export default function EntityBuilder() {
     const templateId = params.get('template');
     if (templateId && storedTemplates.length > 0 && !editingTemplateId) {
       const t = storedTemplates.find(st => st.id === Number(templateId));
-      if (t) loadTemplateFromRepo(t);
+      if (t) {
+        loadTemplateFromRepo(t);
+      } else {
+        setIsLoadingTemplate(false);
+        toast({ title: "Template not found", description: "Could not find the requested template.", variant: "destructive" });
+      }
     }
   }, [storedTemplates]);
 
@@ -159,6 +169,7 @@ export default function EntityBuilder() {
     setEditingTemplateId(template.id);
     setHasUnsavedChanges(false);
     setSidebarTab("entities");
+    setIsLoadingTemplate(false);
     toast({ title: "Template loaded", description: `"${template.name}" with ${loadedEntities.length} entities` });
   };
 
@@ -372,6 +383,20 @@ export default function EntityBuilder() {
 
   return (
     <div className="bg-black text-white font-sans h-screen overflow-hidden flex flex-col" style={{ letterSpacing: '-0.011em' }}>
+
+      {isLoadingTemplate && (
+        <div className="fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center gap-5" style={{ animation: 'fadeIn 0.15s ease' }}>
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl bg-purple-500/15 ring-1 ring-purple-500/20 flex items-center justify-center">
+              <Loader2 className="w-7 h-7 text-purple-400 animate-spin" />
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="text-[15px] font-semibold text-white">Loading Template</p>
+            <p className="text-[13px] text-[#636366] mt-1">Fetching entities and configuration…</p>
+          </div>
+        </div>
+      )}
 
       {showPublishModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ animation: 'fadeIn 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
