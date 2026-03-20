@@ -651,140 +651,151 @@ export default function EntityBuilder() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-[260px] shrink-0 flex flex-col bg-[#0d0d0d]" style={{ borderRight: '1px solid #1e1e1e' }}>
-          <div className="p-3" style={{ borderBottom: '1px solid #1e1e1e' }}>
-            <div className="relative">
-              <Sparkles className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none transition-colors ${nlInput.trim() ? 'text-purple-400' : 'text-[#3a3a3c]'}`} />
-              <input ref={nlInputRef} type="text" value={nlInput}
-                onChange={(e) => setNlInput(e.target.value)}
-                className="w-full bg-[#1a1a1a] text-white rounded-xl pl-9 pr-3 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-purple-500/25 placeholder-[#3a3a3c] smooth"
-                style={{ border: '1px solid #2c2c2e' }}
-                placeholder="Type an entity to create..."
-                onKeyDown={(e) => e.key === 'Enter' && !isGenerating && nlInput.trim() && parseNaturalLanguage()}
-                data-testid="input-nl" />
+      <div className="flex-1 overflow-hidden flex flex-col" style={{ background: '#080808' }}>
+        <div className="max-w-5xl mx-auto w-full px-6 py-5 flex flex-col flex-1 min-h-0">
+
+          {/* AI Prompt Bar */}
+          <div className="mb-4">
+            <div className="flex gap-2.5">
+              <div className="relative flex-1">
+                <Sparkles className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors ${nlInput.trim() ? 'text-purple-400' : 'text-[#3a3a3c]'}`} />
+                <input ref={nlInputRef} type="text" value={nlInput}
+                  onChange={(e) => setNlInput(e.target.value)}
+                  className="w-full bg-[#111111] text-white rounded-xl pl-10 pr-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-purple-500/25 placeholder-[#3a3a3c] smooth"
+                  style={{ border: '1px solid #2c2c2e' }}
+                  placeholder="Describe an entity to create — e.g. B-BBEE contributor level, certificate expiry date…"
+                  onKeyDown={(e) => e.key === 'Enter' && !isGenerating && nlInput.trim() && parseNaturalLanguage()}
+                  data-testid="input-nl" />
+              </div>
+              <button onClick={parseNaturalLanguage} disabled={isGenerating || !nlInput.trim()}
+                className="shrink-0 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1a1a1a] disabled:text-[#3a3a3c] text-white rounded-xl text-[12px] font-semibold smooth press-sm flex items-center gap-1.5 transition-all"
+                data-testid="button-generate">
+                {isGenerating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating…</> : <><Zap className="w-3.5 h-3.5" />Generate</>}
+              </button>
             </div>
-            <button onClick={parseNaturalLanguage} disabled={isGenerating || !nlInput.trim()}
-              className="mt-2 w-full py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1a1a1a] disabled:text-[#3a3a3c] text-white rounded-xl text-[12px] font-semibold smooth press-sm flex items-center justify-center gap-1.5 transition-all"
-              data-testid="button-generate">
-              {isGenerating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating…</> : <><Zap className="w-3.5 h-3.5" />Generate with AI</>}
-            </button>
           </div>
 
-          {entities.length > 3 && (
-            <div className="px-3 py-2" style={{ borderBottom: '1px solid #1e1e1e' }}>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#3a3a3c] pointer-events-none" />
-                <input type="text" value={entitySearch} onChange={(e) => setEntitySearch(e.target.value)}
-                  placeholder="Filter entities..." className="w-full bg-transparent pl-7 pr-3 py-1.5 text-[12px] text-[#b0b0b8] placeholder-[#3a3a3c] focus:outline-none rounded-lg focus:bg-white/[0.04] transition-all" />
-              </div>
-            </div>
-          )}
+          {/* Entity list + Detail — side by side */}
+          <div className="flex gap-4 flex-1 min-h-0">
 
-          <div className="flex-1 overflow-y-auto py-2 px-2">
-            {entities.length === 0 && (
-              <div className="text-center py-10 px-3">
-                <div className="w-12 h-12 rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.06] flex items-center justify-center mx-auto mb-3">
-                  <Shapes className="w-5 h-5 text-[#3a3a3c]" />
-                </div>
-                <p className="text-[12px] text-[#3a3a3c] leading-relaxed">Type above to create your first entity</p>
-              </div>
-            )}
-            {filteredEntities.map((entity) => {
-              const isSelected = selectedEntityId === entity.id;
-              return (
-                <div key={entity.id}
-                  onClick={() => setSelectedEntityId(entity.id)}
-                  className={`group relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-0.5 cursor-pointer smooth ${isSelected ? 'bg-purple-500/12' : 'hover:bg-white/[0.04]'}`}
-                  data-testid={`entity-row-${entity.id}`}>
-                  {isSelected && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-purple-500" />}
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-bold shrink-0 transition-all ${isSelected ? 'bg-purple-500/20 text-purple-300' : 'bg-white/[0.05] text-[#636366]'}`}>
-                    {entity.label.substring(0, 2).toUpperCase()}
+            {/* Entity List Column */}
+            <div className="w-[240px] shrink-0 flex flex-col rounded-2xl overflow-hidden" style={{ background: '#0d0d0d', border: '1px solid #1e1e1e' }}>
+              {entities.length > 3 && (
+                <div className="px-3 py-2 shrink-0" style={{ borderBottom: '1px solid #1e1e1e' }}>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#3a3a3c] pointer-events-none" />
+                    <input type="text" value={entitySearch} onChange={(e) => setEntitySearch(e.target.value)}
+                      placeholder="Filter…" className="w-full bg-transparent pl-7 pr-3 py-1.5 text-[12px] text-[#b0b0b8] placeholder-[#3a3a3c] focus:outline-none rounded-lg focus:bg-white/[0.04] transition-all" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-[12px] font-semibold truncate transition-colors ${isSelected ? 'text-white' : 'text-[#b0b0b8] group-hover:text-white'}`}>{entity.label}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <div className="flex-1 h-0.5 bg-[#1e1e1e] rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-500 ${completenessBarColor(entity.completeness)}`} style={{ width: `${entity.completeness}%` }} />
+                </div>
+              )}
+
+              <div className="flex-1 overflow-y-auto py-2 px-2">
+                {entities.length === 0 && (
+                  <div className="text-center py-10 px-3">
+                    <div className="w-10 h-10 rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.05] flex items-center justify-center mx-auto mb-3">
+                      <Shapes className="w-4 h-4 text-[#3a3a3c]" />
+                    </div>
+                    <p className="text-[11px] text-[#3a3a3c] leading-relaxed">Type above to create your first entity</p>
+                  </div>
+                )}
+                {filteredEntities.map((entity) => {
+                  const isSelected = selectedEntityId === entity.id;
+                  return (
+                    <div key={entity.id}
+                      onClick={() => setSelectedEntityId(entity.id)}
+                      className={`group relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-0.5 cursor-pointer smooth ${isSelected ? 'bg-purple-500/12' : 'hover:bg-white/[0.04]'}`}
+                      data-testid={`entity-row-${entity.id}`}>
+                      {isSelected && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-purple-500" />}
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-bold shrink-0 transition-all ${isSelected ? 'bg-purple-500/20 text-purple-300' : 'bg-white/[0.05] text-[#636366]'}`}>
+                        {entity.label.substring(0, 2).toUpperCase()}
                       </div>
-                      <span className={`text-[9px] font-bold tabular-nums shrink-0 ${completenessColor(entity.completeness)}`}>{entity.completeness}%</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-[12px] font-semibold truncate transition-colors ${isSelected ? 'text-white' : 'text-[#b0b0b8] group-hover:text-white'}`}>{entity.label}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex-1 h-0.5 bg-[#1e1e1e] rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-500 ${completenessBarColor(entity.completeness)}`} style={{ width: `${entity.completeness}%` }} />
+                          </div>
+                          <span className={`text-[9px] font-bold tabular-nums shrink-0 ${completenessColor(entity.completeness)}`}>{entity.completeness}%</span>
+                        </div>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); deleteEntity(entity.id); }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-[#636366] hover:text-red-400 rounded-lg hover:bg-red-500/10 smooth press-sm shrink-0 transition-opacity"
+                        title="Delete" data-testid={`button-delete-${entity.id}`}>
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
+                  );
+                })}
+              </div>
+
+              {entities.length > 0 && (
+                <div className="px-3 py-2.5 shrink-0" style={{ borderTop: '1px solid #1e1e1e' }}>
+                  <div className="flex items-center justify-between text-[11px] text-[#636366] mb-1">
+                    <span>{entities.length} {entities.length === 1 ? 'entity' : 'entities'}</span>
+                    <span className={`font-semibold ${completenessColor(avgCompleteness)}`}>{avgCompleteness}% avg</span>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); deleteEntity(entity.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-[#636366] hover:text-red-400 rounded-lg hover:bg-red-500/10 smooth press-sm shrink-0 transition-opacity"
-                    title="Delete" data-testid={`button-delete-${entity.id}`}>
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {entities.length > 0 && (
-            <div className="p-3" style={{ borderTop: '1px solid #1e1e1e' }}>
-              <div className="flex items-center justify-between text-[11px] text-[#636366] mb-0.5">
-                <span>{entities.length} {entities.length === 1 ? 'entity' : 'entities'}</span>
-                <span className={`font-semibold ${completenessColor(avgCompleteness)}`}>{avgCompleteness}% avg</span>
-              </div>
-              <div className="h-1 bg-[#1e1e1e] rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all duration-700 ${completenessBarColor(avgCompleteness)}`} style={{ width: `${avgCompleteness}%` }} />
-              </div>
-            </div>
-          )}
-        </aside>
-
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ background: '#080808' }}>
-          {!selectedEntity && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
-              <div className="w-20 h-20 rounded-3xl bg-white/[0.03] ring-1 ring-white/[0.04] flex items-center justify-center mx-auto mb-6">
-                <Shapes className="w-8 h-8 text-[#2c2c2e]" />
-              </div>
-              <p className="text-[17px] font-semibold text-white tracking-tight mb-2">
-                {entities.length === 0 ? 'No entities yet' : 'Select an entity'}
-              </p>
-              <p className="text-[13px] text-[#3a3a3c] leading-relaxed max-w-xs">
-                {entities.length === 0
-                  ? <>Type a concept in the left panel — like <span className="text-purple-500">price</span>, <span className="text-purple-500">date</span>, or <span className="text-purple-500">name</span> — and AI will build the entity for you.</>
-                  : 'Click any entity in the left panel to view and edit its details.'}
-              </p>
-            </div>
-          )}
-
-          {selectedEntity && (
-            <div className="flex-1 overflow-y-auto">
-              <div className="px-8 py-6 sticky top-0 z-10" style={{ background: '#080808', borderBottom: '1px solid #1a1a1a' }}>
-                <div className="max-w-3xl mx-auto flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <input
-                      type="text"
-                      value={selectedEntity.label}
-                      onChange={(e) => updateEntity(selectedEntity.id, 'label', e.target.value)}
-                      className="w-full bg-transparent text-[22px] font-semibold text-white tracking-tight focus:outline-none placeholder-[#3a3a3c]"
-                      placeholder="Entity label"
-                      data-testid={`input-label-${selectedEntity.id}`}
-                    />
-                    <p className="text-[12px] text-[#3a3a3c] mt-0.5">Entity #{selectedEntity.id.toString().slice(-4)}</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="relative">
-                      <CompletenessRing pct={selectedEntity.completeness} />
-                      <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums ${completenessColor(selectedEntity.completeness)}`}>
-                        {selectedEntity.completeness}%
-                      </span>
-                    </div>
-                    <button onClick={() => duplicateEntity(selectedEntity.id)}
-                      className="p-2 text-[#636366] hover:text-white hover:bg-white/[0.06] rounded-xl smooth press-sm" title="Duplicate" data-testid={`button-duplicate-${selectedEntity.id}`}>
-                      <Copy className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => deleteEntity(selectedEntity.id)}
-                      className="p-2 text-[#636366] hover:text-red-400 hover:bg-red-500/10 rounded-xl smooth press-sm" title="Delete entity" data-testid={`button-delete-header-${selectedEntity.id}`}>
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="h-1 bg-[#1e1e1e] rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-700 ${completenessBarColor(avgCompleteness)}`} style={{ width: `${avgCompleteness}%` }} />
                   </div>
                 </div>
-              </div>
+              )}
+            </div>
 
-              <div className="px-8 py-6 space-y-8 max-w-3xl mx-auto">
+            {/* Detail / Empty State Panel */}
+            <div className="flex-1 min-w-0 flex flex-col rounded-2xl overflow-hidden" style={{ background: '#0d0d0d', border: '1px solid #1e1e1e' }}>
+
+              {!selectedEntity && (
+                <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+                  <div className="w-16 h-16 rounded-3xl bg-white/[0.03] ring-1 ring-white/[0.04] flex items-center justify-center mx-auto mb-5">
+                    <Shapes className="w-7 h-7 text-[#2c2c2e]" />
+                  </div>
+                  <p className="text-[16px] font-semibold text-white tracking-tight mb-2">
+                    {entities.length === 0 ? 'No entities yet' : 'Select an entity'}
+                  </p>
+                  <p className="text-[13px] text-[#3a3a3c] leading-relaxed max-w-xs">
+                    {entities.length === 0
+                      ? <>Type a concept above — like <span className="text-purple-500">price</span>, <span className="text-purple-500">date</span>, or <span className="text-purple-500">BEE level</span> — and AI will build the entity for you.</>
+                      : 'Click any entity in the list to view and edit its details.'}
+                  </p>
+                </div>
+              )}
+
+              {selectedEntity && (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="px-6 py-5 sticky top-0 z-10 shrink-0" style={{ background: '#0d0d0d', borderBottom: '1px solid #1e1e1e' }}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={selectedEntity.label}
+                          onChange={(e) => updateEntity(selectedEntity.id, 'label', e.target.value)}
+                          className="w-full bg-transparent text-[20px] font-semibold text-white tracking-tight focus:outline-none placeholder-[#3a3a3c]"
+                          placeholder="Entity label"
+                          data-testid={`input-label-${selectedEntity.id}`}
+                        />
+                        <p className="text-[11px] text-[#3a3a3c] mt-0.5">Entity #{selectedEntity.id.toString().slice(-4)}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="relative">
+                          <CompletenessRing pct={selectedEntity.completeness} />
+                          <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums ${completenessColor(selectedEntity.completeness)}`}>
+                            {selectedEntity.completeness}%
+                          </span>
+                        </div>
+                        <button onClick={() => duplicateEntity(selectedEntity.id)}
+                          className="p-2 text-[#636366] hover:text-white hover:bg-white/[0.06] rounded-xl smooth press-sm" title="Duplicate" data-testid={`button-duplicate-${selectedEntity.id}`}>
+                          <Copy className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => deleteEntity(selectedEntity.id)}
+                          className="p-2 text-[#636366] hover:text-red-400 hover:bg-red-500/10 rounded-xl smooth press-sm" title="Delete" data-testid={`button-delete-header-${selectedEntity.id}`}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-5 space-y-7">
                 <Section title="Definition" icon={<AlignLeft className="w-3.5 h-3.5" />}>
                   <textarea
                     className="w-full bg-[#111111] text-[13px] text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-none leading-relaxed placeholder-[#3a3a3c]"
@@ -911,11 +922,13 @@ export default function EntityBuilder() {
                   </div>
                 </Section>
 
-                <div className="h-12" />
-              </div>
+                <div className="h-8" />
+                </div>
+                </div>
+              )}
             </div>
-          )}
-        </main>
+          </div>
+        </div>
       </div>
 
       <style>{`
