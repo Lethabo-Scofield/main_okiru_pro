@@ -6,6 +6,7 @@ import MongoStore from "connect-mongo";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { sendLoginNotification } from "./email";
+import { ProcessorSessionModel } from "../shared/schema";
 
 async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const userId = (req.session as any)?.userId;
@@ -903,6 +904,76 @@ Respond ONLY with a valid JSON array.`;
     } catch (error: any) {
       console.error("Error generating suggestions:", error);
       res.status(500).json({ error: "Failed to generate suggestions" });
+    }
+  });
+
+  app.get("/api/processor-sessions", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const user = await storage.getUserById(userId);
+      const orgId = user?.organizationId || null;
+      const query = orgId ? { organizationId: orgId } : { createdByUserId: userId };
+      const sessions = await ProcessorSessionModel.find(query).sort({ updatedAt: -1 }).lean();
+      res.json(sessions.map((s: any) => ({ ...s, id: s.sessionId })));
+    } catch (error: any) {
+      console.error("Error fetching processor sessions:", error);
+      res.status(500).json({ error: "Failed to fetch sessions" });
+    }
+  });
+
+  app.get("/api/processor-sessions/:sessionId", requireAuth, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const doc = await ProcessorSessionModel.findOne({ sessionId }).lean() as any;
+      if (!doc) return res.status(404).json({ error: "Session not found" });
+      res.json({ ...doc, id: doc.sessionId });
+    } catch (error: any) {
+      console.error("Error fetching processor session:", error);
+      res.status(500).json({ error: "Failed to fetch session" });
+    }
+  });
+
+  app.post("/api/processor-sessions", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const user = await storage.getUserById(userId);
+      const orgId = user?.organizationId || null;
+      const { sessionId, companyInfo, currentStep, filesData, fileClassifications, extractionResults, docStatuses, isComplete } = req.body;
+      if (!sessionId || !companyInfo?.name) {
+        return res.status(400).json({ error: "sessionId and companyInfo.name are required" });
+      }
+      const doc = await ProcessorSessionModel.findOneAndUpdate(
+        { sessionId },
+        {
+          sessionId,
+          organizationId: orgId,
+          createdByUserId: userId,
+          companyInfo,
+          currentStep: currentStep || 'upload',
+          filesData: filesData || [],
+          fileClassifications: fileClassifications || {},
+          extractionResults: extractionResults || [],
+          docStatuses: docStatuses || {},
+          isComplete: isComplete || false,
+          updatedAt: new Date(),
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+      res.json({ ...doc.toJSON(), id: (doc as any).sessionId });
+    } catch (error: any) {
+      console.error("Error saving processor session:", error);
+      res.status(500).json({ error: "Failed to save session" });
+    }
+  });
+
+  app.delete("/api/processor-sessions/:sessionId", requireAuth, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      await ProcessorSessionModel.deleteOne({ sessionId });
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting processor session:", error);
+      res.status(500).json({ error: "Failed to delete session" });
     }
   });
 

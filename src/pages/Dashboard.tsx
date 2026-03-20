@@ -3,15 +3,17 @@ import { Link, useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@toolkit/lib/auth';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
-import { Trash2, Loader2, LogOut, Pencil, ChevronLeft, Search, ChevronRight, Plus, FileText, Building2, Sparkles, HelpCircle, Play, UploadCloud } from 'lucide-react';
+import { Trash2, Loader2, LogOut, Pencil, ChevronLeft, Search, ChevronRight, Plus, FileText, Building2, Sparkles, HelpCircle, Play, UploadCloud, ExternalLink } from 'lucide-react';
 import { starterTemplates as staticTemplates } from '@/data/starterTemplates';
 import { useOnboarding, OnboardingWelcome, OnboardingTour } from '@/components/OnboardingTour';
 
-const SESSIONS_KEY = 'okiru-processor-sessions';
-
 interface ProcessorSession {
   id: string;
-  companyInfo: { name: string; sector: string; registrationNumber: string };
+  companyInfo: {
+    name: string; sector: string; registrationNumber: string;
+    annualTurnover?: string; employees?: string; contactName?: string;
+    contactEmail?: string; currentBBEELevel?: string;
+  };
   createdAt: string;
   updatedAt: string;
   currentStep: string;
@@ -25,13 +27,10 @@ interface CompanyRow {
   name: string;
   id: string;
   industry: string;
-  status: 'new' | 'in_progress' | 'compliant';
-  sessionId?: string;
+  status: 'in_progress' | 'complete';
+  sessionId: string;
   subtitle?: string;
-}
-
-function readSessions(): ProcessorSession[] {
-  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch { return []; }
+  isComplete: boolean;
 }
 
 interface StoredTemplate {
@@ -44,29 +43,18 @@ interface StoredTemplate {
   updatedAt: string;
 }
 
-const baseCompanies: CompanyRow[] = [
-  { name: "Moyo Retail (Pty) Ltd", id: "C-10483", industry: "Retail", status: "new" },
-  { name: "Karoo Telecom", id: "C-21907", industry: "Telecoms", status: "in_progress" },
-  { name: "Umhlaba Insurance Group", id: "C-88712", industry: "Insurance", status: "compliant" },
-  { name: "Aurum Financial Services", id: "C-54011", industry: "Financial Services", status: "in_progress" },
-  { name: "Blue Crane Logistics", id: "C-66309", industry: "Logistics", status: "new" },
-  { name: "Saffron Health Network", id: "C-77201", industry: "Healthcare", status: "compliant" },
-  { name: "Vula Energy Partners", id: "C-30118", industry: "Energy", status: "new" },
-  { name: "CapeTech Manufacturing", id: "C-91145", industry: "Manufacturing", status: "in_progress" },
-];
 
 type Page = 'home' | 'templates' | 'scorecards';
 
 function statusLabel(status: string) {
-  if (status === "new") return "New";
+  if (status === "complete") return "Complete";
   if (status === "in_progress") return "In Progress";
-  if (status === "compliant") return "Compliant";
   return status;
 }
 
 function statusPillClass(status: string) {
   const base = "inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium";
-  if (status === "compliant") return `${base} bg-emerald-500/15 text-emerald-400`;
+  if (status === "complete") return `${base} bg-emerald-500/15 text-emerald-400`;
   if (status === "in_progress") return `${base} bg-amber-500/15 text-amber-400`;
   return `${base} bg-white/[0.06] text-[#8e8e93]`;
 }
@@ -95,10 +83,28 @@ export default function Dashboard() {
   const [publishingKey, setPublishingKey] = useState<string | null>(null);
   const { needsOnboarding, showTour, startTour, completeTour, dismissTour } = useOnboarding(user?.id);
   const [processorSessions, setProcessorSessions] = useState<ProcessorSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
+  const fetchSessions = useCallback(async () => {
+    setLoadingSessions(true);
+    try {
+      const res = await fetch('/api/processor-sessions');
+      if (res.ok) {
+        const data = await res.json();
+        setProcessorSessions(data);
+      }
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
+    } finally {
+      setLoadingSessions(false);
+    }
+  }, []);
 
   useEffect(() => {
-    setProcessorSessions(readSessions());
-  }, [page]);
+    if (page === 'scorecards') {
+      fetchSessions();
+    }
+  }, [page, fetchSessions]);
 
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
@@ -144,21 +150,19 @@ export default function Dashboard() {
   }, [publishingKey, fetchTemplates, toast, navigate]);
 
   const allCompanies = useMemo<CompanyRow[]>(() => {
-    const sessionRows: CompanyRow[] = processorSessions.map(s => ({
+    return processorSessions.map(s => ({
       name: s.companyInfo.name,
       id: s.id,
       industry: s.companyInfo.sector || 'Other',
-      status: s.isComplete ? 'compliant' : 'in_progress',
+      status: s.isComplete ? 'complete' : 'in_progress',
       sessionId: s.id,
+      isComplete: s.isComplete,
       subtitle: s.isComplete
-        ? `${s.extractionResults.length} doc${s.extractionResults.length !== 1 ? 's' : ''} processed`
+        ? `${s.extractionResults?.length || 0} doc${(s.extractionResults?.length || 0) !== 1 ? 's' : ''} processed · Assessment complete`
         : s.currentStep === 'review'
         ? 'Extraction complete — awaiting review'
-        : `In progress · ${s.filesData.length} doc${s.filesData.length !== 1 ? 's' : ''} uploaded`,
+        : `In progress · ${s.filesData?.length || 0} doc${(s.filesData?.length || 0) !== 1 ? 's' : ''} uploaded`,
     }));
-    const sessionNames = new Set(sessionRows.map(r => r.name.toLowerCase()));
-    const base = baseCompanies.filter(c => !sessionNames.has(c.name.toLowerCase()));
-    return [...sessionRows, ...base];
   }, [processorSessions]);
 
   const industries = useMemo(() => Array.from(new Set(allCompanies.map(c => c.industry))).sort(), [allCompanies]);
@@ -188,9 +192,8 @@ export default function Dashboard() {
     total: allCompanies.length,
     industries: industries.length,
     industryList: industries.join(' \u2022 '),
-    new: allCompanies.filter(c => c.status === 'new').length,
     inProgress: allCompanies.filter(c => c.status === 'in_progress').length,
-    compliant: allCompanies.filter(c => c.status === 'compliant').length,
+    complete: allCompanies.filter(c => c.status === 'complete').length,
   }), [allCompanies, industries]);
 
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
@@ -561,20 +564,23 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="rounded-2xl bg-[#1c1c1e] p-5 fade-in">
-                <div className="text-[10px] text-[#98989f] font-semibold uppercase tracking-wider">Total companies</div>
-                <div className="text-[32px] font-bold mt-1 tracking-[-0.03em] text-white" data-testid="stat-companies">{stats.total}</div>
+                <div className="text-[10px] text-[#98989f] font-semibold uppercase tracking-wider">Total Clients</div>
+                <div className="text-[32px] font-bold mt-1 tracking-[-0.03em] text-white" data-testid="stat-companies">
+                  {loadingSessions ? <Loader2 className="w-6 h-6 animate-spin text-[#636366] inline-block" /> : stats.total}
+                </div>
               </div>
               <div className="rounded-2xl bg-[#1c1c1e] p-5 opacity-0 fade-in stagger-1">
                 <div className="text-[10px] text-[#98989f] font-semibold uppercase tracking-wider">Industries</div>
-                <div className="text-[32px] font-bold mt-1 tracking-[-0.03em] text-white" data-testid="stat-industries">{stats.industries}</div>
-                <div className="text-[10px] text-[#636366] mt-2">{stats.industryList}</div>
+                <div className="text-[32px] font-bold mt-1 tracking-[-0.03em] text-white" data-testid="stat-industries">
+                  {loadingSessions ? '—' : stats.industries}
+                </div>
+                <div className="text-[10px] text-[#636366] mt-2">{stats.industryList || 'No sessions yet'}</div>
               </div>
               <div className="rounded-2xl bg-[#1c1c1e] p-5 opacity-0 fade-in stagger-2">
                 <div className="text-[10px] text-[#98989f] font-semibold uppercase tracking-wider">Statuses</div>
                 <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                  <span className="px-2.5 py-1 rounded-full bg-white/[0.06] text-[#8e8e93] font-medium">New: {stats.new}</span>
                   <span className="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 font-medium">In Progress: {stats.inProgress}</span>
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 font-medium">Compliant: {stats.compliant}</span>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 font-medium">Complete: {stats.complete}</span>
                 </div>
               </div>
             </div>
@@ -621,9 +627,8 @@ export default function Dashboard() {
                       data-testid="select-status"
                     >
                       <option value="all">All</option>
-                      <option value="new">New</option>
                       <option value="in_progress">In Progress</option>
-                      <option value="compliant">Compliant</option>
+                      <option value="complete">Complete</option>
                     </select>
                   </div>
                 </div>
@@ -632,44 +637,61 @@ export default function Dashboard() {
 
             <div className="rounded-2xl bg-[#1c1c1e] overflow-hidden">
               <div className="px-5 py-3.5 flex items-center justify-between">
-                <div className="text-[13px] font-semibold text-white">Companies</div>
-                <div className="text-[11px] text-[#98989f] font-medium" data-testid="results-count">{filteredCompanies.length} result{filteredCompanies.length !== 1 ? 's' : ''}</div>
+                <div className="text-[13px] font-semibold text-white">Client Assessments</div>
+                <div className="text-[11px] text-[#98989f] font-medium" data-testid="results-count">
+                  {loadingSessions ? <Loader2 className="w-3 h-3 animate-spin inline-block" /> : `${filteredCompanies.length} result${filteredCompanies.length !== 1 ? 's' : ''}`}
+                </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-[13px]">
-                  <thead className="bg-white/[0.03]">
-                    <tr className="text-left text-[10px] text-[#98989f] uppercase tracking-wider">
-                      <th className="px-5 py-2.5 font-semibold">Company</th>
-                      <th className="px-5 py-2.5 font-semibold">Company ID</th>
-                      <th className="px-5 py-2.5 font-semibold">Industry</th>
-                      <th className="px-5 py-2.5 font-semibold">Status</th>
-                      <th className="px-5 py-2.5 font-semibold text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.06]">
-                    {filteredCompanies.map(c => (
-                      <tr key={c.id} className="hover:bg-white/[0.03] smooth" data-testid={`company-row-${c.id}`}>
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2">
-                            <div className="font-semibold text-white">{c.name}</div>
-                            {c.sessionId && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 font-semibold tracking-wider uppercase">Active</span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-[#636366] mt-0.5">
-                            {c.subtitle || 'Scorecard ready'}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5 text-[#98989f] font-mono text-[11px]">{c.sessionId ? c.sessionId.slice(0, 16) + '…' : c.id}</td>
-                        <td className="px-5 py-3.5 text-[#8e8e93]">{c.industry}</td>
-                        <td className="px-5 py-3.5">
-                          <span className={statusPillClass(c.status)}>{statusLabel(c.status)}</span>
-                        </td>
-                        <td className="px-5 py-3.5 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {c.sessionId ? (
-                              <>
+              {loadingSessions ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+                  <p className="text-[#8e8e93] text-sm">Loading assessments...</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-[13px]">
+                    <thead className="bg-white/[0.03]">
+                      <tr className="text-left text-[10px] text-[#98989f] uppercase tracking-wider">
+                        <th className="px-5 py-2.5 font-semibold">Company</th>
+                        <th className="px-5 py-2.5 font-semibold">Session ID</th>
+                        <th className="px-5 py-2.5 font-semibold">Industry</th>
+                        <th className="px-5 py-2.5 font-semibold">Status</th>
+                        <th className="px-5 py-2.5 font-semibold text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.06]">
+                      {filteredCompanies.map(c => (
+                        <tr key={c.id} className="hover:bg-white/[0.03] smooth" data-testid={`company-row-${c.id}`}>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <div className="font-semibold text-white">{c.name}</div>
+                              {!c.isComplete && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-semibold tracking-wider uppercase">Active</span>
+                              )}
+                              {c.isComplete && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-semibold tracking-wider uppercase">Done</span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-[#636366] mt-0.5">{c.subtitle}</div>
+                          </td>
+                          <td className="px-5 py-3.5 text-[#98989f] font-mono text-[11px]">{c.sessionId.slice(0, 18)}…</td>
+                          <td className="px-5 py-3.5 text-[#8e8e93]">{c.industry}</td>
+                          <td className="px-5 py-3.5">
+                            <span className={statusPillClass(c.status)}>{statusLabel(c.status)}</span>
+                          </td>
+                          <td className="px-5 py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {c.isComplete ? (
+                                <Link
+                                  href={`/toolkit/${c.sessionId}`}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[12px] font-semibold smooth press-sm"
+                                  data-testid={`button-toolkit-${c.id}`}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  View in Toolkit
+                                </Link>
+                              ) : (
                                 <Link
                                   href={`/processor?session=${c.sessionId}`}
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[12px] font-semibold smooth press-sm"
@@ -678,41 +700,28 @@ export default function Dashboard() {
                                   <Play className="h-2.5 w-2.5" />
                                   Resume
                                 </Link>
-                              </>
-                            ) : (
-                              <>
-                                <Link
-                                  href="/processor"
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[12px] font-medium smooth press-sm text-[#8e8e93]"
-                                  data-testid={`button-upload-${c.id}`}
-                                >
-                                  <UploadCloud className="h-3 w-3" />
-                                  Upload Docs
-                                </Link>
-                                <button
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[12px] font-medium smooth press-sm text-[#8e8e93]"
-                                  onClick={() => navigate(`/toolkit/${c.id}`)}
-                                  data-testid={`button-view-${c.id}`}
-                                >
-                                  View
-                                  <ChevronRight className="h-3 w-3 text-[#636366]" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredCompanies.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="px-5 py-12 text-center text-[14px] text-[#636366]">
-                          No companies match your filters.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredCompanies.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-5 py-16 text-center">
+                            <div className="flex flex-col items-center gap-3">
+                              <Building2 className="w-8 h-8 text-[#3a3a3c]" />
+                              <p className="text-[14px] text-[#636366]">No assessments yet</p>
+                              <Link href="/processor" className="text-[13px] text-purple-400 hover:text-purple-300 font-medium smooth">
+                                Start a new assessment →
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </section>
         )}

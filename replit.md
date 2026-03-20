@@ -19,7 +19,7 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - `api/` — Vercel serverless functions (not used on Replit, active on Vercel deployment)
 
 ## Required Environment Variables
-- `MONGODB_URI` — MongoDB connection string (optional — both Replit and Vercel fallback to in-memory storage if not set)
+- `MONGODB_URI` — MongoDB connection string (set to KurioPro Atlas cluster) — required for processor sessions
 - `GROQ_API_KEY` — Groq API key (optional — entity generation uses rule-based fallback without it)
 - `SESSION_SECRET` — Express session secret (auto-generated on Replit, uses default on Vercel if not set)
 
