@@ -87,8 +87,31 @@ export default function Dashboard() {
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [deleteSessionConfirm, setDeleteSessionConfirm] = useState<string | null>(null);
   const [isDeletingSession, setIsDeletingSession] = useState(false);
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+  const [rowOrder, setRowOrder] = useState<string[]>([]);
 
   const isAdmin = user?.role === 'admin';
+
+  useEffect(() => {
+    setRowOrder(prev => {
+      const ids = processorSessions.map(s => s.id);
+      const existing = prev.filter(id => ids.includes(id));
+      const newIds = ids.filter(id => !prev.includes(id));
+      return [...existing, ...newIds];
+    });
+  }, [processorSessions]);
+
+  const moveRow = (sessionId: string, direction: 'up' | 'down') => {
+    setRowOrder(prev => {
+      const idx = prev.indexOf(sessionId);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= next.length) return prev;
+      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      return next;
+    });
+  };
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     setIsDeletingSession(true);
@@ -196,8 +219,15 @@ export default function Dashboard() {
     if (q) result = result.filter(c => c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q));
     if (industryFilter !== 'all') result = result.filter(c => c.industry === industryFilter);
     if (statusFilter !== 'all') result = result.filter(c => c.status === statusFilter);
+    if (rowOrder.length > 0) {
+      result.sort((a, b) => {
+        const ai = rowOrder.indexOf(a.sessionId);
+        const bi = rowOrder.indexOf(b.sessionId);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
+    }
     return result;
-  }, [allCompanies, companySearch, industryFilter, statusFilter]);
+  }, [allCompanies, companySearch, industryFilter, statusFilter, rowOrder]);
 
   const filteredStaticTemplates = useMemo(() => {
     const q = templateSearch.toLowerCase();
@@ -687,8 +717,17 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.06]">
-                      {filteredCompanies.map(c => (
-                        <tr key={c.id} className="hover:bg-white/[0.03] smooth" data-testid={`company-row-${c.id}`}>
+                      {filteredCompanies.map((c, idx) => {
+                        const isHovered = hoveredRow === c.sessionId;
+                        const isFirst = idx === 0;
+                        const isLast = idx === filteredCompanies.length - 1;
+                        return (
+                        <tr key={c.id}
+                          className="hover:bg-white/[0.03] smooth group"
+                          data-testid={`company-row-${c.id}`}
+                          onMouseEnter={() => setHoveredRow(c.sessionId)}
+                          onMouseLeave={() => { if (deleteSessionConfirm !== c.sessionId) setHoveredRow(null); }}
+                        >
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-2">
                               <div className="font-semibold text-white">{c.name}</div>
@@ -720,7 +759,7 @@ export default function Dashboard() {
                                     {isDeletingSession ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes, delete'}
                                   </button>
                                   <button
-                                    onClick={() => setDeleteSessionConfirm(null)}
+                                    onClick={() => { setDeleteSessionConfirm(null); setHoveredRow(null); }}
                                     disabled={isDeletingSession}
                                     className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[#8e8e93] text-[11px] font-medium smooth press-sm"
                                     data-testid={`button-cancel-delete-${c.id}`}
@@ -730,6 +769,34 @@ export default function Dashboard() {
                                 </div>
                               ) : (
                                 <>
+                                  <div className={`flex items-center gap-0.5 transition-opacity duration-150 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                                    <button
+                                      onClick={() => moveRow(c.sessionId, 'up')}
+                                      disabled={isFirst}
+                                      className="p-1 rounded text-[#636366] hover:text-white hover:bg-white/[0.08] smooth press-sm disabled:opacity-20 disabled:cursor-not-allowed"
+                                      title="Move up"
+                                      data-testid={`button-move-up-${c.id}`}
+                                    >
+                                      <ChevronRight className="h-3.5 w-3.5 -rotate-90" />
+                                    </button>
+                                    <button
+                                      onClick={() => moveRow(c.sessionId, 'down')}
+                                      disabled={isLast}
+                                      className="p-1 rounded text-[#636366] hover:text-white hover:bg-white/[0.08] smooth press-sm disabled:opacity-20 disabled:cursor-not-allowed"
+                                      title="Move down"
+                                      data-testid={`button-move-down-${c.id}`}
+                                    >
+                                      <ChevronRight className="h-3.5 w-3.5 rotate-90" />
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteSessionConfirm(c.sessionId)}
+                                      className="p-1.5 rounded-lg text-[#636366] hover:text-red-400 hover:bg-red-500/10 smooth press-sm ml-0.5"
+                                      data-testid={`button-delete-${c.id}`}
+                                      title="Delete assessment"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
                                   {c.isComplete ? (
                                     <Link
                                       href={`/toolkit/${c.sessionId}`}
@@ -749,22 +816,13 @@ export default function Dashboard() {
                                       Resume
                                     </Link>
                                   )}
-                                  {isAdmin && (
-                                    <button
-                                      onClick={() => setDeleteSessionConfirm(c.sessionId)}
-                                      className="p-1.5 rounded-lg text-[#636366] hover:text-red-400 hover:bg-red-500/10 smooth press-sm"
-                                      data-testid={`button-delete-${c.id}`}
-                                      title="Delete assessment"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
-                                  )}
                                 </>
                               )}
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                       {filteredCompanies.length === 0 && (
                         <tr>
                           <td colSpan={5} className="px-5 py-16 text-center">
