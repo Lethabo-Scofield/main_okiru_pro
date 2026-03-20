@@ -591,7 +591,7 @@ export default function EntityBuilder() {
 
       <header className="h-[52px] shrink-0 z-20 flex items-center justify-between px-5" style={{ borderBottom: '1px solid #2c2c2e', background: '#0a0a0a' }}>
         <div className="flex items-center gap-3 min-w-0">
-          <Link href="/templates" className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 smooth press-sm group shrink-0" data-testid="btn-back">
+          <Link href="/dashboard" className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 smooth press-sm group shrink-0" data-testid="btn-back">
             <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
             <img src={logoCircle} alt="Okiru" className="h-7 w-7 rounded-[8px]" />
           </Link>
