@@ -426,19 +426,22 @@ export async function registerRoutes(
     try {
       const { description } = req.body;
 
-      if (!description || typeof description !== "string") {
+      if (!description || typeof description !== "string" || !description.trim()) {
         return res.status(400).json({ error: "description is required" });
       }
 
       if (!groqApiKey) {
-        const words = description.trim().split(/\s+/);
-        const label = words
-          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-          .join("")
-          .replace(/[^a-zA-Z0-9]/g, "")
-          || "CustomEntity";
-
         const descLower = description.toLowerCase();
+        const stopWords = new Set(["the", "a", "an", "of", "for", "in", "on", "to", "and", "or", "is", "are", "was", "were", "that", "this", "which", "with", "from", "by", "as", "at", "it", "its", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "should", "could", "can", "may", "might", "must", "shall", "i", "we", "you", "they", "he", "she", "my", "our", "your", "their", "what", "how", "when", "where", "why", "who", "need", "want", "like", "extract", "find", "get", "identify", "capture", "detect", "look", "looking", "trying", "create", "describe"]);
+        const words = description.trim().split(/\s+/);
+        const keyWords = words
+          .map((w: string) => w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase())
+          .filter((w: string) => w.length > 1 && !stopWords.has(w));
+        const labelWords = keyWords.slice(0, 3);
+        let label = labelWords.length > 0
+          ? labelWords.map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join("")
+          : "CustomEntity";
+        if (/^\d/.test(label)) label = "Entity" + label;
         const isDate = /date|period|year|expir|valid|time/i.test(descLower);
         const isAmount = /amount|cost|spend|price|value|budget|salary|revenue|rand|fee/i.test(descLower);
         const isPercentage = /percent|ratio|rate|proportion|share|%/i.test(descLower);
@@ -460,7 +463,7 @@ export async function registerRoutes(
           positives = ["2024-06-15", "15 June 2024", "2024/06/15", "31 March 2025"];
           negatives = ["Reference Number", "Amount", "Name"];
           zones = ["PDF Header", "Tables"];
-          mustKw = words.slice(0, 2).map((w: string) => w.toLowerCase());
+          mustKw = keyWords.slice(0, 2);
           niceKw = ["date", "period"];
           negKw = ["amount", "name"];
           pattern = "\\d{4}[-/]\\d{2}[-/]\\d{2}|\\d{1,2}\\s+(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{4}";
@@ -469,7 +472,7 @@ export async function registerRoutes(
           positives = ["R500,000", "R1,200,000", "R2.5M", "R75,000.00"];
           negatives = ["Percentage", "Count", "Date"];
           zones = ["Tables"];
-          mustKw = words.slice(0, 2).map((w: string) => w.toLowerCase());
+          mustKw = keyWords.slice(0, 2);
           niceKw = ["amount", "value"];
           negKw = ["date", "name"];
           pattern = "R\\s?[\\d,. ]+(\\.\\d{2})?(M|K)?";
@@ -478,7 +481,7 @@ export async function registerRoutes(
           positives = ["51%", "25.1%", "100%", "30.5%"];
           negatives = ["Amount", "Count", "Date"];
           zones = ["Tables"];
-          mustKw = words.slice(0, 2).map((w: string) => w.toLowerCase());
+          mustKw = keyWords.slice(0, 2);
           niceKw = ["percentage", "rate"];
           negKw = ["amount", "count"];
           pattern = "\\d{1,3}(\\.\\d{1,2})?%";
@@ -487,7 +490,7 @@ export async function registerRoutes(
           positives = ["Moyo Retail (Pty) Ltd", "Karoo Telecom", "John Doe"];
           negatives = ["Amount", "Date", "Number"];
           zones = ["PDF Header", "Email Body"];
-          mustKw = words.slice(0, 2).map((w: string) => w.toLowerCase());
+          mustKw = keyWords.slice(0, 2);
           niceKw = ["name", "entity"];
           negKw = ["amount", "date"];
         } else if (isNumber) {
@@ -495,7 +498,7 @@ export async function registerRoutes(
           positives = ["REF-2024-001", "12345", "ABC-001", "N/A"];
           negatives = ["Name", "Amount", "Date"];
           zones = ["PDF Header", "Tables"];
-          mustKw = words.slice(0, 2).map((w: string) => w.toLowerCase());
+          mustKw = keyWords.slice(0, 2);
           niceKw = ["number", "reference"];
           negKw = ["name", "amount"];
           pattern = "[A-Z]{2,4}[-/]?\\d{3,6}";
@@ -504,17 +507,16 @@ export async function registerRoutes(
           positives = ["Active", "Compliant", "Level 1", "Approved"];
           negatives = ["Amount", "Date", "Name"];
           zones = ["PDF Header", "Tables"];
-          mustKw = words.slice(0, 2).map((w: string) => w.toLowerCase());
+          mustKw = keyWords.slice(0, 2);
           niceKw = ["status", "level"];
           negKw = ["amount", "date"];
         } else {
-          const mainWords = words.slice(0, 3).map((w: string) => w.toLowerCase());
-          synonyms = mainWords.map((w: string) => w.charAt(0).toUpperCase() + w.slice(1));
-          synonyms.push(label);
+          synonyms = keyWords.slice(0, 3).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1));
+          if (!synonyms.includes(label)) synonyms.push(label);
           positives = ["Example value 1", "Example value 2", "Example value 3"];
           negatives = ["Not applicable", "Unrelated value"];
-          mustKw = mainWords.slice(0, 2);
-          niceKw = mainWords.slice(2);
+          mustKw = keyWords.slice(0, 2);
+          niceKw = keyWords.slice(2, 4);
           negKw = ["unrelated"];
         }
 
