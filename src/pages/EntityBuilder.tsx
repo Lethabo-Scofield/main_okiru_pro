@@ -442,10 +442,6 @@ export default function EntityBuilder() {
                     <span className="text-[#636366]">Entities</span>
                     <span className="text-white font-medium">{entities.length}</span>
                   </div>
-                  <div className="flex justify-between items-center px-4 py-3 text-[13px]">
-                    <span className="text-[#636366]">Avg. completeness</span>
-                    <span className={`font-semibold ${completenessColor(avgCompleteness)}`}>{avgCompleteness}%</span>
-                  </div>
                 </div>
                 <div className="flex gap-3">
                   <button onClick={() => setShowPublishModal(false)} className="flex-1 py-3 rounded-xl font-medium text-[14px] text-[#b0b0b8] bg-[#2c2c2e] hover:bg-[#3a3a3c] smooth press-sm">Cancel</button>
@@ -712,12 +708,6 @@ export default function EntityBuilder() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-[12px] font-semibold truncate transition-colors ${isSelected ? 'text-white' : 'text-[#b0b0b8] group-hover:text-white'}`}>{entity.label}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <div className="flex-1 h-0.5 bg-[#1e1e1e] rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all duration-500 ${completenessBarColor(entity.completeness)}`} style={{ width: `${entity.completeness}%` }} />
-                          </div>
-                          <span className={`text-[9px] font-bold tabular-nums shrink-0 ${completenessColor(entity.completeness)}`}>{entity.completeness}%</span>
-                        </div>
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); deleteEntity(entity.id); }}
                         className="opacity-0 group-hover:opacity-100 p-1 text-[#636366] hover:text-red-400 rounded-lg hover:bg-red-500/10 smooth press-sm shrink-0 transition-opacity"
@@ -730,14 +720,8 @@ export default function EntityBuilder() {
               </div>
 
               {entities.length > 0 && (
-                <div className="px-3 py-2.5 shrink-0" style={{ borderTop: '1px solid #1e1e1e' }}>
-                  <div className="flex items-center justify-between text-[11px] text-[#636366] mb-1">
-                    <span>{entities.length} {entities.length === 1 ? 'entity' : 'entities'}</span>
-                    <span className={`font-semibold ${completenessColor(avgCompleteness)}`}>{avgCompleteness}% avg</span>
-                  </div>
-                  <div className="h-1 bg-[#1e1e1e] rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all duration-700 ${completenessBarColor(avgCompleteness)}`} style={{ width: `${avgCompleteness}%` }} />
-                  </div>
+                <div className="px-3 py-2.5 shrink-0 text-[11px] text-[#636366]" style={{ borderTop: '1px solid #1e1e1e' }}>
+                  {entities.length} {entities.length === 1 ? 'entity' : 'entities'}
                 </div>
               )}
             </div>
@@ -777,12 +761,6 @@ export default function EntityBuilder() {
                         <p className="text-[11px] text-[#3a3a3c] mt-0.5">Entity #{selectedEntity.id.toString().slice(-4)}</p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <div className="relative">
-                          <CompletenessRing pct={selectedEntity.completeness} />
-                          <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums ${completenessColor(selectedEntity.completeness)}`}>
-                            {selectedEntity.completeness}%
-                          </span>
-                        </div>
                         <button onClick={() => duplicateEntity(selectedEntity.id)}
                           className="p-2 text-[#636366] hover:text-white hover:bg-white/[0.06] rounded-xl smooth press-sm" title="Duplicate" data-testid={`button-duplicate-${selectedEntity.id}`}>
                           <Copy className="w-4 h-4" />
@@ -913,12 +891,6 @@ export default function EntityBuilder() {
                         </div>
                       </div>
                     ))}
-                  </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="flex-1 h-1.5 bg-[#111111] rounded-full overflow-hidden ring-1 ring-white/[0.04]">
-                      <div className={`h-full rounded-full transition-all duration-700 ${completenessBarColor(selectedEntity.completeness)}`} style={{ width: `${selectedEntity.completeness}%` }} />
-                    </div>
-                    <span className={`text-[12px] font-bold tabular-nums w-10 text-right ${completenessColor(selectedEntity.completeness)}`}>{selectedEntity.completeness}%</span>
                   </div>
                 </Section>
 
