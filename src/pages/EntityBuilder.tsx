@@ -907,7 +907,7 @@ export default function EntityBuilder() {
                     {/* Text input */}
                     <div className="w-1/2 flex flex-col" style={{ borderRight: '1px solid #1e1e1e' }}>
                       <div className="px-4 py-2 shrink-0" style={{ borderBottom: '1px solid #1e1e1e' }}>
-                        <span className="text-[10px] text-[#636366] font-semibold uppercase tracking-widest">Document text</span>
+                        <span className="text-[10px] text-[#636366] font-semibold uppercase tracking-widest"><span className="underline">Document text</span></span>
                       </div>
                       <textarea
                         value={testText}
