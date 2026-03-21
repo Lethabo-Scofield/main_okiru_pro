@@ -1596,15 +1596,9 @@ export default function DocumentProcessor() {
                       {extractionResults[activeReviewDoc]?.entities
                         .filter((e: any) => e.value && e.status !== 'not_found' && e.status !== 'rejected')
                         .map((e: any, i: number) => {
-                          const realIdx = extractionResults[activeReviewDoc].entities.indexOf(e);
-                          const isHovered = hoveredEntity === realIdx;
                           const fmtLabel = (s: string) => s.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-z\d])([A-Z])/g, '$1 $2');
                           return (
-                            <span key={i}
-                              className={`text-[10px] px-2 py-0.5 rounded-md border cursor-pointer transition-all ${isHovered ? 'bg-gray-200 border-gray-400 text-gray-800' : 'bg-gray-100 border-gray-300 text-gray-600'}`}
-                              onMouseEnter={() => setHoveredEntity(realIdx)}
-                              onMouseLeave={() => setHoveredEntity(null)}
-                            >
+                            <span key={i} className="text-[10px] px-2 py-0.5 rounded-md border bg-gray-100 border-gray-300 text-gray-600">
                               {fmtLabel(e.name)}
                             </span>
                           );
@@ -1615,12 +1609,14 @@ export default function DocumentProcessor() {
                     {isPdfFile && activeDocFile?.file?.size > 0 ? (
                       <PDFDocumentViewer
                         file={activeDocFile.file}
-                        entities={extractionResults[activeReviewDoc]?.entities || []}
-                        hoveredEntity={hoveredEntity}
-                        onHoverEntity={setHoveredEntity}
+                        entities={[]}
+                        hoveredEntity={null}
+                        onHoverEntity={() => {}}
                       />
                     ) : activeDocText ? (
-                      <HighlightedDocument text={activeDocText} entities={extractionResults[activeReviewDoc]?.entities || []} hoveredEntity={hoveredEntity} onHoverEntity={setHoveredEntity} />
+                      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 min-h-[400px]">
+                        <p className="text-[15px] text-gray-900 whitespace-pre-wrap font-sans leading-[1.8] break-words" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{activeDocText}</p>
+                      </div>
                     ) : (
                       <div className="bg-white rounded-lg border border-gray-200 flex flex-col items-center justify-center py-16 text-center">
                         <FileQuestion className="w-8 h-8 text-gray-300 mb-3" />
