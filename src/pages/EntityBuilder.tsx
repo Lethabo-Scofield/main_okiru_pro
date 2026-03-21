@@ -674,13 +674,6 @@ export default function EntityBuilder() {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <button onClick={() => { setShowTemplatesPanel(true); fetchTemplates(); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium smooth press-sm ${showTemplatesPanel ? 'bg-white/[0.08] text-white' : 'text-[#b0b0b8] hover:text-white hover:bg-white/[0.06]'}`}>
-            <Folder className="w-3.5 h-3.5" />
-            Templates
-            {storedTemplates.length > 0 && <span className="text-[10px] tabular-nums bg-white/[0.08] px-1.5 py-0.5 rounded-full">{storedTemplates.length}</span>}
-          </button>
-          <div className="h-4 w-px bg-[#2c2c2e]" />
           <button onClick={exportEntities} disabled={entities.length === 0}
             className="p-2 text-[#636366] hover:text-white hover:bg-white/[0.06] rounded-lg smooth press-sm disabled:opacity-30" title="Export JSON" data-testid="button-export">
             <Download className="w-4 h-4" />
