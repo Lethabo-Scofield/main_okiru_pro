@@ -85,6 +85,8 @@ export default function EntityBuilder() {
   const [testResults, setTestResults] = useState<any[]>([]);
   const [isTesting, setIsTesting] = useState(false);
   const [testTemplateId, setTestTemplateId] = useState<'current' | number>('current');
+  const [testTemplateDropOpen, setTestTemplateDropOpen] = useState(false);
+  const testTemplateDropRef = useRef<HTMLDivElement>(null);
   const [expandedRepoId, setExpandedRepoId] = useState<number | null>(null);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -181,6 +183,16 @@ export default function EntityBuilder() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [editingTemplateId, hasUnsavedChanges, entities, showPublishModal, deleteConfirm, showTemplatesPanel]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (testTemplateDropRef.current && !testTemplateDropRef.current.contains(e.target as Node)) {
+        setTestTemplateDropOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const loadTemplateFromRepo = (template: StoredTemplate) => guardedNew(() => _loadTemplateFromRepo(template));
   const _loadTemplateFromRepo = (template: StoredTemplate) => {
@@ -1013,15 +1025,38 @@ export default function EntityBuilder() {
                 <div className="flex-1 min-h-0 flex flex-col">
                   {/* Controls row */}
                   <div className="px-5 py-3 flex items-center gap-3 shrink-0" style={{ borderBottom: '1px solid #1e1e1e' }}>
-                    <div className="flex-1">
+                    <div className="flex-1 relative" ref={testTemplateDropRef}>
                       <label className="text-[10px] text-[#636366] font-semibold uppercase tracking-widest block mb-1">Template</label>
-                      <select value={testTemplateId === 'current' ? 'current' : String(testTemplateId)}
-                        onChange={(e) => setTestTemplateId(e.target.value === 'current' ? 'current' : Number(e.target.value))}
-                        className="w-full bg-[#1c1c1e] text-white text-[12px] rounded-lg px-3 py-1.5 focus:outline-none border border-[#2c2c2e] focus:border-[#48484a]"
+                      <button onClick={() => setTestTemplateDropOpen(o => !o)}
+                        className="w-full flex items-center justify-between bg-[#1c1c1e] text-white text-[12px] rounded-lg px-3 py-1.5 border border-[#2c2c2e] hover:border-[#48484a] smooth text-left"
                         data-testid="select-test-template">
-                        <option value="current">Current build ({entities.length} entities)</option>
-                        {storedTemplates.map(t => <option key={t.id} value={String(t.id)}>{t.name} ({t.entities.length})</option>)}
-                      </select>
+                        <span className="truncate">
+                          {testTemplateId === 'current'
+                            ? `Current build (${entities.length} entities)`
+                            : (() => { const t = storedTemplates.find(t => t.id === testTemplateId); return t ? `${t.name} (${t.entities.length})` : 'Template'; })()}
+                        </span>
+                        <ChevronDown className={`w-3.5 h-3.5 shrink-0 ml-2 text-[#636366] transition-transform duration-150 ${testTemplateDropOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {testTemplateDropOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden z-50"
+                          style={{ background: '#1c1c1e', border: '1px solid #2c2c2e', boxShadow: '0 16px 32px rgba(0,0,0,0.5)' }}>
+                          <div onClick={() => { setTestTemplateId('current'); setTestTemplateDropOpen(false); }}
+                            className={`flex items-center gap-2 px-3 py-2 cursor-pointer smooth text-[12px] ${testTemplateId === 'current' ? 'bg-purple-500/15 text-purple-300' : 'text-[#e5e5e7] hover:bg-white/[0.05]'}`}>
+                            <span className="flex-1 truncate">Current build</span>
+                            <span className="text-[11px] text-[#636366] shrink-0">({entities.length} entities)</span>
+                            {testTemplateId === 'current' && <Check className="w-3 h-3 text-purple-400 shrink-0" />}
+                          </div>
+                          {storedTemplates.length > 0 && <div style={{ borderTop: '1px solid #2c2c2e' }} />}
+                          {storedTemplates.map(t => (
+                            <div key={t.id} onClick={() => { setTestTemplateId(t.id); setTestTemplateDropOpen(false); }}
+                              className={`flex items-center gap-2 px-3 py-2 cursor-pointer smooth text-[12px] ${testTemplateId === t.id ? 'bg-purple-500/15 text-purple-300' : 'text-[#e5e5e7] hover:bg-white/[0.05]'}`}>
+                              <span className="flex-1 truncate">{t.name}</span>
+                              <span className="text-[11px] text-[#636366] shrink-0">({t.entities.length})</span>
+                              {testTemplateId === t.id && <Check className="w-3 h-3 text-purple-400 shrink-0" />}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <button onClick={runTest} disabled={isTesting || !testText.trim() || (testTemplateId === 'current' && entities.length === 0)}
                       className="mt-5 flex items-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-lg text-[12px] font-semibold smooth press-sm"
