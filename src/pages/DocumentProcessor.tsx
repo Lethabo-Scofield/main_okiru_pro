@@ -492,16 +492,22 @@ export default function DocumentProcessor() {
       setExtractionResults(sess.extractionResults || []);
       if (sess.filesData && sess.filesData.length > 0) {
         const NativeFile = window.File as typeof globalThis.File;
-        const restored: UploadedFile[] = sess.filesData.map((fd: any) => ({
-          id: fd.id,
-          file: new NativeFile([], fd.name, { type: fd.type === 'PDF' ? 'application/pdf' : 'application/octet-stream' }),
-          name: fd.name,
-          size: fd.size,
-          type: fd.type,
-          uploadProgress: 100,
-          status: 'ready' as const,
-          textContent: fd.textContent || '',
-        }));
+        const restored: UploadedFile[] = sess.filesData.map((fd: any) => {
+          let fileObj: globalThis.File;
+          if (fd.fileBase64) {
+            try {
+              const binary = atob(fd.fileBase64);
+              const bytes = new Uint8Array(binary.length);
+              for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+              fileObj = new NativeFile([bytes], fd.name, { type: 'application/pdf' });
+            } catch {
+              fileObj = new NativeFile([], fd.name, { type: 'application/pdf' });
+            }
+          } else {
+            fileObj = new NativeFile([], fd.name, { type: fd.type === 'PDF' ? 'application/pdf' : 'application/octet-stream' });
+          }
+          return { id: fd.id, file: fileObj, name: fd.name, size: fd.size, type: fd.type, uploadProgress: 100, status: 'ready' as const, textContent: fd.textContent || '' };
+        });
         setUploadedFiles(restored);
       }
       const validSteps = ['company-info', 'upload', 'classify', 'extract', 'review'];
@@ -533,8 +539,18 @@ export default function DocumentProcessor() {
       createdAt: sessionCreatedAt.current,
       updatedAt: new Date().toISOString(),
       currentStep: step,
-      filesData: (opts?.files ?? uploadedFiles).map(f => ({
-        id: f.id, name: f.name, size: f.size, type: f.type, textContent: f.textContent,
+      filesData: await Promise.all((opts?.files ?? uploadedFiles).map(async f => {
+        let fileBase64: string | undefined;
+        if (f.type === 'PDF' && f.file && f.file.size > 0) {
+          try {
+            const buf = await f.file.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            let binary = '';
+            for (let j = 0; j < bytes.length; j += 8192) binary += String.fromCharCode(...bytes.slice(j, j + 8192));
+            fileBase64 = btoa(binary);
+          } catch { /* skip */ }
+        }
+        return { id: f.id, name: f.name, size: f.size, type: f.type, textContent: f.textContent, ...(fileBase64 ? { fileBase64 } : {}) };
       })),
       fileClassifications: opts?.classifications ?? fileClassifications,
       extractionResults: opts?.results ?? extractionResults,

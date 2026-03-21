@@ -702,6 +702,28 @@ Respond ONLY with a valid JSON array.`;
         return res.status(400).json({ error: "documents array is required" });
       }
 
+      const regexExtract = (text: string, entity: any): { value: string | null; conf: number; method: string; status: string } => {
+        if (entity.pattern) {
+          try {
+            const rx = new RegExp(entity.pattern, 'gi');
+            const m = rx.exec(text);
+            if (m) return { value: m[0].trim(), conf: 87, method: 'Pattern', status: 'extracted' };
+          } catch { /* bad regex, skip */ }
+        }
+        const terms = [entity.label, ...(entity.synonyms || []), ...(entity.keywords?.must || [])];
+        for (const kw of terms) {
+          if (!kw) continue;
+          const idx = text.toLowerCase().indexOf(kw.toLowerCase());
+          if (idx !== -1) {
+            const start = Math.max(0, idx - 20);
+            const end = Math.min(text.length, idx + 180);
+            const ctx = text.slice(start, end).replace(/\s+/g, ' ').trim();
+            return { value: ctx, conf: 55, method: 'Context', status: 'extracted' };
+          }
+        }
+        return { value: null, conf: 0, method: 'Pattern', status: 'not_found' };
+      };
+
       if (!groqApiKey) {
         res.writeHead(200, {
           "Content-Type": "text/event-stream",
@@ -716,7 +738,13 @@ Respond ONLY with a valid JSON array.`;
         for (let i = 0; i < documents.length; i++) {
           const doc = documents[i];
           send("doc-start", { index: i, fileName: doc.fileName, templateName: doc.templateName });
-          send("doc-done", { index: i, fileName: doc.fileName, templateId: doc.templateId, templateName: doc.templateName, entities: [] });
+          const { fileName, templateId, templateName, entitiesToExtract, documentText } = doc;
+          const text = documentText || '';
+          const entities = (entitiesToExtract || []).map((e: any, idx: number) => {
+            const r = regexExtract(text, e);
+            return { id: idx + 1, entity: e.label, value: r.value, conf: r.conf, method: r.method, status: r.status };
+          }).filter((e: any) => e.value !== null);
+          send("doc-done", { index: i, fileName, templateId, templateName, entities });
         }
         send("complete", { total: documents.length });
         res.end();
