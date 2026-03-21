@@ -665,8 +665,8 @@ export default function DocumentProcessor() {
     abortControllerRef.current = controller;
     processingFinalized.current = false;
 
-    const initialStatuses: Record<number, 'waiting'> = {};
-    uploadedFiles.forEach((_, i) => { initialStatuses[i] = 'waiting'; });
+    const initialStatuses: Record<number, string> = {};
+    uploadedFiles.forEach((_, i) => { initialStatuses[i] = 'processing'; });
     setDocStatuses(initialStatuses);
     setCompletedCount(0);
     setProcessingError(null);
@@ -1297,9 +1297,9 @@ export default function DocumentProcessor() {
                       className="px-5 py-3.5 bg-[#1c1c1e] text-[#d1d1d6] hover:text-white rounded-2xl text-[13px] font-medium smooth press-sm" data-testid="button-back-company-info">
                       <ChevronLeft className="w-3 h-3 mr-1.5 inline-block" /> Back
                     </button>
-                    <button onClick={async () => { if (allReady) { await persistSession('classify'); setCurrentPage('classify'); } }} disabled={!allReady}
+                    <button onClick={async () => { if (allReady && !isSavingSession) { setIsSavingSession(true); await persistSession('classify'); setIsSavingSession(false); setCurrentPage('classify'); } }} disabled={!allReady || isSavingSession}
                       className="flex-1 py-3.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1c1c1e] disabled:text-[#636366] text-white rounded-2xl font-semibold text-[13px] smooth press" data-testid="button-next-classify">
-                      Continue <ChevronRight className="w-3 h-3 ml-1.5 inline-block" />
+                      {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving...</> : <>Continue <ChevronRight className="w-3 h-3 ml-1.5 inline-block" /></>}
                     </button>
                   </div>
                 </>
@@ -1353,9 +1353,9 @@ export default function DocumentProcessor() {
                 <button onClick={() => setCurrentPage('upload')} className="px-5 py-3.5 bg-[#1c1c1e] text-[#d1d1d6] hover:text-white rounded-2xl text-[13px] font-medium smooth press-sm" data-testid="button-back-upload">
                   <ChevronLeft className="w-3 h-3 mr-1.5 inline-block" /> Back
                 </button>
-                <button onClick={async () => { if (allClassified) { await persistSession('extract'); setCurrentPage('extract'); } }} disabled={!allClassified}
+                <button onClick={async () => { if (allClassified && !isSavingSession) { setIsSavingSession(true); await persistSession('extract'); setIsSavingSession(false); setCurrentPage('extract'); } }} disabled={!allClassified || isSavingSession}
                   className="flex-1 py-3.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1c1c1e] disabled:text-[#636366] text-white rounded-2xl font-semibold text-[13px] smooth press" data-testid="button-next-extract">
-                  Continue <ChevronRight className="w-3 h-3 ml-1.5 inline-block" />
+                  {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving...</> : <>Continue <ChevronRight className="w-3 h-3 ml-1.5 inline-block" /></>}
                 </button>
               </div>
             </div>
