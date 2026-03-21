@@ -8,7 +8,7 @@ import {
   X, Home, ArrowLeft, CloudUpload, Puzzle, Cpu, SearchCheck,
   Check, AlertTriangle, PlusCircle, Loader2, Trash2, ChevronRight, ChevronLeft,
   Circle, Zap, ListChecks, CheckCheck, FileText, FileSpreadsheet,
-  FileImage, File, FileQuestion, Building2
+  FileImage, File, FileQuestion, Building2, ScanLine, Monitor
 } from 'lucide-react';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -450,6 +450,7 @@ export default function DocumentProcessor() {
   const sessionCreatedAt = useRef<string>(new Date().toISOString());
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [fileClassifications, setFileClassifications] = useState<Record<string, number>>({});
+  const [fileDocTypes, setFileDocTypes] = useState<Record<string, 'digital' | 'scanned'>>({});
   const [extractionResults, setExtractionResults] = useState<any[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const [templates, setTemplates] = useState<StoredTemplate[]>([]);
@@ -1353,34 +1354,76 @@ export default function DocumentProcessor() {
                   const selectedId = fileClassifications[String(file.id)];
                   const selectedTemplate = templates.find(t => t.id === selectedId);
                   return (
-                    <div key={file.id} className={`bg-[#1c1c1e] rounded-2xl p-4 transition-all ${selectedTemplate ? 'ring-1 ring-purple-500/20' : ''}`} data-testid={`classify-row-${file.id}`}>
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${selectedTemplate ? 'bg-purple-500/15' : 'bg-[#2c2c2e]'}`}>
-                          <FileIcon type={file.type} className={`w-4 h-4 ${selectedTemplate ? 'text-purple-400' : file.type === 'PDF' ? 'text-red-400' : 'text-purple-400'}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-white truncate">{file.name}</div>
-                          <div className="text-xs text-[#636366] mt-0.5">{file.size} KB</div>
-                        </div>
-                        <select value={selectedId || ''}
-                          onChange={(e) => setFileClassifications(prev => ({ ...prev, [String(file.id)]: Number(e.target.value) }))}
-                          className="bg-[#2c2c2e] text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500/20 appearance-none min-w-[200px]" data-testid={`select-template-${file.id}`}>
-                          <option value="">Select template...</option>
-                          {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.entities.length})</option>)}
-                        </select>
-                      </div>
-                      {selectedTemplate && (
-                        <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                          <div className="flex flex-wrap gap-1.5">
-                            {selectedTemplate.entities.map((ent, i) => (
-                              <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-[#2c2c2e] text-[#8e8e93]">
-                                {ent.label}
-                              </span>
-                            ))}
+                    (() => {
+                      const docType = fileDocTypes[String(file.id)] || 'digital';
+                      const isScanned = docType === 'scanned';
+                      return (
+                        <div key={file.id} className={`rounded-2xl overflow-hidden transition-all ${selectedTemplate ? 'ring-1 ring-purple-500/20' : ''}`} style={{ background: '#1c1c1e' }} data-testid={`classify-row-${file.id}`}>
+                          {/* File identity row */}
+                          <div className="flex items-center gap-3.5 px-4 pt-4 pb-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${selectedTemplate ? 'bg-purple-500/15' : 'bg-[#2c2c2e]'}`}>
+                              <FileIcon type={file.type} className={`w-4 h-4 ${selectedTemplate ? 'text-purple-400' : file.type === 'PDF' ? 'text-red-400' : 'text-purple-400'}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[13px] font-semibold text-white truncate">{file.name}</div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[11px] text-[#636366]">{file.size} KB</span>
+                                {selectedTemplate && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-500/12 text-purple-400 font-medium">{selectedTemplate.name}</span>
+                                )}
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${isScanned ? 'bg-amber-500/12 text-amber-400' : 'bg-blue-500/12 text-blue-400'}`}>
+                                  {isScanned ? 'Scanned' : 'Digital'}
+                                </span>
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Two-dropdown row */}
+                          <div className="grid grid-cols-2 gap-px mx-4 mb-4" style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #2c2c2e' }}>
+                            {/* Template selector */}
+                            <div className="relative bg-[#141414] px-3 py-2.5">
+                              <label className="text-[9px] font-semibold text-[#636366] uppercase tracking-widest block mb-1">Template</label>
+                              <div className="flex items-center gap-2">
+                                <Puzzle className="w-3 h-3 text-purple-400 shrink-0" />
+                                <select value={selectedId || ''}
+                                  onChange={(e) => setFileClassifications(prev => ({ ...prev, [String(file.id)]: Number(e.target.value) }))}
+                                  className="flex-1 bg-transparent text-white text-[12px] focus:outline-none appearance-none cursor-pointer min-w-0"
+                                  data-testid={`select-template-${file.id}`}>
+                                  <option value="">Select template…</option>
+                                  {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.entities.length})</option>)}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Document type selector */}
+                            <div className={`relative px-3 py-2.5 ${isScanned ? 'bg-amber-500/[0.05]' : 'bg-blue-500/[0.05]'}`}>
+                              <label className={`text-[9px] font-semibold uppercase tracking-widest block mb-1 ${isScanned ? 'text-amber-500/60' : 'text-blue-500/60'}`}>Document type</label>
+                              <div className="flex items-center gap-2">
+                                {isScanned
+                                  ? <ScanLine className="w-3 h-3 text-amber-400 shrink-0" />
+                                  : <Monitor className="w-3 h-3 text-blue-400 shrink-0" />}
+                                <select value={docType}
+                                  onChange={(e) => setFileDocTypes(prev => ({ ...prev, [String(file.id)]: e.target.value as 'digital' | 'scanned' }))}
+                                  className={`flex-1 bg-transparent text-[12px] font-semibold focus:outline-none appearance-none cursor-pointer ${isScanned ? 'text-amber-300' : 'text-blue-300'}`}
+                                  data-testid={`select-doctype-${file.id}`}>
+                                  <option value="digital">Digital</option>
+                                  <option value="scanned">Scanned</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Entity chips */}
+                          {selectedTemplate && (
+                            <div className="px-4 pb-4 flex flex-wrap gap-1.5">
+                              {selectedTemplate.entities.map((ent, i) => (
+                                <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-[#2c2c2e] text-[#8e8e93]">{ent.label}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      );
+                    })()
                   );
                 })}
               </div>
