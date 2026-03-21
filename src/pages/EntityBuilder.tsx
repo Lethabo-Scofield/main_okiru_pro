@@ -932,7 +932,7 @@ export default function EntityBuilder() {
                         <span className="text-[10px] text-[#636366] font-semibold uppercase tracking-widest">Results</span>
                         {testResults.length > 0 && (
                           <span className="text-[10px] text-[#636366]">
-                            {testResults.filter(r => r.status === 'extracted').length}/{testResults.length} found
+                            {testResults.filter(r => r.status === 'extracted').length}/{testResults.length} <span className="underline">found</span>
                           </span>
                         )}
                       </div>
