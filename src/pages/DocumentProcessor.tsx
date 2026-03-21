@@ -970,7 +970,8 @@ export default function DocumentProcessor() {
     <div className="bg-black text-white font-sans h-screen overflow-hidden flex flex-col" style={{ letterSpacing: '-0.011em' }}>
 
 
-      <header className="h-14 flex items-center justify-between px-5 shrink-0 z-20 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
+      <header className="h-14 shrink-0 z-20 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
+        <div className="max-w-5xl mx-auto w-full px-6 h-full flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={() => window.history.back()} className="flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors duration-200 press-sm group" data-testid="btn-back">
             <ChevronLeft className="h-5 w-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
@@ -989,6 +990,7 @@ export default function DocumentProcessor() {
           <Link href="/builder" className="text-[13px] font-medium text-[#8e8e93] hover:text-white smooth px-3 py-1.5 rounded-lg hover:bg-[#1c1c1e] press-sm" data-testid="link-builder-nav">
             <ArrowLeft className="w-3.5 h-3.5 mr-1 inline-block" /> Builder
           </Link>
+        </div>
         </div>
       </header>
 

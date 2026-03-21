@@ -642,7 +642,8 @@ export default function EntityBuilder() {
         </div>
       )}
 
-      <header className="h-[52px] shrink-0 z-20 flex items-center justify-between px-5" style={{ borderBottom: '1px solid #2c2c2e', background: '#0a0a0a' }}>
+      <header className="h-[52px] shrink-0 z-20" style={{ borderBottom: '1px solid #2c2c2e', background: '#0a0a0a' }}>
+        <div className="max-w-5xl mx-auto w-full px-6 h-full flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <Link href="/dashboard" className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 smooth press-sm group shrink-0" data-testid="btn-back">
             <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
@@ -701,6 +702,7 @@ export default function EntityBuilder() {
             className="flex items-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-lg text-[12px] font-semibold smooth press-sm shadow-sm shadow-purple-500/20" data-testid="button-publish">
             {editingTemplateId ? "Update" : "Publish"}
           </button>
+        </div>
         </div>
       </header>
 
