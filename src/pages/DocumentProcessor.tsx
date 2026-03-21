@@ -995,7 +995,7 @@ export default function DocumentProcessor() {
       </header>
 
       <div className="bg-black px-6 py-3" style={{ borderBottom: '1px solid #2c2c2e' }}>
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <div className="max-w-5xl mx-auto w-full flex items-center justify-between">
           {['Company', 'Upload', 'Template', 'Extract', 'Review'].map((label, idx) => {
             const StepIcons = [Building2, CloudUpload, Puzzle, Cpu, SearchCheck];
             const pageMap = ['company-info', 'upload', 'classify', 'extract', 'review'] as const;
@@ -1024,7 +1024,7 @@ export default function DocumentProcessor() {
       </div>
 
       <main className="flex-1 overflow-y-auto">
-        <div className={`${currentPage === 'review' ? '' : 'max-w-3xl mx-auto'} p-6`}>
+        <div className={`${currentPage === 'review' ? '' : 'max-w-5xl mx-auto w-full'} p-6`}>
 
           {currentPage === 'company-info' && (
             <div>
