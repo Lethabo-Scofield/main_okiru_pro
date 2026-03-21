@@ -489,7 +489,15 @@ export default function DocumentProcessor() {
       sessionCreatedAt.current = sess.createdAt;
       setCompanyInfo({ ...EMPTY_COMPANY_INFO, ...sess.companyInfo });
       setFileClassifications(sess.fileClassifications || {});
-      setExtractionResults(sess.extractionResults || []);
+      const normalizeResults = (results: any[]) => (results || []).map((r: any) => ({
+        ...r,
+        entities: (r.entities || []).map((e: any) => ({
+          ...e,
+          name: e.name || e.entity || '',
+          confidence: e.confidence ?? e.conf ?? 0,
+        })),
+      }));
+      setExtractionResults(normalizeResults(sess.extractionResults));
       if (sess.filesData && sess.filesData.length > 0) {
         const NativeFile = window.File as typeof globalThis.File;
         const restored: UploadedFile[] = sess.filesData.map((fd: any) => {
