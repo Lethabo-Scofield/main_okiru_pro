@@ -8,7 +8,7 @@ import {
   Shapes, Folder, FilePlus, Copy, AlignLeft, Tags,
   Map, Code, CheckCircle2, RefreshCw, FolderOpen, ChevronLeft, Sparkles,
   Zap, Plus, ChevronRight, MoreHorizontal, Search, FlaskConical,
-  BookOpen, Play, ChevronDown,
+  BookOpen, Play, ChevronDown, Clock,
 } from 'lucide-react';
 
 import { starterTemplates as starterTemplatesList } from '@/data/starterTemplates';
@@ -74,6 +74,11 @@ export default function EntityBuilder() {
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [entitySearch, setEntitySearch] = useState("");
+  const [savedDrafts, setSavedDrafts] = useState<{ id: string; name: string; entities: any[]; savedAt: string }[]>(() => {
+    try { return JSON.parse(localStorage.getItem('okiru-entity-drafts') || '[]'); } catch { return []; }
+  });
+  const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [leftTab, setLeftTab] = useState<'entities' | 'repository'>('entities');
   const [rightTab, setRightTab] = useState<'editor' | 'test'>('editor');
   const [testText, setTestText] = useState('');
@@ -136,7 +141,7 @@ export default function EntityBuilder() {
     const templateId = params.get('template');
     if (templateId && storedTemplates.length > 0 && !editingTemplateId) {
       const t = storedTemplates.find(st => st.id === Number(templateId));
-      if (t) loadTemplateFromRepo(t);
+      if (t) _loadTemplateFromRepo(t);
       else {
         setIsLoadingTemplate(false);
         toast({ title: "Template not found", description: "Could not find the requested template.", variant: "destructive" });
@@ -177,7 +182,8 @@ export default function EntityBuilder() {
     return () => window.removeEventListener('keydown', handler);
   }, [editingTemplateId, hasUnsavedChanges, entities, showPublishModal, deleteConfirm, showTemplatesPanel]);
 
-  const loadTemplateFromRepo = (template: StoredTemplate) => {
+  const loadTemplateFromRepo = (template: StoredTemplate) => guardedNew(() => _loadTemplateFromRepo(template));
+  const _loadTemplateFromRepo = (template: StoredTemplate) => {
     const loadedEntities = template.entities.map((e: any) => ({
       ...createEntity(e.label, e.definition, 60),
       synonyms: e.synonyms || [], positives: e.positives || [], negatives: e.negatives || [],
@@ -400,6 +406,49 @@ export default function EntityBuilder() {
     localStorage.removeItem('okiru-entity-draft');
   };
 
+  const saveDraftItem = () => {
+    const draft = { id: Date.now().toString(), name: projectName, entities, savedAt: new Date().toISOString() };
+    const updated = [draft, ...savedDrafts.filter(d => d.name !== projectName || d.entities.length !== entities.length)].slice(0, 5);
+    setSavedDrafts(updated);
+    localStorage.setItem('okiru-entity-drafts', JSON.stringify(updated));
+    toast({ title: "Draft saved", description: `"${projectName}" — ${entities.length} ${entities.length === 1 ? 'entity' : 'entities'}` });
+  };
+
+  const deleteDraft = (id: string) => {
+    const updated = savedDrafts.filter(d => d.id !== id);
+    setSavedDrafts(updated);
+    localStorage.setItem('okiru-entity-drafts', JSON.stringify(updated));
+  };
+
+  const resumeDraft = (draft: { id: string; name: string; entities: any[]; savedAt: string }) => {
+    const loaded = draft.entities.map((e: any, i: number) => ({ ...e, id: Date.now() + i }));
+    setEntities(loaded);
+    setProjectName(draft.name);
+    setEditingTemplateId(null);
+    setHasUnsavedChanges(true);
+    setSelectedEntityId(loaded.length > 0 ? loaded[0].id : null);
+    setLeftTab('entities');
+    deleteDraft(draft.id);
+    toast({ title: "Draft resumed", description: `"${draft.name}" — ${draft.entities.length} ${draft.entities.length === 1 ? 'entity' : 'entities'}` });
+  };
+
+  const relativeTime = (iso: string) => {
+    const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  };
+
+  const guardedNew = (action: () => void) => {
+    if (entities.length > 0 && !editingTemplateId) {
+      setPendingAction(() => action);
+      setShowDraftPrompt(true);
+    } else {
+      action();
+    }
+  };
+
   const clientExtract = (text: string, ents: any[]) => ents.map((e, idx) => {
     let value: string | null = null, method = 'Not found', confidence = 0;
     if (e.pattern) {
@@ -536,6 +585,46 @@ export default function EntityBuilder() {
         </div>
       )}
 
+      {showDraftPrompt && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ animation: 'fadeIn 0.15s ease' }}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-xl" onClick={() => { setShowDraftPrompt(false); setPendingAction(null); }} />
+          <div className="relative w-full max-w-sm mx-4 mb-4 sm:mb-0 rounded-3xl overflow-hidden" style={{ background: '#1c1c1e', boxShadow: '0 32px 64px -16px rgba(0,0,0,0.7)', animation: 'scaleIn 0.18s cubic-bezier(0.16,1,0.3,1)' }}>
+            <div className="px-6 pt-7 pb-2 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 ring-1 ring-amber-500/20 flex items-center justify-center mx-auto mb-4">
+                <FilePlus className="w-5 h-5 text-amber-400" />
+              </div>
+              <p className="text-[17px] font-semibold text-white tracking-tight">Save your work?</p>
+              <p className="text-[13px] text-[#636366] mt-1.5 leading-relaxed">
+                <span className="text-white font-medium">"{projectName}"</span> has {entities.length} {entities.length === 1 ? 'entity' : 'entities'} that haven't been published.
+              </p>
+            </div>
+            <div className="px-4 pb-5 pt-4 flex flex-col gap-2.5">
+              <button onClick={() => {
+                saveDraftItem();
+                setShowDraftPrompt(false);
+                const action = pendingAction;
+                setPendingAction(null);
+                action?.();
+              }} className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white text-[14px] font-semibold smooth press-sm" data-testid="button-save-draft">
+                Save to Drafts
+              </button>
+              <button onClick={() => {
+                setShowDraftPrompt(false);
+                const action = pendingAction;
+                setPendingAction(null);
+                action?.();
+              }} className="w-full py-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.10] text-[#b0b0b8] hover:text-white text-[14px] font-semibold smooth press-sm" data-testid="button-discard-draft">
+                Discard
+              </button>
+              <button onClick={() => { setShowDraftPrompt(false); setPendingAction(null); }}
+                className="w-full py-2.5 text-[13px] text-[#636366] hover:text-white smooth">
+                Keep editing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {deleteConfirm !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ animation: 'fadeIn 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-xl" onClick={() => setDeleteConfirm(null)} />
@@ -633,7 +722,7 @@ export default function EntityBuilder() {
 
             {editingTemplateId && (
               <div className="p-4" style={{ borderTop: '1px solid #2c2c2e' }}>
-                <button onClick={() => { startNew(); setShowTemplatesPanel(false); }} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-medium text-[#b0b0b8] bg-white/[0.04] hover:bg-white/[0.08] smooth press-sm" data-testid="button-start-new">
+                <button onClick={() => guardedNew(() => { startNew(); setShowTemplatesPanel(false); })} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-medium text-[#b0b0b8] bg-white/[0.04] hover:bg-white/[0.08] smooth press-sm" data-testid="button-start-new">
                   <FilePlus className="w-3.5 h-3.5" /> New Template
                 </button>
               </div>
@@ -674,6 +763,16 @@ export default function EntityBuilder() {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          <button onClick={() => guardedNew(startNew)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#8e8e93] hover:text-white hover:bg-white/[0.06] rounded-lg smooth press-sm" title="New Template" data-testid="button-new-template">
+            <FilePlus className="w-3.5 h-3.5" /> New
+          </button>
+          {savedDrafts.length > 0 && (
+            <button onClick={() => setLeftTab('entities')}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium text-amber-400 bg-amber-500/10 hover:bg-amber-500/15 rounded-lg smooth press-sm" title="View drafts" data-testid="button-view-drafts">
+              <Clock className="w-3 h-3" /> {savedDrafts.length}
+            </button>
+          )}
           <button onClick={exportEntities} disabled={entities.length === 0}
             className="p-2 text-[#636366] hover:text-white hover:bg-white/[0.06] rounded-lg smooth press-sm disabled:opacity-30" title="Export JSON" data-testid="button-export">
             <Download className="w-4 h-4" />
@@ -785,6 +884,34 @@ export default function EntityBuilder() {
                 {entities.length > 0 && (
                   <div className="px-3 py-2.5 shrink-0 text-[11px] text-[#636366]" style={{ borderTop: '1px solid #1e1e1e' }}>
                     {entities.length} {entities.length === 1 ? 'entity' : 'entities'}
+                  </div>
+                )}
+
+                {savedDrafts.length > 0 && (
+                  <div className="shrink-0" style={{ borderTop: '1px solid #1e1e1e' }}>
+                    <div className="flex items-center gap-1.5 px-3 py-2">
+                      <Clock className="w-3 h-3 text-amber-400" />
+                      <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-widest">Drafts</span>
+                      <span className="ml-auto text-[10px] text-[#636366]">{savedDrafts.length}</span>
+                    </div>
+                    <div className="pb-2 space-y-1 px-2">
+                      {savedDrafts.map(draft => (
+                        <div key={draft.id} className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-amber-500/[0.06] hover:bg-amber-500/10 smooth group" style={{ border: '1px solid rgba(245,158,11,0.12)' }}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-semibold text-[#d4a827] truncate">{draft.name}</p>
+                            <p className="text-[10px] text-[#636366]">{draft.entities.length} {draft.entities.length === 1 ? 'entity' : 'entities'} · {relativeTime(draft.savedAt)}</p>
+                          </div>
+                          <button onClick={() => resumeDraft(draft)}
+                            className="px-2 py-0.5 text-[10px] font-semibold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-md smooth press-sm shrink-0" data-testid={`button-resume-draft-${draft.id}`}>
+                            Resume
+                          </button>
+                          <button onClick={() => deleteDraft(draft.id)}
+                            className="p-1 text-[#636366] hover:text-red-400 smooth press-sm opacity-0 group-hover:opacity-100 shrink-0" data-testid={`button-delete-draft-${draft.id}`}>
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </>}
