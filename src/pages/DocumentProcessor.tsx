@@ -1556,8 +1556,8 @@ export default function DocumentProcessor() {
                   <div className="px-5 py-4 sticky top-0 bg-[#f5f5f5] z-10" style={{ borderBottom: '1px solid #d1d5db' }}>
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-700">{isPdfFile ? 'Document Viewer' : 'Document'}</span>
-                      {!isPdfFile && <span className="text-xs text-gray-400 ml-auto">{activeDocText.length.toLocaleString()} chars</span>}
+                      <span className="text-sm font-medium text-gray-700">{isPdfFile && activeDocFile?.file?.size > 0 ? 'Document Viewer' : 'Document'}</span>
+                      {!(isPdfFile && activeDocFile?.file?.size > 0) && <span className="text-xs text-gray-400 ml-auto">{activeDocText.length.toLocaleString()} chars</span>}
                     </div>
                     <div className="flex flex-wrap gap-2 mt-3">
                       {extractionResults[activeReviewDoc]?.entities
@@ -1584,8 +1584,8 @@ export default function DocumentProcessor() {
                         })}
                     </div>
                   </div>
-                  <div className={isPdfFile ? "px-2 py-2" : "p-5"}>
-                    {isPdfFile && activeDocFile ? (
+                  <div className={isPdfFile && activeDocFile?.file?.size > 0 ? "px-2 py-2" : "p-5"}>
+                    {isPdfFile && activeDocFile?.file?.size > 0 ? (
                       <PDFDocumentViewer
                         file={activeDocFile.file}
                         entities={extractionResults[activeReviewDoc]?.entities || []}
