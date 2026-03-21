@@ -456,7 +456,7 @@ export default function DocumentProcessor() {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [activeReviewDoc, setActiveReviewDoc] = useState(0);
-  const [reviewFilter, setReviewFilter] = useState<'all' | 'low' | 'edited'>('all');
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'edited'>('all');
   const [docStatuses, setDocStatuses] = useState<Record<number, 'waiting' | 'processing' | 'done' | 'error'>>({});
   const [completedCount, setCompletedCount] = useState(0);
   const [processingError, setProcessingError] = useState<string | null>(null);
@@ -725,7 +725,12 @@ export default function DocumentProcessor() {
           setDocStatuses(prev => ({ ...prev, [data.index]: eventType === 'doc-done' ? 'done' : 'error' }));
           resultsAccumulator[data.index] = {
             fileName: data.fileName, templateId: data.templateId,
-            templateName: data.templateName, entities: data.entities || [],
+            templateName: data.templateName,
+            entities: (data.entities || []).map((e: any) => ({
+              ...e,
+              name: e.name || e.entity || '',
+              confidence: e.confidence ?? e.conf ?? 0,
+            })),
           };
           setCompletedCount(prev => { const next = prev + 1; if (next >= documents.length) finalizeResults(); return next; });
           break;
@@ -836,7 +841,11 @@ export default function DocumentProcessor() {
               result = {
                 fileName: data.fileName || file.name,
                 templateId, templateName: template.name,
-                entities: data.entities || [],
+                entities: (data.entities || []).map((e: any) => ({
+                  ...e,
+                  name: e.name || e.entity || '',
+                  confidence: e.confidence ?? e.conf ?? 0,
+                })),
               };
             }
           } catch {}
@@ -1575,26 +1584,20 @@ export default function DocumentProcessor() {
                       <span className="text-sm font-medium text-gray-700">{isPdfFile && activeDocFile?.file?.size > 0 ? 'Document Viewer' : 'Document'}</span>
                       {!(isPdfFile && activeDocFile?.file?.size > 0) && <span className="text-xs text-gray-400 ml-auto">{activeDocText.length.toLocaleString()} chars</span>}
                     </div>
-                    <div className="flex flex-wrap gap-2 mt-3">
+                    <div className="flex flex-wrap gap-1.5 mt-3">
                       {extractionResults[activeReviewDoc]?.entities
                         .filter((e: any) => e.value && e.status !== 'not_found' && e.status !== 'rejected')
                         .map((e: any, i: number) => {
                           const realIdx = extractionResults[activeReviewDoc].entities.indexOf(e);
-                          const color = entityColors[realIdx % entityColors.length];
                           const isHovered = hoveredEntity === realIdx;
+                          const fmtLabel = (s: string) => s.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-z\d])([A-Z])/g, '$1 $2');
                           return (
                             <span key={i}
-                              className="text-[10px] px-2 py-0.5 rounded-md border flex items-center gap-1.5 cursor-pointer transition-all"
-                              style={{
-                                backgroundColor: isHovered ? color.bg.replace('0.15', '0.4') : color.bg,
-                                borderColor: color.border, color: color.text,
-                                transform: isHovered ? 'scale(1.05)' : 'scale(1)',
-                              }}
+                              className={`text-[10px] px-2 py-0.5 rounded-md border cursor-pointer transition-all ${isHovered ? 'bg-gray-200 border-gray-400 text-gray-800' : 'bg-gray-100 border-gray-300 text-gray-600'}`}
                               onMouseEnter={() => setHoveredEntity(realIdx)}
                               onMouseLeave={() => setHoveredEntity(null)}
                             >
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color.underline }}></span>
-                              {e.name}
+                              {fmtLabel(e.name)}
                             </span>
                           );
                         })}
@@ -1625,26 +1628,31 @@ export default function DocumentProcessor() {
                       <div className="flex items-center gap-2">
                         <ListChecks className="w-4 h-4 text-[#636366]" />
                         <span className="text-sm font-medium text-[#d1d1d6]">Extracted Entities</span>
+                        <span className="text-[11px] text-[#636366] bg-[#1c1c1e] px-2 py-0.5 rounded-md">
+                          {extractionResults[activeReviewDoc]?.entities?.length ?? 0}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {(['all', 'low', 'edited'] as const).map(f => (
+                      <div className="flex items-center gap-1.5">
+                        {(['all', 'edited'] as const).map(f => (
                           <button key={f} onClick={() => setReviewFilter(f)}
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-medium smooth press-sm capitalize ${reviewFilter === f ? 'bg-[#1c1c1e] text-white' : 'text-[#8e8e93] hover:text-white'}`}>
-                            {f === 'low' ? '< 70%' : f}
+                            {f}
                           </button>
                         ))}
                         <button onClick={() => approveAllForDoc(activeReviewDoc)}
-                          className="px-2.5 py-1 bg-green-500/10 text-green-400 border border-green-500/20 rounded-lg text-[11px] font-medium hover:bg-green-500/20 smooth press-sm ml-1" data-testid="button-approve-all">
-                          <CheckCheck className="w-3 h-3 mr-1 inline-block" />All
+                          className="px-2.5 py-1 bg-[#1c1c1e] text-[#8e8e93] hover:text-white border border-[#2c2c2e] rounded-lg text-[11px] font-medium hover:border-[#636366] smooth press-sm ml-1" data-testid="button-approve-all">
+                          <CheckCheck className="w-3 h-3 mr-1 inline-block" />Approve All
                         </button>
                       </div>
                     </div>
                   </div>
-                  <div className="p-5 space-y-2">
+                  <div className="p-4 space-y-2">
                     {(() => {
                       const entities = extractionResults[activeReviewDoc]?.entities || [];
-                      const filtered = entities.filter((e: any, _: number) => {
-                        if (reviewFilter === 'low') return e.confidence < 70;
+                      const templateForResult = templates?.find((t: any) => t.id === extractionResults[activeReviewDoc]?.templateId);
+                      const getEntityDef = (name: string) => templateForResult?.entities?.find((e: any) => e.label === name)?.definition || '';
+                      const fmtLabel = (s: string) => s.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-z\d])([A-Z])/g, '$1 $2');
+                      const filtered = entities.filter((e: any) => {
                         if (reviewFilter === 'edited') return e.status === 'edited';
                         return true;
                       });
@@ -1656,12 +1664,10 @@ export default function DocumentProcessor() {
                               <FileQuestion className="w-5 h-5 text-[#636366]" />
                             </div>
                             <p className="text-[#d1d1d6] text-sm font-medium mb-1">
-                              {reviewFilter === 'all' ? 'No entities found' : `No ${reviewFilter === 'low' ? 'low-confidence' : 'edited'} entities`}
+                              {reviewFilter === 'all' ? 'No entities found' : 'No edited entities'}
                             </p>
                             <p className="text-[#636366] text-xs">
-                              {reviewFilter === 'all'
-                                ? 'The template entities were not detected in this document'
-                                : 'Try switching to "all" to see all extracted entities'}
+                              {reviewFilter === 'all' ? 'The template entities were not detected in this document' : 'Switch to "All" to see everything'}
                             </p>
                           </div>
                         );
@@ -1669,61 +1675,55 @@ export default function DocumentProcessor() {
 
                       return filtered.map((entity: any) => {
                         const realIdx = entities.indexOf(entity);
-                        const color = entityColors[realIdx % entityColors.length];
                         const isHovered = hoveredEntity === realIdx;
+                        const def = getEntityDef(entity.name);
+                        const isApproved = entity.status === 'approved';
+                        const isRejected = entity.status === 'rejected';
+                        const isEdited = entity.status === 'edited';
                         return (
                           <div key={realIdx}
-                            className={`rounded-xl overflow-hidden transition-all cursor-default ${isHovered ? 'ring-1 scale-[1.01]' : ''} ${entity.status === 'rejected' ? 'opacity-40' : ''}`}
-                            style={isHovered ? { '--tw-ring-color': color.underline } as React.CSSProperties : undefined}
+                            className={`rounded-xl border transition-all ${isHovered ? 'border-[#48484a]' : 'border-[#2c2c2e]'} ${isApproved ? 'border-green-500/30' : ''} ${isRejected ? 'opacity-40' : ''}`}
                             onMouseEnter={() => setHoveredEntity(realIdx)}
                             onMouseLeave={() => setHoveredEntity(null)}
                             data-testid={`review-entity-${realIdx}`}
                           >
-                            <div className="flex">
-                              <div className="w-1.5 shrink-0 rounded-l-xl" style={{ backgroundColor: color.underline }}></div>
-                              <div className={`flex-1 bg-[#1c1c1e] rounded-r-xl p-4 ${entity.status === 'approved' ? 'ring-1 ring-green-500/20' : ''}`}>
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md" style={{ backgroundColor: color.bg, color: color.text, border: `1px solid ${color.border}` }}>{entity.name}</span>
-                                      {entity.status === 'approved' && <span className="text-[10px] bg-green-500/15 text-green-400 px-1.5 py-0.5 rounded-md">Approved</span>}
-                                      {entity.status === 'edited' && <span className="text-[10px] bg-purple-500/15 text-purple-400 px-1.5 py-0.5 rounded-md">Edited</span>}
-                                      {entity.status === 'rejected' && <span className="text-[10px] bg-red-500/15 text-red-400 px-1.5 py-0.5 rounded-md">Rejected</span>}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <input
-                                        type="text"
-                                        defaultValue={entity.value || ''}
-                                        placeholder="No value found"
-                                        onBlur={(e) => {
-                                          const val = e.target.value;
-                                          if (val !== entity.value) inlineEditEntity(activeReviewDoc, realIdx, val);
-                                        }}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                                        className="min-w-0 flex-1 px-2 py-1 rounded-md text-sm font-mono bg-transparent border-0 border-b-2 focus:outline-none focus:border-purple-400 transition-colors placeholder:text-[#636366] placeholder:italic placeholder:font-sans"
-                                        style={{ color: color.text, borderColor: color.underline, backgroundColor: color.bg }}
-                                        data-testid={`input-entity-value-${realIdx}`}
-                                      />
-                                    </div>
+                            <div className="bg-[#1c1c1e] rounded-xl p-3.5">
+                              <div className="flex items-start gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[10px] font-semibold text-[#8e8e93] uppercase tracking-widest leading-none">
+                                      {fmtLabel(entity.name)}
+                                    </span>
+                                    {isApproved && <span className="text-[10px] text-green-400 font-medium">· Approved</span>}
+                                    {isEdited && <span className="text-[10px] text-[#8e8e93] font-medium">· Edited</span>}
+                                    {isRejected && <span className="text-[10px] text-red-400 font-medium">· Rejected</span>}
                                   </div>
-                                  <div className="flex items-center gap-2 shrink-0 ml-3">
-                                    <span className={`text-sm font-bold ${entity.confidence >= 80 ? 'text-green-400' : entity.confidence >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>{entity.confidence}%</span>
-                                    <div className="flex items-center gap-0.5">
-                                      {entity.status !== 'approved' && (
-                                        <button onClick={() => approveEntity(activeReviewDoc, realIdx)} className="p-1.5 text-green-400 hover:bg-green-500/10 rounded-lg smooth press-sm" title="Approve" data-testid={`button-approve-${realIdx}`}>
-                                          <Check className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                      {entity.status !== 'rejected' && (
-                                        <button onClick={() => rejectEntity(activeReviewDoc, realIdx)} className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg smooth press-sm" title="Reject" data-testid={`button-reject-${realIdx}`}>
-                                          <X className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
+                                  {def && <p className="text-[10px] text-[#48484a] leading-relaxed mb-2 line-clamp-2">{def}</p>}
+                                  <input
+                                    type="text"
+                                    defaultValue={entity.value || ''}
+                                    placeholder="No value extracted"
+                                    onBlur={(e) => { const val = e.target.value; if (val !== entity.value) inlineEditEntity(activeReviewDoc, realIdx, val); }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                                    className="w-full text-sm text-white bg-[#2c2c2e] rounded-lg px-3 py-2 border border-transparent focus:border-[#48484a] focus:outline-none transition-colors placeholder:text-[#48484a] placeholder:italic"
+                                    data-testid={`input-entity-value-${realIdx}`}
+                                  />
                                 </div>
-                                <div className="mt-2.5 h-1 bg-[#2c2c2e] rounded-full overflow-hidden">
-                                  <div className="h-full rounded-full transition-all" style={{ width: `${entity.confidence}%`, backgroundColor: color.underline }}></div>
+                                <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
+                                  {!isApproved && (
+                                    <button onClick={() => approveEntity(activeReviewDoc, realIdx)}
+                                      className="p-1.5 text-[#636366] hover:text-green-400 hover:bg-green-500/10 rounded-lg smooth press-sm" title="Approve"
+                                      data-testid={`button-approve-${realIdx}`}>
+                                      <Check className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                  {!isRejected && (
+                                    <button onClick={() => rejectEntity(activeReviewDoc, realIdx)}
+                                      className="p-1.5 text-[#636366] hover:text-red-400 hover:bg-red-500/10 rounded-lg smooth press-sm" title="Reject"
+                                      data-testid={`button-reject-${realIdx}`}>
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
