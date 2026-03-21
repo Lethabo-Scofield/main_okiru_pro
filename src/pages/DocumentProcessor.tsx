@@ -137,16 +137,8 @@ const FileIcon = ({ type, className }: { type: string; className?: string }) => 
 };
 
 function getEntityColors(_dark?: boolean) {
-  return [
-    { bg: 'rgba(168,85,247,0.15)', border: 'rgba(168,85,247,0.35)', text: '#c084fc', underline: '#a855f7' },
-    { bg: 'rgba(34,197,94,0.15)', border: 'rgba(34,197,94,0.35)', text: '#4ade80', underline: '#22c55e' },
-    { bg: 'rgba(139,92,246,0.15)', border: 'rgba(139,92,246,0.35)', text: '#a78bfa', underline: '#8b5cf6' },
-    { bg: 'rgba(251,146,60,0.15)', border: 'rgba(251,146,60,0.35)', text: '#fb923c', underline: '#f97316' },
-    { bg: 'rgba(236,72,153,0.15)', border: 'rgba(236,72,153,0.35)', text: '#f472b6', underline: '#ec4899' },
-    { bg: 'rgba(45,212,191,0.15)', border: 'rgba(45,212,191,0.35)', text: '#2dd4bf', underline: '#14b8a6' },
-    { bg: 'rgba(250,204,21,0.15)', border: 'rgba(250,204,21,0.35)', text: '#facc15', underline: '#eab308' },
-    { bg: 'rgba(248,113,113,0.15)', border: 'rgba(248,113,113,0.35)', text: '#f87171', underline: '#ef4444' },
-  ];
+  const c = { bg: 'rgba(168,85,247,0.15)', border: 'rgba(168,85,247,0.35)', text: '#c084fc', underline: '#a855f7' };
+  return [c, c, c, c, c, c, c, c];
 }
 
 function HighlightedDocument({ text, entities, hoveredEntity, onHoverEntity }: {
