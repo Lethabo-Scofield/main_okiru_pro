@@ -3,12 +3,13 @@ import { Link, useLocation } from 'wouter';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useTheme } from '@/lib/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@toolkit/lib/auth';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
 import {
   X, Home, ArrowLeft, CloudUpload, Puzzle, Cpu, SearchCheck,
   Check, AlertTriangle, PlusCircle, Loader2, Trash2, ChevronRight, ChevronLeft,
   Circle, Zap, ListChecks, CheckCheck, FileText, FileSpreadsheet,
-  FileImage, File, FileQuestion, Building2, ScanLine, Monitor
+  FileImage, File, FileQuestion, Building2, ScanLine, Monitor, HelpCircle, LogOut
 } from 'lucide-react';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -58,12 +59,13 @@ interface ProcessorSession {
   companyInfo: CompanyInfo;
   createdAt: string;
   updatedAt: string;
-  currentStep: string;
+  currentStep: 'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review' | 'scorecard';
   filesData: { id: number; name: string; size: string; type: string; textContent: string }[];
   fileClassifications: Record<string, number>;
   extractionResults: any[];
   docStatuses: Record<number, string>;
   isComplete: boolean;
+  scorecardResult?: any;
 }
 
 const BBEE_SECTORS = [
@@ -122,6 +124,7 @@ async function apiLoadSession(sessionId: string): Promise<ProcessorSession | nul
       extractionResults: data.extractionResults || [],
       docStatuses: data.docStatuses || {},
       isComplete: data.isComplete || false,
+      scorecardResult: data.scorecardResult || null,
     };
   } catch { return null; }
 }
@@ -135,6 +138,192 @@ const FileIcon = ({ type, className }: { type: string; className?: string }) => 
     default: return <File {...props} />;
   }
 };
+
+function FileFormatBadge({ type, size = 'md' }: { type: string; size?: 'sm' | 'md' | 'lg' }) {
+  const configs: Record<string, { bg: string; text: string; label: string }> = {
+    PDF:  { bg: '#FF3B30', text: '#fff', label: 'PDF' },
+    DOCX: { bg: '#007AFF', text: '#fff', label: 'DOC' },
+    DOC:  { bg: '#007AFF', text: '#fff', label: 'DOC' },
+    XLSX: { bg: '#34C759', text: '#fff', label: 'XLS' },
+    XLS:  { bg: '#34C759', text: '#fff', label: 'XLS' },
+    CSV:  { bg: '#30D158', text: '#fff', label: 'CSV' },
+    TXT:  { bg: '#636366', text: '#fff', label: 'TXT' },
+    JPG:  { bg: '#AF52DE', text: '#fff', label: 'JPG' },
+    JPEG: { bg: '#AF52DE', text: '#fff', label: 'JPG' },
+    PNG:  { bg: '#5E5CE6', text: '#fff', label: 'PNG' },
+    EML:  { bg: '#FF9F0A', text: '#fff', label: 'EML' },
+    JSON: { bg: '#FF6B00', text: '#fff', label: 'JSON' },
+  };
+  const cfg = configs[type?.toUpperCase()] || { bg: '#48484a', text: '#fff', label: type?.slice(0, 4)?.toUpperCase() || 'FILE' };
+
+  const dims = size === 'sm' ? { w: 36, h: 44, foldSize: 9, labelSize: 7 }
+             : size === 'lg' ? { w: 52, h: 64, foldSize: 14, labelSize: 10 }
+             : { w: 44, h: 54, foldSize: 11, labelSize: 8 };
+
+  const { w, h, foldSize, labelSize } = dims;
+
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d={`M4 0 H${w - foldSize} L${w} ${foldSize} V${h - 4} Q${w} ${h} ${w - 4} ${h} H4 Q0 ${h} 0 ${h - 4} V4 Q0 0 4 0Z`}
+        fill={cfg.bg}
+        opacity="0.18"
+      />
+      <path
+        d={`M4 0.5 H${w - foldSize} L${w - 0.5} ${foldSize} V${h - 4} Q${w - 0.5} ${h - 0.5} ${w - 4} ${h - 0.5} H4 Q0.5 ${h - 0.5} 0.5 ${h - 4} V4 Q0.5 0.5 4 0.5Z`}
+        stroke={cfg.bg}
+        strokeWidth="1"
+        fill="none"
+        opacity="0.4"
+      />
+      <path
+        d={`M${w - foldSize} 0 L${w - foldSize} ${foldSize} L${w} ${foldSize}`}
+        fill={cfg.bg}
+        opacity="0.35"
+      />
+      <rect x={2} y={h - 18} width={w - 4} height={16} rx={3} fill={cfg.bg} />
+      <text
+        x={w / 2}
+        y={h - 7}
+        textAnchor="middle"
+        fill={cfg.text}
+        fontSize={labelSize}
+        fontWeight="800"
+        fontFamily="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif"
+        letterSpacing="0.5"
+      >
+        {cfg.label}
+      </text>
+    </svg>
+  );
+}
+
+function parseCSVRows(text: string): string[][] {
+  const rows: string[][] = [];
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const raw = line.replace(/\r$/, '');
+    if (!raw.trim()) continue;
+    const fields: string[] = [];
+    let field = '';
+    let inQuotes = false;
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i];
+      if (ch === '"') {
+        if (inQuotes && raw[i + 1] === '"') { field += '"'; i++; }
+        else { inQuotes = !inQuotes; }
+      } else if (ch === ',' && !inQuotes) {
+        fields.push(field); field = '';
+      } else {
+        field += ch;
+      }
+    }
+    fields.push(field);
+    rows.push(fields);
+  }
+  return rows;
+}
+
+function CSVTableViewer({ text, isExcel }: { text: string; isExcel: boolean }) {
+  const sections = useMemo(() => {
+    if (!text) return [];
+    if (isExcel) {
+      const chunks = text.split(/=== Sheet: (.+?) ===\n?/);
+      const sheets: { name: string; rows: string[][] }[] = [];
+      for (let i = 1; i < chunks.length; i += 2) {
+        const name = chunks[i]?.trim() || `Sheet ${Math.ceil(i / 2)}`;
+        const content = chunks[i + 1] || '';
+        const rows = parseCSVRows(content);
+        if (rows.length > 0) sheets.push({ name, rows });
+      }
+      return sheets.length > 0 ? sheets : [{ name: '', rows: parseCSVRows(text) }];
+    }
+    return [{ name: '', rows: parseCSVRows(text) }];
+  }, [text, isExcel]);
+
+  const [activeSheet, setActiveSheet] = useState(0);
+  const section = sections[activeSheet] || sections[0];
+
+  if (!section) return (
+    <div className="flex flex-col items-center justify-center py-16">
+      <FileQuestion className="w-8 h-8 text-gray-300 mb-3" />
+      <p className="text-gray-400 text-sm">No content to display</p>
+    </div>
+  );
+
+  const { rows } = section;
+  const header = rows[0] || [];
+  const body = rows.slice(1);
+  const maxCols = Math.max(...rows.map(r => r.length), 1);
+  const colsToShow = Math.min(maxCols, 20);
+
+  return (
+    <div className="flex flex-col h-full">
+      {sections.length > 1 && (
+        <div className="flex gap-1 px-4 pt-3 pb-0 flex-wrap">
+          {sections.map((s, i) => (
+            <button key={i} onClick={() => setActiveSheet(i)}
+              className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                activeSheet === i
+                  ? 'bg-white text-gray-800 shadow-sm border border-gray-200'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-white/60'
+              }`}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-auto p-4">
+        <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-white">
+          <table className="w-full text-left border-collapse" style={{ fontSize: '12px' }}>
+            <thead>
+              <tr style={{ background: '#f3f4f6' }}>
+                <th className="px-3 py-2 text-[10px] font-semibold text-gray-400 border-b border-gray-200 select-none" style={{ width: 36, minWidth: 36 }}>#</th>
+                {header.slice(0, colsToShow).map((h, ci) => (
+                  <th key={ci} className="px-3 py-2 text-[11px] font-semibold text-gray-600 border-b border-gray-200 border-l border-gray-100 whitespace-nowrap" style={{ maxWidth: 200 }}>
+                    {h || <span className="text-gray-300">Col {ci + 1}</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {body.length === 0 ? (
+                <tr><td colSpan={colsToShow + 1} className="px-4 py-6 text-center text-gray-400 text-sm">No data rows</td></tr>
+              ) : (
+                body.map((row, ri) => (
+                  <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td className="px-3 py-1.5 text-[10px] text-gray-300 font-mono select-none">{ri + 2}</td>
+                    {Array.from({ length: colsToShow }).map((_, ci) => {
+                      const val = row[ci] ?? '';
+                      const isNum = val !== '' && !isNaN(Number(val));
+                      return (
+                        <td key={ci} className="px-3 py-1.5 border-l border-gray-100 text-gray-700" style={{ maxWidth: 200 }}>
+                          <div className="truncate" style={{ maxWidth: 180 }}>
+                            {isNum
+                              ? <span className="font-mono text-[11px] text-blue-700">{val}</span>
+                              : <span className="text-[12px]">{val}</span>}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+          {maxCols > colsToShow && (
+            <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-[11px] text-gray-400">
+              Showing {colsToShow} of {maxCols} columns
+            </div>
+          )}
+        </div>
+        <div className="mt-2 text-[11px] text-gray-400 text-right">
+          {body.length} row{body.length !== 1 ? 's' : ''} · {header.length} column{header.length !== 1 ? 's' : ''}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function getEntityColors(_dark?: boolean) {
   const c = { bg: 'rgba(168,85,247,0.15)', border: 'rgba(168,85,247,0.35)', text: '#c084fc', underline: '#a855f7' };
@@ -438,7 +627,8 @@ function PDFDocumentViewer({ file, entities, hoveredEntity, onHoverEntity }: {
 export default function DocumentProcessor() {
   const { isDark } = useTheme();
   const { toast } = useToast();
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
+  const { user, logout } = useAuth();
   const entityColors = useMemo(() => getEntityColors(isDark), [isDark]);
   const [currentPage, setCurrentPage] = useState<'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review'>('company-info');
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(EMPTY_COMPANY_INFO);
@@ -519,9 +709,10 @@ export default function DocumentProcessor() {
         });
         setUploadedFiles(restored);
       }
-      const validSteps = ['company-info', 'upload', 'classify', 'extract', 'review'];
+      const validSteps = ['company-info', 'upload', 'classify', 'extract', 'review', 'scorecard'];
       const step = sess.currentStep && validSteps.includes(sess.currentStep)
         ? sess.currentStep
+        : sess.scorecardResult ? 'scorecard'
         : sess.extractionResults && sess.extractionResults.length > 0 ? 'review'
         : sess.filesData && sess.filesData.length > 0 ? 'classify'
         : 'upload';
@@ -537,6 +728,7 @@ export default function DocumentProcessor() {
     results?: any[];
     statuses?: Record<number, string>;
     complete?: boolean;
+    scorecardResult?: any;
   }) => {
     const sid = sessionId || generateSessionId();
     if (!sessionId) setSessionId(sid);
@@ -547,7 +739,7 @@ export default function DocumentProcessor() {
       companyInfo: ci,
       createdAt: sessionCreatedAt.current,
       updatedAt: new Date().toISOString(),
-      currentStep: step,
+      currentStep: step as ProcessorSession['currentStep'],
       filesData: await Promise.all((opts?.files ?? uploadedFiles).map(async f => {
         let fileBase64: string | undefined;
         if (f.type === 'PDF' && f.file && f.file.size > 0) {
@@ -555,7 +747,10 @@ export default function DocumentProcessor() {
             const buf = await f.file.arrayBuffer();
             const bytes = new Uint8Array(buf);
             let binary = '';
-            for (let j = 0; j < bytes.length; j += 8192) binary += String.fromCharCode(...bytes.slice(j, j + 8192));
+            for (let j = 0; j < bytes.length; j += 8192) {
+              const chunk = Array.from(bytes.subarray(j, j + 8192));
+              binary += String.fromCharCode(...chunk);
+            }
             fileBase64 = btoa(binary);
           } catch { /* skip */ }
         }
@@ -565,6 +760,7 @@ export default function DocumentProcessor() {
       extractionResults: opts?.results ?? extractionResults,
       docStatuses: opts?.statuses ?? docStatuses,
       isComplete: opts?.complete ?? false,
+      scorecardResult: opts?.scorecardResult ?? undefined,
     };
     await apiSaveSession(sess);
     return sid;
@@ -635,10 +831,31 @@ export default function DocumentProcessor() {
     }
   };
 
+  const extractXlsxText = async (file: File): Promise<string> => {
+    try {
+      const XLSX = await import('xlsx');
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const sheets: string[] = [];
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        if (csv.trim()) {
+          sheets.push(`=== Sheet: ${sheetName} ===\n${csv}`);
+        }
+      }
+      return sheets.join('\n\n') || `[No text content in Excel file: ${file.name}]`;
+    } catch (err) {
+      console.error('Excel extraction failed:', err);
+      return `[Could not extract text from Excel file: ${file.name}]`;
+    }
+  };
+
   const readFileText = async (file: File): Promise<string> => {
     const name = file.name.toLowerCase();
     if (name.endsWith('.pdf') || file.type === 'application/pdf') return extractPdfText(file);
     if (name.endsWith('.docx') || name.endsWith('.doc') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return extractDocxText(file);
+    if (name.endsWith('.xlsx') || name.endsWith('.xls') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.type === 'application/vnd.ms-excel') return extractXlsxText(file);
     if (name.endsWith('.txt') || name.endsWith('.csv') || name.endsWith('.eml') || name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.html') || name.endsWith('.xml') || file.type.startsWith('text/')) {
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -647,7 +864,7 @@ export default function DocumentProcessor() {
         reader.readAsText(file);
       });
     }
-    return `[Unsupported file format: ${file.name}. Supported formats: PDF, DOCX, TXT, CSV, EML, JSON]`;
+    return `[Unsupported file format: ${file.name}. Supported formats: PDF, DOCX, XLSX, XLS, TXT, CSV, EML, JSON]`;
   };
 
   const handleFiles = (files: File[]) => {
@@ -690,7 +907,7 @@ export default function DocumentProcessor() {
     abortControllerRef.current = controller;
     processingFinalized.current = false;
 
-    const initialStatuses: Record<number, string> = {};
+    const initialStatuses: Record<number, 'processing' | 'done' | 'error' | 'waiting'> = {};
     uploadedFiles.forEach((_, i) => { initialStatuses[i] = 'processing'; });
     setDocStatuses(initialStatuses);
     setCompletedCount(0);
@@ -945,6 +1162,7 @@ export default function DocumentProcessor() {
   const approvedCount = extractionResults.reduce((a, r) => a + r.entities.filter((e: any) => e.status === 'approved').length, 0);
 
   const [hoveredEntity, setHoveredEntity] = useState<number | null>(null);
+  const [openTemplateDropdown, setOpenTemplateDropdown] = useState<string | null>(null);
 
   const activeDocText = useMemo(() => {
     if (currentPage !== 'review' || !extractionResults[activeReviewDoc]) return '';
@@ -965,55 +1183,82 @@ export default function DocumentProcessor() {
     return name.endsWith('.pdf') || activeDocFile.file.type === 'application/pdf';
   }, [activeDocFile]);
 
+  const activeFileType = useMemo(() => {
+    if (!activeDocFile) return 'text';
+    const name = activeDocFile.name.toLowerCase();
+    if (name.endsWith('.pdf') || activeDocFile.file.type === 'application/pdf') return 'pdf';
+    if (name.endsWith('.xlsx') || name.endsWith('.xls') ||
+        activeDocFile.file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        activeDocFile.file.type === 'application/vnd.ms-excel') return 'excel';
+    if (name.endsWith('.csv') || activeDocFile.file.type === 'text/csv') return 'csv';
+    return 'text';
+  }, [activeDocFile]);
+
   const stepIdx = currentPage === 'company-info' ? 0 : currentPage === 'upload' ? 1 : currentPage === 'classify' ? 2 : (currentPage === 'extract' || currentPage === 'processing') ? 3 : 4;
 
   return (
     <div className="bg-black text-white font-sans h-screen overflow-hidden flex flex-col" style={{ letterSpacing: '-0.011em' }}>
 
 
-      <header className="h-14 shrink-0 z-20 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
-        <div className="max-w-5xl mx-auto w-full px-6 h-full flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button onClick={() => window.history.back()} className="flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors duration-200 press-sm group" data-testid="btn-back">
-            <ChevronLeft className="h-5 w-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
-            <img src={logoCircle} alt="Okiru" className="h-8 w-8 rounded-lg" />
-          </button>
-          <span className="text-lg font-semibold tracking-tight">
-            <span className="text-purple-400">Okiru</span><span className="text-white"> Processor</span>
-          </span>
-          <div className="h-5 w-px bg-[#3a3a3c]"></div>
-          <span className="text-[#d1d1d6] text-[13px] font-medium">Document Processor</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard" className="text-[13px] font-medium text-[#8e8e93] hover:text-white smooth px-3 py-1.5 rounded-lg hover:bg-[#1c1c1e] press-sm" data-testid="link-dashboard-nav">
-            <Home className="w-3.5 h-3.5 mr-1 inline-block" /> Dashboard
-          </Link>
-          <Link href="/builder" className="text-[13px] font-medium text-[#8e8e93] hover:text-white smooth px-3 py-1.5 rounded-lg hover:bg-[#1c1c1e] press-sm" data-testid="link-builder-nav">
-            <ArrowLeft className="w-3.5 h-3.5 mr-1 inline-block" /> Builder
-          </Link>
-        </div>
+      <header className="h-14 shrink-0 z-20 sticky top-0 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
+        <div className="max-w-[1400px] mx-auto w-full px-6 h-full flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard" className="flex items-center gap-2 text-[#98989f] hover:text-white smooth group shrink-0">
+              <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 smooth" />
+              <span className="text-[13px] font-medium tracking-wide">Back to Dashboard</span>
+            </Link>
+            <div className="w-px h-5 bg-[#2c2c2e] hidden sm:block"></div>
+            <div className="flex items-center gap-3 press-sm">
+              <img src={logoCircle} alt="Okiru" className="h-8 w-8 rounded-[8px]" />
+              <span className="text-lg font-semibold tracking-tight text-white border-l border-[#2c2c2e] pl-3">Document Processor</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link href="/builder" className="text-[13px] font-medium text-[#8e8e93] hover:text-white smooth px-3 py-1.5 rounded-lg hover:bg-[#1c1c1e] press-sm" data-testid="link-builder-nav">
+              <ArrowLeft className="w-3.5 h-3.5 mr-1 inline-block" /> Builder
+            </Link>
+            <div className="w-px h-4 bg-[#2c2c2e] mx-1"></div>
+            <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1c1c1e] text-[12px]" data-testid="user-menu">
+              <span className="inline-flex h-5 w-5 rounded-full bg-purple-600 items-center justify-center text-white font-semibold text-[9px]">
+                {(user?.fullName || user?.username || 'U').charAt(0).toUpperCase()}
+              </span>
+              <span className="text-[#d1d1d6] font-medium">{user?.fullName || user?.username || ''}</span>
+            </div>
+            <button
+              onClick={async () => { await logout(); navigate('/auth'); }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1c1c1e] hover:bg-[#3a3a3c] text-[12px] smooth press-sm text-[#8e8e93] hover:text-[#d1d1d6]"
+              data-testid="button-sign-out"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="bg-black px-6 py-3" style={{ borderBottom: '1px solid #2c2c2e' }}>
-        <div className="max-w-5xl mx-auto w-full flex items-center justify-between">
-          {['Company', 'Upload', 'Template', 'Extract', 'Review'].map((label, idx) => {
-            const StepIcons = [Building2, CloudUpload, Puzzle, Cpu, SearchCheck];
-            const pageMap = ['company-info', 'upload', 'classify', 'extract', 'review'] as const;
+        <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
+          {['Company', 'Upload', 'Template', 'Extract', 'Review', 'Scorecard'].map((label, idx) => {
+            const StepIcons = [Building2, CloudUpload, Puzzle, Cpu, SearchCheck, FileText];
+            const pageMap = ['company-info', 'upload', 'classify', 'extract', 'review', 'scorecard'] as const;
+            type PageMapType = typeof pageMap[number];
+            const safeCurrentPage = currentPage as PageMapType;
+            const stepIdx = pageMap.indexOf(safeCurrentPage);
             const isComplete = idx < stepIdx;
             const isCurrent = idx === stepIdx;
-            const canNavigate = isComplete && currentPage !== 'company-info';
+            const canNavigate = isComplete && safeCurrentPage !== 'company-info';
             const StepIcon = StepIcons[idx];
             return (
               <React.Fragment key={label}>
                 <div className={`flex items-center gap-2.5 ${canNavigate ? 'cursor-pointer group' : ''}`}
-                  onClick={() => { if (canNavigate) setCurrentPage(pageMap[idx]); }}>
+                  onClick={() => { if (canNavigate) setCurrentPage(pageMap[idx] as PageMapType); }}>
                   <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs smooth ${isComplete ? 'border-green-500 bg-green-500 text-white group-hover:bg-green-400' : isCurrent ? 'border-purple-600 bg-purple-600 text-white' : 'border-transparent text-[#636366]'}`}>
                     {isComplete ? <Check className="w-3.5 h-3.5" /> : <StepIcon className="w-3.5 h-3.5" />}
                   </div>
                   <span className={`text-[13px] font-medium hidden sm:inline smooth ${isComplete ? 'text-green-400 group-hover:text-green-300' : isCurrent ? 'text-purple-400' : 'text-[#636366]'}`}>{label}</span>
                 </div>
-                {idx < 4 && (
+                {idx < 5 && (
                   <div className="flex-1 h-0.5 bg-[#1c1c1e] mx-4 rounded-full overflow-hidden">
                     <div className="h-full bg-green-500 transition-all duration-700 rounded-full" style={{ width: isComplete ? '100%' : '0%' }}></div>
                   </div>
@@ -1025,7 +1270,7 @@ export default function DocumentProcessor() {
       </div>
 
       <main className="flex-1 overflow-y-auto">
-        <div className={`${currentPage === 'review' ? '' : 'max-w-5xl mx-auto w-full'} p-6`}>
+        <div className={`${currentPage === 'review' ? '' : 'max-w-[1400px] mx-auto w-full'} p-6`}>
 
           {currentPage === 'company-info' && (
             <div>
@@ -1270,7 +1515,7 @@ export default function DocumentProcessor() {
                 onDrop={(e) => { e.preventDefault(); setIsDragActive(false); if (e.dataTransfer.files?.length) handleFiles(Array.from(e.dataTransfer.files)); }}
                 onClick={() => document.getElementById('fileInput')?.click()} data-testid="drop-zone"
               >
-                <input type="file" id="fileInput" multiple className="hidden" accept=".pdf,.txt,.csv,.doc,.docx,.eml,.json"
+                <input type="file" id="fileInput" multiple className="hidden" accept=".pdf,.txt,.csv,.doc,.docx,.xlsx,.xls,.eml,.json"
                   onChange={(e) => { if (e.target.files?.length) handleFiles(Array.from(e.target.files)); }} />
                 {uploadedFiles.length === 0 ? (
                   <>
@@ -1280,7 +1525,7 @@ export default function DocumentProcessor() {
                     <h3 className="text-lg font-semibold text-white mb-1">Drop files here</h3>
                     <p className="text-[#8e8e93] text-sm mb-3">or click to browse</p>
                     <div className="flex items-center justify-center gap-2 text-xs text-[#636366]">
-                      {['PDF', 'TXT', 'CSV', 'DOC'].map(ext => (
+                      {['PDF', 'XLSX', 'XLS', 'CSV', 'DOCX', 'TXT'].map(ext => (
                         <span key={ext} className="px-2 py-0.5 bg-[#2c2c2e] rounded-lg text-[#8e8e93]">{ext}</span>
                       ))}
                     </div>
@@ -1307,8 +1552,8 @@ export default function DocumentProcessor() {
                   <div className="space-y-2 mb-6">
                     {uploadedFiles.map((file) => (
                       <div key={file.id} className={`bg-[#1c1c1e] rounded-2xl px-4 py-3 flex items-center gap-3 transition-all ${file.status === 'uploading' ? 'opacity-70' : ''}`} data-testid={`file-row-${file.id}`}>
-                        <div className="w-9 h-9 rounded-xl bg-[#2c2c2e] flex items-center justify-center shrink-0">
-                          <FileIcon type={file.type} className={`w-4 h-4 ${file.type === 'PDF' ? 'text-red-400' : 'text-purple-400'}`} />
+                        <div className="shrink-0">
+                          <FileFormatBadge type={file.type} size="sm" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-white truncate">{file.name}</div>
@@ -1357,70 +1602,150 @@ export default function DocumentProcessor() {
                     (() => {
                       const docType = fileDocTypes[String(file.id)] || 'digital';
                       const isScanned = docType === 'scanned';
+                      const isDropdownOpen = openTemplateDropdown === String(file.id);
                       return (
-                        <div key={file.id} className={`rounded-2xl overflow-hidden transition-all ${selectedTemplate ? 'ring-1 ring-purple-500/20' : ''}`} style={{ background: '#1c1c1e' }} data-testid={`classify-row-${file.id}`}>
-                          {/* File identity row */}
-                          <div className="flex items-center gap-3.5 px-4 pt-4 pb-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${selectedTemplate ? 'bg-purple-500/15' : 'bg-[#2c2c2e]'}`}>
-                              <FileIcon type={file.type} className={`w-4 h-4 ${selectedTemplate ? 'text-purple-400' : file.type === 'PDF' ? 'text-red-400' : 'text-purple-400'}`} />
+                        <div
+                          key={file.id}
+                          className={`rounded-2xl transition-all ${selectedTemplate ? 'ring-1 ring-purple-500/25' : 'ring-1 ring-[#2c2c2e]'}`}
+                          style={{ background: '#1c1c1e', position: 'relative', zIndex: isDropdownOpen ? 50 : 1 }}
+                          data-testid={`classify-row-${file.id}`}
+                        >
+                          {/* Main row: icon + name + controls */}
+                          <div className="flex items-start gap-4 p-4">
+                            {/* File format badge */}
+                            <div className="shrink-0 pt-0.5">
+                              <FileFormatBadge type={file.type} size="md" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-[13px] font-semibold text-white truncate">{file.name}</div>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[11px] text-[#636366]">{file.size} KB</span>
-                                {selectedTemplate && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-500/12 text-purple-400 font-medium">{selectedTemplate.name}</span>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0 space-y-3">
+                              {/* File name + size */}
+                              <div>
+                                <div className="text-[14px] font-semibold text-white truncate leading-tight">{file.name}</div>
+                                <div className="text-[11px] text-[#636366] mt-0.5">{file.size} KB</div>
+                              </div>
+
+                              {/* Template picker */}
+                              <div className="relative" data-testid={`select-template-${file.id}`}>
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenTemplateDropdown(prev => prev === String(file.id) ? null : String(file.id))}
+                                  className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-left transition-all ${
+                                    selectedTemplate
+                                      ? 'bg-purple-500/10 border border-purple-500/30 text-white'
+                                      : 'bg-[#141414] border border-[#3a3a3c] text-[#8e8e93] hover:border-[#48484a] hover:text-white'
+                                  }`}
+                                >
+                                  <Puzzle className={`w-3.5 h-3.5 shrink-0 ${selectedTemplate ? 'text-purple-400' : 'text-[#48484a]'}`} />
+                                  <span className="flex-1 truncate">
+                                    {selectedTemplate ? selectedTemplate.name : 'Choose a template…'}
+                                  </span>
+                                  {selectedTemplate
+                                    ? <span className="text-[10px] text-purple-400/60 shrink-0 font-normal">{selectedTemplate.entities.length} fields</span>
+                                    : null}
+                                  <svg className={`w-4 h-4 shrink-0 text-[#48484a] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 16 16" fill="none">
+                                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                </button>
+
+                                {isDropdownOpen && (
+                                  <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setOpenTemplateDropdown(null)} />
+                                    <div className="absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl shadow-2xl overflow-hidden" style={{ background: '#2c2c2e', border: '1px solid #3a3a3c' }}>
+                                      <div className="px-3 pt-3 pb-1.5">
+                                        <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest">Select Template</p>
+                                      </div>
+                                      <div className="max-h-56 overflow-y-auto pb-1.5">
+                                        {loadingTemplates ? (
+                                          <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-[#8e8e93]">
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+                                          </div>
+                                        ) : templates.length === 0 ? (
+                                          <div className="px-4 py-3 text-[13px] text-[#636366]">No templates — create one in Builder first.</div>
+                                        ) : (
+                                          templates.map((t) => {
+                                            const isSel = selectedId === t.id;
+                                            return (
+                                              <button
+                                                key={t.id}
+                                                type="button"
+                                                onClick={() => {
+                                                  setFileClassifications(prev => ({ ...prev, [String(file.id)]: t.id }));
+                                                  setOpenTemplateDropdown(null);
+                                                }}
+                                                className={`w-full flex items-center gap-3 px-3 py-2.5 mx-1.5 rounded-xl text-left transition-colors mb-0.5 ${
+                                                  isSel ? 'bg-purple-500/20' : 'hover:bg-[#3a3a3c]'
+                                                }`}
+                                                style={{ width: 'calc(100% - 12px)' }}
+                                              >
+                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isSel ? 'bg-purple-500/30' : 'bg-[#1c1c1e]'}`}>
+                                                  <Puzzle className={`w-3.5 h-3.5 ${isSel ? 'text-purple-300' : 'text-[#636366]'}`} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                  <div className={`text-[13px] font-semibold truncate ${isSel ? 'text-purple-200' : 'text-white'}`}>{t.name}</div>
+                                                  <div className="text-[11px] text-[#636366]">{t.entities.length} field{t.entities.length !== 1 ? 's' : ''} · v{t.version}</div>
+                                                </div>
+                                                {isSel && (
+                                                  <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
+                                                    <Check className="w-3 h-3 text-white" />
+                                                  </div>
+                                                )}
+                                              </button>
+                                            );
+                                          })
+                                        )}
+                                      </div>
+                                    </div>
+                                  </>
                                 )}
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${isScanned ? 'bg-amber-500/12 text-amber-400' : 'bg-blue-500/12 text-blue-400'}`}>
-                                  {isScanned ? 'Scanned' : 'Digital'}
-                                </span>
                               </div>
+
+                              {/* Document type segmented pill */}
+                              <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#141414', border: '1px solid #2c2c2e' }} data-testid={`select-doctype-${file.id}`}>
+                                <button
+                                  type="button"
+                                  onClick={() => setFileDocTypes(prev => ({ ...prev, [String(file.id)]: 'digital' }))}
+                                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-[10px] text-[12px] font-semibold transition-all ${
+                                    !isScanned ? 'bg-[#1c4ed8]/25 text-blue-300' : 'text-[#636366] hover:text-[#8e8e93]'
+                                  }`}
+                                >
+                                  <Monitor className="w-3.5 h-3.5" />
+                                  Digital
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setFileDocTypes(prev => ({ ...prev, [String(file.id)]: 'scanned' }))}
+                                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-[10px] text-[12px] font-semibold transition-all ${
+                                    isScanned ? 'bg-amber-500/20 text-amber-300' : 'text-[#636366] hover:text-[#8e8e93]'
+                                  }`}
+                                >
+                                  <ScanLine className="w-3.5 h-3.5" />
+                                  Scanned
+                                </button>
+                              </div>
+
+                              {/* Entity chips */}
+                              {selectedTemplate && selectedTemplate.entities.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                  {selectedTemplate.entities.slice(0, 6).map((ent, i) => (
+                                    <span key={i} className="text-[10px] px-2 py-1 rounded-lg font-medium" style={{ background: '#2c2c2e', color: '#8e8e93' }}>{ent.label}</span>
+                                  ))}
+                                  {selectedTemplate.entities.length > 6 && (
+                                    <span className="text-[10px] px-2 py-1 rounded-lg font-medium" style={{ background: '#2c2c2e', color: '#636366' }}>+{selectedTemplate.entities.length - 6} more</span>
+                                  )}
+                                </div>
+                              )}
                             </div>
+
+                            {/* Remove button */}
+                            <button
+                              onClick={() => removeFile(file.id)}
+                              className="shrink-0 p-2 rounded-xl text-[#48484a] hover:text-red-400 hover:bg-red-500/10 transition-all mt-0.5"
+                              data-testid={`button-remove-${file.id}`}
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
                           </div>
-
-                          {/* Two-dropdown row */}
-                          <div className="grid grid-cols-2 gap-px mx-4 mb-4" style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #2c2c2e' }}>
-                            {/* Template selector */}
-                            <div className="relative bg-[#141414] px-3 py-2.5">
-                              <label className="text-[9px] font-semibold text-[#636366] uppercase tracking-widest block mb-1">Template</label>
-                              <div className="flex items-center gap-2">
-                                <Puzzle className="w-3 h-3 text-purple-400 shrink-0" />
-                                <select value={selectedId || ''}
-                                  onChange={(e) => setFileClassifications(prev => ({ ...prev, [String(file.id)]: Number(e.target.value) }))}
-                                  className="flex-1 bg-transparent text-white text-[12px] focus:outline-none appearance-none cursor-pointer min-w-0"
-                                  data-testid={`select-template-${file.id}`}>
-                                  <option value="">Select template…</option>
-                                  {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.entities.length})</option>)}
-                                </select>
-                              </div>
-                            </div>
-
-                            {/* Document type selector */}
-                            <div className={`relative px-3 py-2.5 ${isScanned ? 'bg-amber-500/[0.05]' : 'bg-blue-500/[0.05]'}`}>
-                              <label className={`text-[9px] font-semibold uppercase tracking-widest block mb-1 ${isScanned ? 'text-amber-500/60' : 'text-blue-500/60'}`}>Document type</label>
-                              <div className="flex items-center gap-2">
-                                {isScanned
-                                  ? <ScanLine className="w-3 h-3 text-amber-400 shrink-0" />
-                                  : <Monitor className="w-3 h-3 text-blue-400 shrink-0" />}
-                                <select value={docType}
-                                  onChange={(e) => setFileDocTypes(prev => ({ ...prev, [String(file.id)]: e.target.value as 'digital' | 'scanned' }))}
-                                  className={`flex-1 bg-transparent text-[12px] font-semibold focus:outline-none appearance-none cursor-pointer ${isScanned ? 'text-amber-300' : 'text-blue-300'}`}
-                                  data-testid={`select-doctype-${file.id}`}>
-                                  <option value="digital">Digital</option>
-                                  <option value="scanned">Scanned</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Entity chips */}
-                          {selectedTemplate && (
-                            <div className="px-4 pb-4 flex flex-wrap gap-1.5">
-                              {selectedTemplate.entities.map((ent, i) => (
-                                <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-[#2c2c2e] text-[#8e8e93]">{ent.label}</span>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       );
                     })()
@@ -1584,10 +1909,53 @@ export default function DocumentProcessor() {
             };
             const handleSubmit = async () => {
               setIsSavingSession(true);
-              await persistSession('review', { results: extractionResults, complete: true });
-              setIsSavingSession(false);
-              setIsSubmitted(true);
-              toast({ title: "Assessment complete", description: `${totalEntities} entities across ${extractionResults.length} document${extractionResults.length !== 1 ? 's' : ''} — view in Toolkit` });
+              
+              // 1. Gather all document texts
+              const documentTexts = uploadedFiles
+                .filter(file => file.textContent)
+                .map(file => file.textContent);
+
+              // 2. Base fallback if info missing
+              const sectorCode = 'RCOGP'; // Defaulting to generic for now until sector logic upgraded
+              const scorecardType = parseFloat(companyInfo.annualTurnover.replace(/[^\d]/g, '')) <= 50000000 ? 'QSE' : 'Generic';
+
+              try {
+                // 3. Make the API Call to extract-and-score
+                const res = await fetch('/api/extract-and-score', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    documentTexts,
+                    sectorCode,
+                    scorecardType,
+                    clientName: companyInfo.name
+                  }),
+                });
+
+                if (!res.ok) throw new Error('Scoring failed');
+                
+                const scoreData = await res.json();
+                
+                // 4. Update the session with the new scorecardResult
+                await persistSession('scorecard', { 
+                  results: extractionResults, 
+                  complete: true,
+                  scorecardResult: scoreData
+                });
+                
+                setIsSubmitted(true);
+                setCurrentPage('scorecard');
+                toast({ title: "Assessment complete", description: "Scorecard generated successfully!" });
+
+              } catch (err: any) {
+                console.error("Scorecard generation error", err);
+                toast({ title: "Generation Failed", description: "Could not generate scorecard. Review extraction results.", variant: "destructive" });
+                // Fallback to basic complete if scoring fails
+                await persistSession('review', { results: extractionResults, complete: true });
+                setIsSubmitted(true);
+              } finally {
+                setIsSavingSession(false);
+              }
             };
             return (
             <div className="flex flex-col h-full -m-6">
@@ -1633,9 +2001,16 @@ export default function DocumentProcessor() {
                 <div className="w-1/2 overflow-y-auto bg-[#f5f5f5]" style={{ borderRight: '1px solid #2c2c2e' }}>
                   <div className="px-5 py-4 sticky top-0 bg-[#f5f5f5] z-10" style={{ borderBottom: '1px solid #d1d5db' }}>
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-700">{isPdfFile && activeDocFile?.file?.size > 0 ? 'Document Viewer' : 'Document'}</span>
-                      {!(isPdfFile && activeDocFile?.file?.size > 0) && <span className="text-xs text-gray-400 ml-auto">{activeDocText.length.toLocaleString()} chars</span>}
+                      {activeFileType === 'pdf' ? <FileText className="w-4 h-4 text-red-400" /> :
+                       activeFileType === 'excel' ? <FileSpreadsheet className="w-4 h-4 text-green-500" /> :
+                       activeFileType === 'csv' ? <FileSpreadsheet className="w-4 h-4 text-green-400" /> :
+                       <FileText className="w-4 h-4 text-gray-400" />}
+                      <span className="text-sm font-medium text-gray-700">
+                        {activeFileType === 'pdf' ? 'PDF Viewer' :
+                         activeFileType === 'excel' ? 'Spreadsheet Viewer' :
+                         activeFileType === 'csv' ? 'CSV Viewer' : 'Document'}
+                      </span>
+                      {activeFileType === 'text' && <span className="text-xs text-gray-400 ml-auto">{activeDocText.length.toLocaleString()} chars</span>}
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-3">
                       {extractionResults[activeReviewDoc]?.entities
@@ -1650,14 +2025,16 @@ export default function DocumentProcessor() {
                         })}
                     </div>
                   </div>
-                  <div className={isPdfFile && activeDocFile?.file?.size > 0 ? "px-2 py-2" : "p-5"}>
-                    {isPdfFile && activeDocFile?.file?.size > 0 ? (
+                  <div className={activeFileType === 'pdf' && activeDocFile?.file?.size ? "px-2 py-2" : activeFileType === 'csv' || activeFileType === 'excel' ? "" : "p-5"}>
+                    {activeFileType === 'pdf' && activeDocFile?.file?.size ? (
                       <PDFDocumentViewer
                         file={activeDocFile.file}
                         entities={[]}
                         hoveredEntity={null}
                         onHoverEntity={() => {}}
                       />
+                    ) : (activeFileType === 'csv' || activeFileType === 'excel') && activeDocText ? (
+                      <CSVTableViewer text={activeDocText} isExcel={activeFileType === 'excel'} />
                     ) : activeDocText ? (
                       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 min-h-[400px]">
                         <p className="text-[15px] text-gray-900 whitespace-pre-wrap font-sans leading-[1.8] break-words" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{activeDocText}</p>
@@ -1786,6 +2163,45 @@ export default function DocumentProcessor() {
             </div>
             );
           })()}
+
+          {currentPage === ('scorecard' as 'scorecard' | 'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review') && (
+            <div className="max-w-4xl mx-auto py-8">
+              <div className="bg-[#1c1c1e] rounded-2xl p-8 border border-[#2c2c2e] shadow-xl">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-purple-500/30">
+                      <ScanLine className="w-8 h-8 text-purple-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-1">B-BBEE Scorecard</h2>
+                      <p className="text-[#8e8e93] text-sm">{companyInfo.name} • {companyInfo.sector}</p>
+                    </div>
+                  </div>
+                  <button className="px-4 py-2 bg-[#2c2c2e] hover:bg-[#3a3a3c] text-white rounded-xl text-sm font-medium smooth press-sm border border-[#48484a]" onClick={() => window.print()}>
+                    Export PDF
+                  </button>
+                </div>
+
+                {isSavingSession ? (
+                  <div className="flex flex-col items-center justify-center py-20">
+                    <Loader2 className="w-8 h-8 animate-spin text-purple-400 mb-4" />
+                    <p className="text-[#8e8e93]">Generating scorecard...</p>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-3xl font-bold text-green-400 mb-2">Operation Complete</p>
+                    <p className="text-[#a1a1aa] max-w-lg mx-auto leading-relaxed">
+                      Scorecard calculation has been processed by the engine. You can view the fully generated certificate and metrics in the main Toolkit Dashboard.
+                    </p>
+                    <Link href="/dashboard" className="inline-block mt-8 px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-semibold smooth press">
+                      Go to Dashboard
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       </main>
     </div>

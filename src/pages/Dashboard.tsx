@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@toolkit/lib/auth';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
@@ -68,7 +68,9 @@ const categoryColor: Record<string, string> = {
 };
 
 export default function Dashboard() {
-  const [page, setPage] = useState<Page>('home');
+  const search = useSearch();
+  const initialTab = new URLSearchParams(search).get('tab') as Page | null;
+  const [page, setPage] = useState<Page>(initialTab && ['home', 'templates', 'scorecards'].includes(initialTab) ? initialTab : 'home');
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user, logout } = useAuth();
@@ -278,9 +280,6 @@ export default function Dashboard() {
   return (
     <div className="font-sans min-h-screen bg-black" style={{ letterSpacing: '-0.011em', color: '#f5f5f7' }}>
 
-      {needsOnboarding && !showTour && page === 'home' && (
-        <OnboardingWelcome onStart={startTour} onSkip={completeTour} userName={user?.fullName} />
-      )}
       {showTour && page === 'home' && <OnboardingTour onComplete={completeTour} onDismiss={dismissTour} />}
 
       {deleteConfirm !== null && (
@@ -302,16 +301,18 @@ export default function Dashboard() {
         </div>
       )}
 
-      <header className="sticky top-0 z-10 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => goTo('home')} className="press-sm" data-testid="logo-home">
+      <header className="h-14 shrink-0 z-20 sticky top-0 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
+        <div className="max-w-[1400px] mx-auto w-full px-6 h-full flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/hub" className="flex items-center gap-2 text-[#98989f] hover:text-white smooth group shrink-0">
+              <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 smooth" />
+              <span className="text-[13px] font-medium tracking-wide">Back to Hub</span>
+            </Link>
+            <div className="w-px h-5 bg-[#2c2c2e] hidden sm:block"></div>
+            <button onClick={() => goTo('home')} className="flex items-center gap-3 press-sm" data-testid="logo-home">
               <img src={logoCircle} alt="Okiru" className="h-8 w-8 rounded-[8px]" />
+              <span className="text-lg font-semibold tracking-tight text-white border-l border-[#2c2c2e] pl-3">Dashboard</span>
             </button>
-            <div>
-              <div className="text-[13px] font-semibold leading-tight tracking-tight text-white">Okiru</div>
-              <div className="text-[10px] text-purple-400 font-medium -mt-px">Entity Studio</div>
-            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -342,7 +343,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
 
         {page === 'home' && (
           <section data-testid="page-home" className="fade-in">
