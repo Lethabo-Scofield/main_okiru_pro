@@ -125,11 +125,43 @@ const clientSchema = new Schema({
 });
 clientSchema.set("toJSON", { virtuals: true, transform: (_d: any, ret: any) => { ret.id = ret.clientId; delete ret._id; delete ret.__v; return ret; } });
 
+const processorSessionSchema = new Schema({
+  sessionId: { type: String, required: true, unique: true, index: true },
+  organizationId: { type: String, default: null, index: true },
+  createdByUserId: { type: String, default: null },
+  companyInfo: {
+    name: { type: String, required: true },
+    registrationNumber: { type: String, default: '' },
+    sector: { type: String, default: '' },
+    annualTurnover: { type: String, default: '' },
+    employees: { type: String, default: '' },
+    financialYearEnd: { type: String, default: '' },
+    address: { type: String, default: '' },
+    contactName: { type: String, default: '' },
+    contactEmail: { type: String, default: '' },
+    contactPhone: { type: String, default: '' },
+    currentBBEELevel: { type: String, default: '' },
+    notes: { type: String, default: '' },
+    logo: { type: String, default: '' },
+  },
+  currentStep: { type: String, default: 'company-info' },
+  filesData: { type: Schema.Types.Mixed, default: [] },
+  fileClassifications: { type: Schema.Types.Mixed, default: {} },
+  extractionResults: { type: Schema.Types.Mixed, default: [] },
+  docStatuses: { type: Schema.Types.Mixed, default: {} },
+  isComplete: { type: Boolean, default: false },
+  scorecardResult: { type: Schema.Types.Mixed, default: null },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+});
+processorSessionSchema.set("toJSON", { virtuals: true, transform: (_d: any, ret: any) => { ret.id = ret.sessionId; delete ret._id; delete ret.__v; return ret; } });
+
 const UserModel = mongoose.models.User || mongoose.model("User", userSchema);
 const TemplateModel = mongoose.models.Template || mongoose.model("Template", templateSchema);
 const CounterModel = mongoose.models.Counter || mongoose.model("Counter", counterSchema);
 const CalculatorConfigModel = mongoose.models.CalculatorConfig || mongoose.model("CalculatorConfig", calculatorConfigSchema);
 const ClientModel = mongoose.models.Client || mongoose.model("Client", clientSchema);
+const ProcessorSessionModel = mongoose.models.ProcessorSession || mongoose.model("ProcessorSession", processorSessionSchema);
 
 async function getNextSequence(name: string): Promise<number> {
   const counter = await CounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true, upsert: true });
@@ -868,6 +900,122 @@ Respond ONLY with a valid JSON array.`;
       } catch (error: any) {
         console.error("Error generating suggestions:", error);
         res.status(500).json({ error: "Failed to generate suggestions" });
+      }
+    });
+
+    app.get("/api/processor-sessions", async (req, res) => {
+      try {
+        const userId = (req.session as any)?.userId;
+        if (!userId) return res.status(401).json({ error: "Not authenticated" });
+        const user = await UserModel.findById(userId);
+        const orgId = user?.organizationId || null;
+        const query = orgId ? { organizationId: orgId } : { createdByUserId: userId };
+        const sessions = await ProcessorSessionModel.find(query)
+          .select({
+            sessionId: 1,
+            companyInfo: 1,
+            currentStep: 1,
+            isComplete: 1,
+            'filesData.id': 1,
+            'filesData.name': 1,
+            'filesData.size': 1,
+            'filesData.type': 1,
+            'extractionResults.fileName': 1,
+            'extractionResults.templateName': 1,
+            createdAt: 1,
+            updatedAt: 1,
+          })
+          .sort({ updatedAt: -1 })
+          .lean();
+        const lightweight = sessions.map((s: any) => ({
+          id: s.sessionId,
+          sessionId: s.sessionId,
+          companyInfo: {
+            name: s.companyInfo?.name || '',
+            sector: s.companyInfo?.sector || '',
+            registrationNumber: s.companyInfo?.registrationNumber || '',
+            annualTurnover: s.companyInfo?.annualTurnover || '',
+            employees: s.companyInfo?.employees || '',
+            contactName: s.companyInfo?.contactName || '',
+            contactEmail: s.companyInfo?.contactEmail || '',
+            currentBBEELevel: s.companyInfo?.currentBBEELevel || '',
+          },
+          currentStep: s.currentStep,
+          isComplete: s.isComplete,
+          filesData: (s.filesData || []).map((f: any) => ({ id: f.id, name: f.name, size: f.size, type: f.type })),
+          extractionResults: (s.extractionResults || []).map((r: any) => ({ fileName: r.fileName, templateName: r.templateName })),
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        }));
+        res.json(lightweight);
+      } catch (error: any) {
+        console.error("Error fetching processor sessions:", error);
+        res.status(500).json({ error: "Failed to fetch sessions" });
+      }
+    });
+
+    app.get("/api/processor-sessions/:sessionId", async (req, res) => {
+      try {
+        const userId = (req.session as any)?.userId;
+        if (!userId) return res.status(401).json({ error: "Not authenticated" });
+        const { sessionId } = req.params;
+        const doc = await ProcessorSessionModel.findOne({ sessionId }).lean() as any;
+        if (!doc) return res.status(404).json({ error: "Session not found" });
+        res.json({ ...doc, id: doc.sessionId });
+      } catch (error: any) {
+        console.error("Error fetching processor session:", error);
+        res.status(500).json({ error: "Failed to fetch session" });
+      }
+    });
+
+    app.post("/api/processor-sessions", async (req, res) => {
+      try {
+        const userId = (req.session as any)?.userId;
+        if (!userId) return res.status(401).json({ error: "Not authenticated" });
+        const user = await UserModel.findById(userId);
+        const orgId = user?.organizationId || null;
+        const { sessionId, companyInfo, currentStep, filesData, fileClassifications, extractionResults, docStatuses, isComplete, scorecardResult } = req.body;
+        if (!sessionId || !companyInfo?.name) {
+          return res.status(400).json({ error: "sessionId and companyInfo.name are required" });
+        }
+        const updateData: any = {
+          sessionId,
+          organizationId: orgId,
+          createdByUserId: userId,
+          companyInfo,
+          currentStep: currentStep || 'upload',
+          filesData: filesData || [],
+          fileClassifications: fileClassifications || {},
+          extractionResults: extractionResults || [],
+          docStatuses: docStatuses || {},
+          isComplete: isComplete || false,
+          updatedAt: new Date(),
+        };
+        if (scorecardResult !== undefined) {
+          updateData.scorecardResult = scorecardResult;
+        }
+        const doc = await ProcessorSessionModel.findOneAndUpdate(
+          { sessionId },
+          updateData,
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        res.json({ ...doc.toJSON(), id: (doc as any).sessionId });
+      } catch (error: any) {
+        console.error("Error saving processor session:", error);
+        res.status(500).json({ error: "Failed to save session" });
+      }
+    });
+
+    app.delete("/api/processor-sessions/:sessionId", async (req, res) => {
+      try {
+        const userId = (req.session as any)?.userId;
+        if (!userId) return res.status(401).json({ error: "Not authenticated" });
+        const { sessionId } = req.params;
+        await ProcessorSessionModel.deleteOne({ sessionId });
+        res.json({ success: true });
+      } catch (error: any) {
+        console.error("Error deleting processor session:", error);
+        res.status(500).json({ error: "Failed to delete session" });
       }
     });
 
