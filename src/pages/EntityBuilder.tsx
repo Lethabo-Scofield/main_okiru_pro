@@ -98,7 +98,7 @@ export default function EntityBuilder() {
     const params = new URLSearchParams(window.location.search);
     return !!params.get('template');
   });
-  const nlInputRef = useRef<HTMLInputElement>(null);
+  const nlInputRef = useRef<HTMLTextAreaElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const selectedEntity = entities.find(e => e.id === selectedEntityId) || null;
@@ -858,22 +858,42 @@ export default function EntityBuilder() {
 
           {/* AI Prompt Bar */}
           <div className="mb-4 shrink-0">
-            <div className="flex gap-2.5">
-              <div className="relative flex-1 min-w-0">
-                <Sparkles className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors ${nlInput.trim() ? 'text-purple-400' : 'text-[#3a3a3c]'}`} />
-                <input ref={nlInputRef} type="text" value={nlInput}
-                  onChange={(e) => setNlInput(e.target.value)}
-                  className="w-full bg-[#111111] text-white rounded-xl pl-10 pr-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-purple-500/25 placeholder-[#3a3a3c] smooth"
-                  style={{ border: '1px solid #2c2c2e' }}
-                  placeholder="Describe an entity — e.g. B-BBEE level, expiry date…"
-                  onKeyDown={(e) => e.key === 'Enter' && !isGenerating && nlInput.trim() && parseNaturalLanguage()}
-                  data-testid="input-nl" />
+            <div className="relative rounded-2xl bg-[#111111] smooth focus-within:ring-2 focus-within:ring-purple-500/25"
+              style={{ border: '1px solid #2c2c2e' }}>
+              <div className="flex items-start gap-2 px-4 pt-3 pb-2">
+                <Sparkles className={`w-4 h-4 mt-0.5 shrink-0 transition-colors ${nlInput.trim() ? 'text-purple-400' : 'text-[#3a3a3c]'}`} />
+                <textarea
+                  ref={nlInputRef}
+                  value={nlInput}
+                  onChange={(e) => {
+                    setNlInput(e.target.value);
+                    const el = e.target;
+                    el.style.height = 'auto';
+                    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+                  }}
+                  className="flex-1 min-w-0 bg-transparent text-white text-[13px] leading-relaxed focus:outline-none placeholder-[#3a3a3c] resize-none"
+                  style={{ minHeight: '24px', maxHeight: '120px', overflowY: 'auto' }}
+                  placeholder="Describe the entity you want to create — e.g. 'B-BBEE contributor level from a verification certificate' or 'invoice date found in document headers'…"
+                  rows={1}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && !isGenerating && nlInput.trim()) {
+                      e.preventDefault();
+                      parseNaturalLanguage();
+                    }
+                  }}
+                  data-testid="input-nl"
+                />
               </div>
-              <button onClick={parseNaturalLanguage} disabled={isGenerating || !nlInput.trim()}
-                className="shrink-0 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1a1a1a] disabled:text-[#3a3a3c] text-white rounded-xl text-[12px] font-semibold smooth press-sm flex items-center gap-1.5 transition-all whitespace-nowrap"
-                data-testid="button-generate">
-                {isGenerating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating…</> : <><Zap className="w-3.5 h-3.5" />Generate</>}
-              </button>
+              <div className="flex items-center justify-between px-4 pb-3 pt-1">
+                <span className="text-[11px] text-[#2c2c2e]">
+                  {nlInput.trim() ? `${nlInput.length} chars · Enter to generate` : 'Shift+Enter for new line'}
+                </span>
+                <button onClick={parseNaturalLanguage} disabled={isGenerating || !nlInput.trim()}
+                  className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1a1a1a] disabled:text-[#3a3a3c] text-white rounded-lg text-[12px] font-semibold smooth press-sm flex items-center gap-1.5 transition-all whitespace-nowrap"
+                  data-testid="button-generate">
+                  {isGenerating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating…</> : <><Zap className="w-3.5 h-3.5" />Generate</>}
+                </button>
+              </div>
             </div>
           </div>
 
