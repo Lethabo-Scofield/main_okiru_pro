@@ -9,7 +9,8 @@ import {
   X, Home, ArrowLeft, CloudUpload, Puzzle, Cpu, SearchCheck,
   Check, AlertTriangle, PlusCircle, Loader2, Trash2, ChevronRight, ChevronLeft,
   Circle, Zap, ListChecks, CheckCheck, FileText, FileSpreadsheet,
-  FileImage, File, FileQuestion, Building2, ScanLine, Monitor, HelpCircle, LogOut
+  FileImage, File, FileQuestion, Building2, ScanLine, Monitor, HelpCircle, LogOut,
+  Pencil, Plus, Maximize2, Minimize2, Save, ArrowRightCircle, Send
 } from 'lucide-react';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -648,6 +649,9 @@ export default function DocumentProcessor() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [activeReviewDoc, setActiveReviewDoc] = useState(0);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'edited'>('all');
+  const [editingEntity, setEditingEntity] = useState<{ docIdx: number; entityIdx: number; draft: string } | null>(null);
+  const [savedDocs, setSavedDocs] = useState<Set<number>>(new Set());
+  const [docFullView, setDocFullView] = useState(false);
   const [docStatuses, setDocStatuses] = useState<Record<number, 'waiting' | 'processing' | 'done' | 'error'>>({});
   const [completedCount, setCompletedCount] = useState(0);
   const [processingError, setProcessingError] = useState<string | null>(null);
@@ -1269,8 +1273,8 @@ export default function DocumentProcessor() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto">
-        <div className={`${currentPage === 'review' ? '' : 'max-w-[1400px] mx-auto w-full'} p-6`}>
+      <main className={`flex-1 flex flex-col min-h-0 ${currentPage === 'review' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        <div className={`${currentPage === 'review' ? 'flex-1 min-h-0 flex flex-col' : 'max-w-[1400px] mx-auto w-full'} p-6`}>
 
           {currentPage === 'company-info' && (
             <div>
@@ -1280,181 +1284,177 @@ export default function DocumentProcessor() {
                   <p className="text-[#8e8e93] text-sm">Loading session...</p>
                 </div>
               ) : (
-                <>
+                <div className="max-w-2xl mx-auto w-full">
+
+                  {/* Page header */}
                   <div className="text-center mb-8">
-                    <div className="w-16 h-16 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center mx-auto mb-4">
-                      <Building2 className="w-7 h-7" />
+                    <div className="w-14 h-14 rounded-2xl bg-purple-500/15 ring-1 ring-purple-500/20 flex items-center justify-center mx-auto mb-4">
+                      <Building2 className="w-6 h-6 text-purple-400" />
                     </div>
-                    <h2 className="text-2xl font-bold text-white mb-1">New Client Assessment</h2>
-                    <p className="text-[#8e8e93] text-sm">Enter the client company's details before uploading documents</p>
+                    <h2 className="text-[22px] font-bold text-white mb-1 tracking-tight">New Client Assessment</h2>
+                    <p className="text-[#636366] text-[13px]">Enter the client company's details before uploading documents</p>
                   </div>
 
-                  <div className="mb-6">
-                    <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-3">Company Logo</p>
-                    <div className="flex items-center gap-4">
-                      <div
-                        className="w-20 h-20 rounded-2xl bg-[#1c1c1e] border-2 border-dashed border-[#3a3a3c] flex items-center justify-center overflow-hidden shrink-0 cursor-pointer hover:border-purple-500/50 transition-colors"
-                        onClick={() => (document.getElementById('logo-input') as HTMLInputElement)?.click()}
-                        data-testid="logo-upload-zone"
-                      >
-                        {companyInfo.logo ? (
-                          <img src={companyInfo.logo} alt="Company logo" className="w-full h-full object-contain" />
-                        ) : (
-                          <Building2 className="w-7 h-7 text-[#3a3a3c]" />
-                        )}
-                      </div>
-                      <div>
-                        <input
-                          id="logo-input"
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          data-testid="input-logo"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            if (file.size > 2 * 1024 * 1024) {
-                              toast({ title: 'File too large', description: 'Logo must be under 2 MB.', variant: 'destructive' });
-                              e.target.value = '';
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onload = (ev) => {
-                              setCompanyInfo(p => ({ ...p, logo: ev.target?.result as string }));
-                            };
-                            reader.readAsDataURL(file);
-                            e.target.value = '';
-                          }}
-                        />
-                        <button
-                          type="button"
+                  {/* ── Card ── */}
+                  <div className="rounded-2xl overflow-hidden" style={{ background: '#0d0d0d', border: '1px solid #1e1e1e' }}>
+
+                    {/* Section: Company Logo */}
+                    <div className="px-6 py-5" style={{ borderBottom: '1px solid #1e1e1e' }}>
+                      <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-4">Company Logo</p>
+                      <div className="flex items-center gap-5">
+                        <div
+                          className="w-[72px] h-[72px] rounded-2xl bg-[#1a1a1a] flex items-center justify-center overflow-hidden shrink-0 cursor-pointer transition-colors hover:ring-2 hover:ring-purple-500/30"
+                          style={{ border: '2px dashed #2c2c2e' }}
                           onClick={() => (document.getElementById('logo-input') as HTMLInputElement)?.click()}
-                          className="px-4 py-2 rounded-xl bg-[#1c1c1e] hover:bg-[#2c2c2e] text-[#d1d1d6] text-[12px] font-medium smooth press-sm border border-[#3a3a3c]"
-                          data-testid="button-upload-logo"
+                          data-testid="logo-upload-zone"
                         >
-                          {companyInfo.logo ? 'Change Logo' : 'Upload Logo'}
-                        </button>
-                        {companyInfo.logo && (
-                          <button
-                            type="button"
-                            onClick={() => setCompanyInfo(p => ({ ...p, logo: '' }))}
-                            className="ml-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[12px] font-medium smooth press-sm"
-                            data-testid="button-remove-logo"
-                          >
-                            Remove
-                          </button>
-                        )}
-                        <p className="text-[11px] text-[#636366] mt-2">PNG, JPG or SVG · max 2 MB</p>
+                          {companyInfo.logo
+                            ? <img src={companyInfo.logo} alt="Company logo" className="w-full h-full object-contain" />
+                            : <Building2 className="w-6 h-6 text-[#3a3a3c]" />}
+                        </div>
+                        <div>
+                          <input id="logo-input" type="file" accept="image/*" className="hidden" data-testid="input-logo"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 2 * 1024 * 1024) { toast({ title: 'File too large', description: 'Logo must be under 2 MB.', variant: 'destructive' }); e.target.value = ''; return; }
+                              const reader = new FileReader();
+                              reader.onload = (ev) => setCompanyInfo(p => ({ ...p, logo: ev.target?.result as string }));
+                              reader.readAsDataURL(file);
+                              e.target.value = '';
+                            }} />
+                          <div className="flex items-center gap-2">
+                            <button type="button"
+                              onClick={() => (document.getElementById('logo-input') as HTMLInputElement)?.click()}
+                              className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.09] text-[#d1d1d6] text-[12px] font-medium smooth press-sm border border-white/[0.08]"
+                              data-testid="button-upload-logo">
+                              {companyInfo.logo ? 'Change Logo' : 'Upload Logo'}
+                            </button>
+                            {companyInfo.logo && (
+                              <button type="button"
+                                onClick={() => setCompanyInfo(p => ({ ...p, logo: '' }))}
+                                className="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/15 text-red-400 text-[12px] font-medium smooth press-sm border border-red-500/10"
+                                data-testid="button-remove-logo">
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#3a3a3c] mt-2">PNG, JPG or SVG · max 2 MB</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="mb-3">
-                    <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest">Company Details</p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Company Name <span className="text-red-400">*</span></label>
-                      <input type="text" value={companyInfo.name} onChange={(e) => setCompanyInfo(p => ({ ...p, name: e.target.value }))}
-                        placeholder="e.g. Acme Holdings (Pty) Ltd"
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white placeholder-[#636366] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all"
-                        data-testid="input-company-name" autoFocus />
+                    {/* Section: Company Details */}
+                    <div className="px-6 py-5" style={{ borderBottom: '1px solid #1e1e1e' }}>
+                      <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-4">Company Details</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Company Name <span className="text-red-400">*</span></label>
+                          <input type="text" value={companyInfo.name} onChange={(e) => setCompanyInfo(p => ({ ...p, name: e.target.value }))}
+                            placeholder="e.g. Acme Holdings (Pty) Ltd"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            data-testid="input-company-name" autoFocus />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Registration Number</label>
+                          <input type="text" value={companyInfo.registrationNumber} onChange={(e) => setCompanyInfo(p => ({ ...p, registrationNumber: e.target.value }))}
+                            placeholder="e.g. 2021/123456/07"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            data-testid="input-company-regno" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Industry Sector <span className="text-red-400">*</span></label>
+                          <select value={companyInfo.sector} onChange={(e) => setCompanyInfo(p => ({ ...p, sector: e.target.value }))}
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all appearance-none"
+                            data-testid="select-company-sector">
+                            <option value="">Select a sector…</option>
+                            {BBEE_SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Annual Turnover (ZAR)</label>
+                          <input type="text" value={companyInfo.annualTurnover} onChange={(e) => setCompanyInfo(p => ({ ...p, annualTurnover: e.target.value }))}
+                            placeholder="e.g. R 50,000,000"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            data-testid="input-annual-turnover" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Number of Employees</label>
+                          <input type="text" value={companyInfo.employees} onChange={(e) => setCompanyInfo(p => ({ ...p, employees: e.target.value }))}
+                            placeholder="e.g. 150"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            data-testid="input-employees" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Financial Year End</label>
+                          <select value={companyInfo.financialYearEnd} onChange={(e) => setCompanyInfo(p => ({ ...p, financialYearEnd: e.target.value }))}
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all appearance-none"
+                            data-testid="select-fye">
+                            <option value="">Select month…</option>
+                            {FYE_MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Current B-BBEE Level</label>
+                          <select value={companyInfo.currentBBEELevel} onChange={(e) => setCompanyInfo(p => ({ ...p, currentBBEELevel: e.target.value }))}
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all appearance-none"
+                            data-testid="select-bbee-level">
+                            <option value="">Select level…</option>
+                            {BBEE_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Physical Address</label>
+                          <input type="text" value={companyInfo.address} onChange={(e) => setCompanyInfo(p => ({ ...p, address: e.target.value }))}
+                            placeholder="e.g. 10 Mandela Square, Sandton, 2196"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            data-testid="input-address" />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Registration Number</label>
-                      <input type="text" value={companyInfo.registrationNumber} onChange={(e) => setCompanyInfo(p => ({ ...p, registrationNumber: e.target.value }))}
-                        placeholder="e.g. 2021/123456/07"
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white placeholder-[#636366] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all"
-                        data-testid="input-company-regno" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Industry Sector <span className="text-red-400">*</span></label>
-                      <select value={companyInfo.sector} onChange={(e) => setCompanyInfo(p => ({ ...p, sector: e.target.value }))}
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all appearance-none"
-                        data-testid="select-company-sector">
-                        <option value="">Select a sector...</option>
-                        {BBEE_SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Annual Turnover (ZAR)</label>
-                      <input type="text" value={companyInfo.annualTurnover} onChange={(e) => setCompanyInfo(p => ({ ...p, annualTurnover: e.target.value }))}
-                        placeholder="e.g. R 50,000,000"
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white placeholder-[#636366] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all"
-                        data-testid="input-annual-turnover" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Number of Employees</label>
-                      <input type="text" value={companyInfo.employees} onChange={(e) => setCompanyInfo(p => ({ ...p, employees: e.target.value }))}
-                        placeholder="e.g. 150"
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white placeholder-[#636366] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all"
-                        data-testid="input-employees" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Financial Year End</label>
-                      <select value={companyInfo.financialYearEnd} onChange={(e) => setCompanyInfo(p => ({ ...p, financialYearEnd: e.target.value }))}
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all appearance-none"
-                        data-testid="select-fye">
-                        <option value="">Select month...</option>
-                        {FYE_MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Current B-BBEE Level</label>
-                      <select value={companyInfo.currentBBEELevel} onChange={(e) => setCompanyInfo(p => ({ ...p, currentBBEELevel: e.target.value }))}
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all appearance-none"
-                        data-testid="select-bbee-level">
-                        <option value="">Select level...</option>
-                        {BBEE_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                      </select>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Physical Address</label>
-                      <input type="text" value={companyInfo.address} onChange={(e) => setCompanyInfo(p => ({ ...p, address: e.target.value }))}
-                        placeholder="e.g. 10 Mandela Square, Sandton, 2196"
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white placeholder-[#636366] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all"
-                        data-testid="input-address" />
-                    </div>
-                  </div>
 
-                  <div className="mb-3 mt-6">
-                    <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest">Contact Person</p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Full Name</label>
-                      <input type="text" value={companyInfo.contactName} onChange={(e) => setCompanyInfo(p => ({ ...p, contactName: e.target.value }))}
-                        placeholder="e.g. Jane Dlamini"
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white placeholder-[#636366] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all"
-                        data-testid="input-contact-name" />
+                    {/* Section: Contact Person */}
+                    <div className="px-6 py-5" style={{ borderBottom: '1px solid #1e1e1e' }}>
+                      <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-4">Contact Person</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Full Name</label>
+                          <input type="text" value={companyInfo.contactName} onChange={(e) => setCompanyInfo(p => ({ ...p, contactName: e.target.value }))}
+                            placeholder="e.g. Jane Dlamini"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            data-testid="input-contact-name" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Email Address</label>
+                          <input type="email" value={companyInfo.contactEmail} onChange={(e) => setCompanyInfo(p => ({ ...p, contactEmail: e.target.value }))}
+                            placeholder="e.g. jane@company.co.za"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            data-testid="input-contact-email" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Phone Number</label>
+                          <input type="tel" value={companyInfo.contactPhone} onChange={(e) => setCompanyInfo(p => ({ ...p, contactPhone: e.target.value }))}
+                            placeholder="e.g. +27 82 123 4567"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            data-testid="input-contact-phone" />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Email Address</label>
-                      <input type="email" value={companyInfo.contactEmail} onChange={(e) => setCompanyInfo(p => ({ ...p, contactEmail: e.target.value }))}
-                        placeholder="e.g. jane@company.co.za"
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white placeholder-[#636366] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all"
-                        data-testid="input-contact-email" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#b0b0b8] uppercase tracking-wider mb-2">Phone Number</label>
-                      <input type="tel" value={companyInfo.contactPhone} onChange={(e) => setCompanyInfo(p => ({ ...p, contactPhone: e.target.value }))}
-                        placeholder="e.g. +27 82 123 4567"
-                        className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white placeholder-[#636366] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all"
-                        data-testid="input-contact-phone" />
-                    </div>
-                  </div>
 
-                  <div className="mb-3">
-                    <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest">Additional Notes</p>
-                  </div>
-                  <div className="mb-8">
-                    <textarea value={companyInfo.notes} onChange={(e) => setCompanyInfo(p => ({ ...p, notes: e.target.value }))}
-                      placeholder="Any additional context about this client or assessment..."
-                      rows={3}
-                      className="w-full bg-[#1c1c1e] border border-transparent rounded-xl px-4 py-3 text-sm text-white placeholder-[#636366] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/15 transition-all resize-none"
-                      data-testid="input-notes" />
-                  </div>
+                    {/* Section: Notes */}
+                    <div className="px-6 py-5">
+                      <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-4">Additional Notes</p>
+                      <textarea value={companyInfo.notes} onChange={(e) => setCompanyInfo(p => ({ ...p, notes: e.target.value }))}
+                        placeholder="Any additional context about this client or assessment…"
+                        rows={3}
+                        className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all resize-none"
+                        data-testid="input-notes" />
+                    </div>
 
+                  </div>
+                  {/* ── End Card ── */}
+
+                  {/* Submit */}
                   <button
                     onClick={async () => {
                       if (!companyInfo.name.trim() || !companyInfo.sector) {
@@ -1463,10 +1463,7 @@ export default function DocumentProcessor() {
                       }
                       setIsSavingSession(true);
                       const sid = sessionId || generateSessionId();
-                      if (!sessionId) {
-                        setSessionId(sid);
-                        sessionCreatedAt.current = new Date().toISOString();
-                      }
+                      if (!sessionId) { setSessionId(sid); sessionCreatedAt.current = new Date().toISOString(); }
                       await apiSaveSession({
                         id: sid, companyInfo,
                         createdAt: sessionCreatedAt.current,
@@ -1479,14 +1476,14 @@ export default function DocumentProcessor() {
                       setCurrentPage('upload');
                     }}
                     disabled={!companyInfo.name.trim() || !companyInfo.sector || isSavingSession}
-                    className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1c1c1e] disabled:text-[#636366] text-white rounded-2xl font-semibold text-[13px] smooth press"
+                    className="w-full mt-4 py-3.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1a1a1a] disabled:text-[#3a3a3c] disabled:border disabled:border-[#2a2a2a] text-white rounded-2xl font-semibold text-[13px] smooth press transition-colors"
                     data-testid="button-next-upload"
                   >
                     {isSavingSession
-                      ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving...</>
+                      ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving…</>
                       : <>Continue to Upload <ChevronRight className="w-3 h-3 ml-1.5 inline-block" /></>}
                   </button>
-                </>
+                </div>
               )}
             </div>
           )}
@@ -1899,13 +1896,26 @@ export default function DocumentProcessor() {
 
           {currentPage === 'review' && extractionResults.length > 0 && (() => {
             const isLastDoc = activeReviewDoc === extractionResults.length - 1;
+            const allSaved = savedDocs.size >= extractionResults.length;
+
+            const handleSave = async () => {
+              setIsSavingSession(true);
+              await persistSession('review', { results: extractionResults, complete: false });
+              setSavedDocs(prev => new Set([...prev, activeReviewDoc]));
+              setIsSavingSession(false);
+              toast({ title: "Saved", description: `Document ${activeReviewDoc + 1} review saved.` });
+            };
+
             const handleNext = async () => {
               setIsSavingSession(true);
               await persistSession('review', { results: extractionResults, complete: false });
+              setSavedDocs(prev => new Set([...prev, activeReviewDoc]));
               setIsSavingSession(false);
               setActiveReviewDoc(prev => prev + 1);
               setHoveredEntity(null);
               setReviewFilter('all');
+              setEditingEntity(null);
+              setDocFullView(false);
             };
             const handleSubmit = async () => {
               setIsSavingSession(true);
@@ -1958,11 +1968,11 @@ export default function DocumentProcessor() {
               }
             };
             return (
-            <div className="flex flex-col h-full -m-6">
+            <div className="flex flex-col flex-1 min-h-0 -m-6">
               <div className="px-6 py-4 flex items-center justify-between bg-black shrink-0" style={{ borderBottom: '1px solid #2c2c2e' }}>
                 <div className="flex items-center gap-4">
                   <button onClick={() => {
-                    if (activeReviewDoc > 0) { setActiveReviewDoc(prev => prev - 1); setHoveredEntity(null); setReviewFilter('all'); }
+                    if (activeReviewDoc > 0) { setActiveReviewDoc(prev => prev - 1); setHoveredEntity(null); setReviewFilter('all'); setEditingEntity(null); }
                     else setCurrentPage('extract');
                   }} className="p-2 -ml-2 text-[#8e8e93] hover:text-white hover:bg-[#1c1c1e] rounded-[10px] smooth press-sm" data-testid="button-back-extract">
                     <ChevronLeft className="w-3.5 h-3.5" />
@@ -1978,27 +1988,50 @@ export default function DocumentProcessor() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {isLastDoc ? (
-                    <button onClick={handleSubmit} disabled={isSubmitted || isSavingSession}
-                      className={`px-4 py-2 rounded-[10px] font-semibold text-[13px] smooth press-sm flex items-center gap-1.5 ${isSubmitted ? 'bg-green-600 text-white' : 'bg-purple-600 hover:bg-purple-500 text-white'}`}
-                      data-testid="button-submit">
-                      {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving...</>
-                        : isSubmitted ? <><Check className="w-3.5 h-3.5" />Complete</>
-                        : 'Submit & Complete'}
-                    </button>
-                  ) : (
-                    <button onClick={handleNext} disabled={isSavingSession}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-[10px] font-semibold text-[13px] smooth press-sm flex items-center gap-1.5 disabled:opacity-60"
-                      data-testid="button-next-doc">
-                      {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving...</>
-                        : <>Next Document <ChevronRight className="w-3.5 h-3.5" /></>}
-                    </button>
-                  )}
+                  {/* Save button */}
+                  <button onClick={handleSave} disabled={isSavingSession || isSubmitted}
+                    className={`px-3.5 py-2 rounded-[10px] font-semibold text-[13px] smooth press-sm flex items-center gap-1.5 border transition-colors
+                      ${savedDocs.has(activeReviewDoc)
+                        ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/15'
+                        : 'bg-[#1c1c1e] border-[#2c2c2e] text-[#d1d1d6] hover:text-white hover:border-[#48484a]'}
+                      disabled:opacity-40 disabled:cursor-not-allowed`}
+                    data-testid="button-save-doc">
+                    {isSavingSession
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving…</>
+                      : savedDocs.has(activeReviewDoc)
+                        ? <><Check className="w-3.5 h-3.5" />Saved</>
+                        : <><Save className="w-3.5 h-3.5" />Save</>}
+                  </button>
+
+                  {/* Next button */}
+                  <button onClick={handleNext} disabled={isLastDoc || isSavingSession || isSubmitted}
+                    className="px-3.5 py-2 bg-[#1c1c1e] border border-[#2c2c2e] hover:border-[#48484a] text-[#d1d1d6] hover:text-white rounded-[10px] font-semibold text-[13px] smooth press-sm flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed"
+                    data-testid="button-next-doc">
+                    Next <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Submit button — only enabled once all docs are saved */}
+                  <button onClick={handleSubmit} disabled={!allSaved || isSubmitted || isSavingSession}
+                    title={!allSaved ? `Save all ${extractionResults.length} document${extractionResults.length > 1 ? 's' : ''} before submitting` : undefined}
+                    className={`px-4 py-2 rounded-[10px] font-semibold text-[13px] smooth press-sm flex items-center gap-1.5 transition-colors
+                      ${isSubmitted
+                        ? 'bg-green-600 text-white'
+                        : allSaved
+                          ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                          : 'bg-[#1c1c1e] border border-[#2c2c2e] text-[#48484a] cursor-not-allowed'}
+                      disabled:opacity-60`}
+                    data-testid="button-submit">
+                    {isSavingSession
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving…</>
+                      : isSubmitted
+                        ? <><Check className="w-3.5 h-3.5" />Complete</>
+                        : <><Send className="w-3.5 h-3.5" />Submit</>}
+                  </button>
                 </div>
               </div>
 
               <div className="flex flex-1 min-h-0 overflow-hidden">
-                <div className="w-1/2 overflow-y-auto bg-[#f5f5f5]" style={{ borderRight: '1px solid #2c2c2e' }}>
+                <div className={`${docFullView ? 'w-full' : 'w-1/2'} overflow-y-auto bg-[#f5f5f5] flex flex-col transition-all duration-200`} style={docFullView ? {} : { borderRight: '1px solid #2c2c2e' }}>
                   <div className="px-5 py-4 sticky top-0 bg-[#f5f5f5] z-10" style={{ borderBottom: '1px solid #d1d5db' }}>
                     <div className="flex items-center gap-2">
                       {activeFileType === 'pdf' ? <FileText className="w-4 h-4 text-red-400" /> :
@@ -2010,7 +2043,13 @@ export default function DocumentProcessor() {
                          activeFileType === 'excel' ? 'Spreadsheet Viewer' :
                          activeFileType === 'csv' ? 'CSV Viewer' : 'Document'}
                       </span>
-                      {activeFileType === 'text' && <span className="text-xs text-gray-400 ml-auto">{activeDocText.length.toLocaleString()} chars</span>}
+                      {activeFileType === 'text' && <span className="text-xs text-gray-400">{activeDocText.length.toLocaleString()} chars</span>}
+                      <button
+                        onClick={() => setDocFullView(v => !v)}
+                        title={docFullView ? 'Split view' : 'Full document view'}
+                        className="ml-auto p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-200 smooth press-sm transition-colors">
+                        {docFullView ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-3">
                       {extractionResults[activeReviewDoc]?.entities
@@ -2048,7 +2087,7 @@ export default function DocumentProcessor() {
                   </div>
                 </div>
 
-                <div className="w-1/2 overflow-y-auto bg-black">
+                <div className={`${docFullView ? 'hidden' : 'w-1/2'} overflow-y-auto bg-black`}>
                   <div className="px-5 py-4 sticky top-0 bg-black z-10" style={{ borderBottom: '1px solid #2c2c2e' }}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -2106,52 +2145,161 @@ export default function DocumentProcessor() {
                         const isApproved = entity.status === 'approved';
                         const isRejected = entity.status === 'rejected';
                         const isEdited = entity.status === 'edited';
+                        const isEditingThis = editingEntity?.docIdx === activeReviewDoc && editingEntity?.entityIdx === realIdx;
+
+                        const startEdit = () => setEditingEntity({ docIdx: activeReviewDoc, entityIdx: realIdx, draft: entity.value || '' });
+                        const cancelEdit = () => setEditingEntity(null);
+                        const saveEdit = () => {
+                          if (editingEntity && editingEntity.draft !== entity.value) {
+                            inlineEditEntity(activeReviewDoc, realIdx, editingEntity.draft);
+                          }
+                          setEditingEntity(null);
+                        };
+
                         return (
                           <div key={realIdx}
-                            className={`rounded-xl border transition-all ${isHovered ? 'border-[#48484a]' : 'border-[#2c2c2e]'} ${isApproved ? 'border-green-500/30' : ''} ${isRejected ? 'opacity-40' : ''}`}
+                            className={`rounded-2xl border transition-all duration-150 group ${
+                              isEditingThis ? 'border-purple-500/40 shadow-[0_0_0_3px_rgba(168,85,247,0.08)]' :
+                              isApproved ? 'border-green-500/25' :
+                              isRejected ? 'border-[#2c2c2e] opacity-35' :
+                              isHovered ? 'border-[#3a3a3c]' : 'border-[#2c2c2e]'
+                            }`}
                             onMouseEnter={() => setHoveredEntity(realIdx)}
                             onMouseLeave={() => setHoveredEntity(null)}
                             data-testid={`review-entity-${realIdx}`}
                           >
-                            <div className="bg-[#1c1c1e] rounded-xl p-3.5">
-                              <div className="flex items-start gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[10px] font-semibold text-[#8e8e93] uppercase tracking-widest leading-none">
-                                      {fmtLabel(entity.name)}
+                            <div className="bg-[#1c1c1e] rounded-2xl px-4 py-3.5">
+
+                              {/* Header row */}
+                              <div className="flex items-center justify-between mb-2.5">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest truncate">
+                                    {fmtLabel(entity.name)}
+                                  </span>
+                                  {isApproved && (
+                                    <span className="inline-flex items-center gap-0.5 text-[10px] text-green-400 font-medium shrink-0">
+                                      <Check className="w-2.5 h-2.5" />Approved
                                     </span>
-                                    {isApproved && <span className="text-[10px] text-green-400 font-medium">· Approved</span>}
-                                    {isEdited && <span className="text-[10px] text-[#8e8e93] font-medium">· Edited</span>}
-                                    {isRejected && <span className="text-[10px] text-red-400 font-medium">· Rejected</span>}
-                                  </div>
-                                  {def && <p className="text-[10px] text-[#48484a] leading-relaxed mb-2 line-clamp-2">{def}</p>}
-                                  <input
-                                    type="text"
-                                    defaultValue={entity.value || ''}
-                                    placeholder="No value extracted"
-                                    onBlur={(e) => { const val = e.target.value; if (val !== entity.value) inlineEditEntity(activeReviewDoc, realIdx, val); }}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                                    className="w-full text-sm text-white bg-[#2c2c2e] rounded-lg px-3 py-2 border border-transparent focus:border-[#48484a] focus:outline-none transition-colors placeholder:text-[#48484a] placeholder:italic"
-                                    data-testid={`input-entity-value-${realIdx}`}
-                                  />
-                                </div>
-                                <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
-                                  {!isApproved && (
-                                    <button onClick={() => approveEntity(activeReviewDoc, realIdx)}
-                                      className="p-1.5 text-[#636366] hover:text-green-400 hover:bg-green-500/10 rounded-lg smooth press-sm" title="Approve"
-                                      data-testid={`button-approve-${realIdx}`}>
-                                      <Check className="w-3.5 h-3.5" />
-                                    </button>
                                   )}
-                                  {!isRejected && (
-                                    <button onClick={() => rejectEntity(activeReviewDoc, realIdx)}
-                                      className="p-1.5 text-[#636366] hover:text-red-400 hover:bg-red-500/10 rounded-lg smooth press-sm" title="Reject"
-                                      data-testid={`button-reject-${realIdx}`}>
-                                      <X className="w-3.5 h-3.5" />
+                                  {isEdited && !isEditingThis && (
+                                    <span className="text-[10px] text-purple-400 font-medium shrink-0">Edited</span>
+                                  )}
+                                  {isRejected && (
+                                    <span className="text-[10px] text-red-400 font-medium shrink-0">Rejected</span>
+                                  )}
+                                </div>
+
+                                {/* Action buttons */}
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  {/* Pen — always dimly visible, brightens on hover */}
+                                  {!isEditingThis && (
+                                    <button
+                                      onClick={startEdit}
+                                      className="p-1.5 rounded-lg smooth press-sm text-[#3a3a3c] hover:text-[#8e8e93] hover:bg-[#2c2c2e]"
+                                      title="Edit value"
+                                      data-testid={`button-edit-${realIdx}`}
+                                    >
+                                      <Pencil className="w-3 h-3" />
                                     </button>
                                   )}
                                 </div>
                               </div>
+
+                              {/* Definition */}
+                              {def && !isEditingThis && (
+                                <p className="text-[10px] text-[#48484a] leading-relaxed mb-2 line-clamp-2">{def}</p>
+                              )}
+
+                              {/* Value — read mode */}
+                              {!isEditingThis && (
+                                <div
+                                  onClick={startEdit}
+                                  className="cursor-text rounded-xl px-3 py-2 mb-3 transition-colors hover:bg-[#2c2c2e]/60"
+                                  title="Click to edit"
+                                >
+                                  {entity.value ? (
+                                    <p className="text-[14px] text-white leading-snug break-words">{entity.value}</p>
+                                  ) : (
+                                    <p className="text-[13px] text-[#3a3a3c] italic flex items-center gap-1.5">
+                                      <Plus className="w-3 h-3" />Add value
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Value — edit mode */}
+                              {isEditingThis && (
+                                <div className="space-y-2 mb-3">
+                                  {def && (
+                                    <p className="text-[10px] text-[#48484a] leading-relaxed line-clamp-2">{def}</p>
+                                  )}
+                                  <textarea
+                                    autoFocus
+                                    value={editingEntity.draft}
+                                    onChange={(e) => setEditingEntity(prev => prev ? { ...prev, draft: e.target.value } : null)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); }
+                                      if (e.key === 'Escape') cancelEdit();
+                                    }}
+                                    rows={Math.min(Math.max((editingEntity.draft.match(/\n/g) || []).length + 1, 1), 4)}
+                                    placeholder="Enter value…"
+                                    className="w-full text-[14px] text-white bg-[#2c2c2e] rounded-xl px-3 py-2.5 border border-purple-500/40 focus:border-purple-400 focus:outline-none resize-none transition-colors placeholder:text-[#48484a]"
+                                    data-testid={`input-entity-value-${realIdx}`}
+                                  />
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button onClick={cancelEdit}
+                                      className="px-3 py-1.5 text-[12px] font-medium text-[#8e8e93] hover:text-white rounded-lg hover:bg-[#2c2c2e] smooth press-sm">
+                                      Cancel
+                                    </button>
+                                    <button onClick={saveEdit}
+                                      className="px-3 py-1.5 text-[12px] font-semibold text-white bg-purple-600 hover:bg-purple-500 rounded-lg smooth press-sm flex items-center gap-1"
+                                      data-testid={`button-save-entity-${realIdx}`}>
+                                      <Check className="w-3 h-3" />Save
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Approve / Reject — always visible bottom action bar */}
+                              {!isEditingThis && (
+                                <div className="flex items-center gap-2 pt-2.5" style={{ borderTop: '1px solid #2c2c2e' }}>
+                                  {isApproved ? (
+                                    <button
+                                      onClick={() => approveEntity(activeReviewDoc, realIdx)}
+                                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-semibold text-green-400 bg-green-500/10 smooth press-sm"
+                                      data-testid={`button-approve-${realIdx}`}
+                                    >
+                                      <Check className="w-3.5 h-3.5" />Approved
+                                    </button>
+                                  ) : isRejected ? null : (
+                                    <button
+                                      onClick={() => approveEntity(activeReviewDoc, realIdx)}
+                                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-medium text-[#636366] hover:text-green-400 hover:bg-green-500/10 border border-[#2c2c2e] hover:border-green-500/20 smooth press-sm"
+                                      data-testid={`button-approve-${realIdx}`}
+                                    >
+                                      <Check className="w-3.5 h-3.5" />Approve
+                                    </button>
+                                  )}
+                                  {isRejected ? (
+                                    <button
+                                      onClick={() => rejectEntity(activeReviewDoc, realIdx)}
+                                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-semibold text-red-400 bg-red-500/10 smooth press-sm"
+                                      data-testid={`button-reject-${realIdx}`}
+                                    >
+                                      <X className="w-3.5 h-3.5" />Rejected
+                                    </button>
+                                  ) : isApproved ? null : (
+                                    <button
+                                      onClick={() => rejectEntity(activeReviewDoc, realIdx)}
+                                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-medium text-[#636366] hover:text-red-400 hover:bg-red-500/10 border border-[#2c2c2e] hover:border-red-500/20 smooth press-sm"
+                                      data-testid={`button-reject-${realIdx}`}
+                                    >
+                                      <X className="w-3.5 h-3.5" />Reject
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
                             </div>
                           </div>
                         );
