@@ -38,6 +38,9 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - Protected routes: `/dashboard`, `/builder`, `/processor`, `/toolkit/:clientId`
 - Guest-only routes: `/` (landing), `/auth` (login/register)
 - 404 page is auth-aware: links to Dashboard if logged in, Home if not
+- Clients (companies) are stored in MongoDB `clients` collection with full CRUD via `/api/clients` endpoints
+- `ClientModel` in `shared/schema.ts` stores: clientId, name, financialYear, industrySector, eapProvince, revenue, npat, leviableAmount, organizationId, createdByUserId
+- Both Express (`server/routes.ts`) and Vercel (`api/[...path].ts`) use MongoDB-backed client routes
 - Toolkit client data (ownership, management, skills, procurement) will move to ArangoDB (not yet implemented)
 
 ## Registration Wizard (4-step flow)
