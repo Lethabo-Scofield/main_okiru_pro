@@ -863,7 +863,7 @@ export default function EntityBuilder() {
                 <Sparkles className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors ${nlInput.trim() ? 'text-purple-400' : 'text-[#3a3a3c]'}`} />
                 <input ref={nlInputRef} type="text" value={nlInput}
                   onChange={(e) => setNlInput(e.target.value)}
-                  className="w-full bg-[#111111] text-white rounded-xl pl-10 pr-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-purple-500/25 placeholder-[#3a3a3c] smooth truncate"
+                  className="w-full bg-[#111111] text-white rounded-xl pl-10 pr-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-purple-500/25 placeholder-[#3a3a3c] smooth"
                   style={{ border: '1px solid #2c2c2e' }}
                   placeholder="Describe an entity — e.g. B-BBEE level, expiry date…"
                   onKeyDown={(e) => e.key === 'Enter' && !isGenerating && nlInput.trim() && parseNaturalLanguage()}
@@ -1269,9 +1269,9 @@ export default function EntityBuilder() {
                   <div className="px-6 py-5 space-y-7">
                 <Section title="Definition" icon={<AlignLeft className="w-3.5 h-3.5" />}>
                   <textarea
-                    className="w-full bg-[#111111] text-[13px] text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-y leading-relaxed placeholder-[#3a3a3c] break-words overflow-y-auto"
-                    style={{ border: '1px solid #1e1e1e', minHeight: '80px', maxHeight: '200px' }}
-                    rows={3}
+                    className="w-full bg-[#111111] text-[13px] text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-y leading-relaxed placeholder-[#3a3a3c] overflow-y-auto overflow-wrap-anywhere"
+                    style={{ border: '1px solid #1e1e1e', minHeight: '80px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                    rows={4}
                     placeholder="Describe what this entity represents and when it appears in documents…"
                     value={selectedEntity.definition}
                     onChange={(e) => updateEntity(selectedEntity.id, 'definition', e.target.value)}
@@ -1282,7 +1282,7 @@ export default function EntityBuilder() {
                 <Section title="Pattern" icon={<Code className="w-3.5 h-3.5" />} hint="Regex to match">
                   <input
                     type="text"
-                    className="w-full bg-[#111111] text-[13px] text-white font-mono rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500/20 placeholder-[#3a3a3c] text-ellipsis overflow-hidden"
+                    className="w-full bg-[#111111] text-[13px] text-white font-mono rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500/20 placeholder-[#3a3a3c]"
                     style={{ border: '1px solid #1e1e1e' }}
                     placeholder='e.g. INV-\d{4} or \d{4}-\d{2}-\d{2}'
                     value={selectedEntity.pattern}
@@ -1411,10 +1411,10 @@ export default function EntityBuilder() {
 function Section({ title, icon, hint, children }: { title: string; icon?: React.ReactNode; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="flex items-center gap-2 mb-3 min-w-0">
-        {icon && <span className="text-[#636366] shrink-0">{icon}</span>}
+      <div className="flex items-baseline gap-2 mb-3 flex-wrap">
+        {icon && <span className="text-[#636366] shrink-0 relative top-[1px]">{icon}</span>}
         <span className="text-[11px] font-semibold text-[#636366] uppercase tracking-widest shrink-0">{title}</span>
-        {hint && <span className="text-[10px] text-[#2c2c2e] ml-1 truncate">{hint}</span>}
+        {hint && <span className="text-[10px] text-[#2c2c2e] ml-1">{hint}</span>}
       </div>
       {children}
     </div>
