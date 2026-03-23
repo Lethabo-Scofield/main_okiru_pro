@@ -785,31 +785,31 @@ export default function EntityBuilder() {
       )}
 
       <header className="h-14 shrink-0 z-20 sticky top-0 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
-        <div className="max-w-[1400px] mx-auto w-full px-6 h-full flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="max-w-[1400px] mx-auto w-full px-6 h-full flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
           <Link href="/dashboard?tab=templates" className="flex items-center gap-2 text-[#98989f] hover:text-white smooth group shrink-0" data-testid="btn-back">
             <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 smooth" />
-            <span className="text-[13px] font-medium tracking-wide">Back to Templates</span>
+            <span className="text-[13px] font-medium tracking-wide hidden sm:inline">Back to Templates</span>
           </Link>
-          <div className="w-px h-5 bg-[#2c2c2e] hidden sm:block"></div>
-          <img src={logoCircle} alt="Okiru" className="h-7 w-7 rounded-[8px]" />
-          <div className="h-4 w-px bg-[#2c2c2e]" />
+          <div className="w-px h-5 bg-[#2c2c2e] hidden sm:block shrink-0"></div>
+          <img src={logoCircle} alt="Okiru" className="h-7 w-7 rounded-[8px] shrink-0" />
+          <div className="h-4 w-px bg-[#2c2c2e] shrink-0" />
           {isEditingProjectName ? (
             <input ref={nameInputRef} autoFocus value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               onBlur={() => { setIsEditingProjectName(false); if (entities.length > 0) markDirty(); }}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { setIsEditingProjectName(false); if (entities.length > 0) markDirty(); } }}
-              className="bg-transparent border-b border-purple-500/50 text-[14px] font-semibold text-white focus:outline-none w-44 py-0.5" data-testid="input-project-name" />
+              className="bg-transparent border-b border-purple-500/50 text-[14px] font-semibold text-white focus:outline-none min-w-0 max-w-[200px] py-0.5" data-testid="input-project-name" />
           ) : (
-            <button onClick={() => setIsEditingProjectName(true)} className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 hover:bg-white/[0.05] smooth press-sm group" data-testid="button-edit-project-name">
-              <span className="text-[14px] font-semibold text-white">{projectName}</span>
-              <Pencil className="w-3 h-3 text-[#636366] opacity-0 group-hover:opacity-100 transition-opacity" />
+            <button onClick={() => setIsEditingProjectName(true)} className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 hover:bg-white/[0.05] smooth press-sm group min-w-0 overflow-hidden" data-testid="button-edit-project-name">
+              <span className="text-[14px] font-semibold text-white truncate">{projectName}</span>
+              <Pencil className="w-3 h-3 text-[#636366] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </button>
           )}
-          <div className="flex items-center gap-1.5">
-            {editingTemplateId && <span className="text-[10px] px-2 py-0.5 bg-purple-500/12 text-purple-400 rounded font-semibold">Editing</span>}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {editingTemplateId && <span className="text-[10px] px-2 py-0.5 bg-purple-500/12 text-purple-400 rounded font-semibold whitespace-nowrap">Editing</span>}
             {hasUnsavedChanges && entities.length > 0 && (
-              <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${editingTemplateId ? 'text-amber-400 bg-amber-500/10' : 'text-purple-400 bg-purple-500/10'}`}>
+              <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 whitespace-nowrap ${editingTemplateId ? 'text-amber-400 bg-amber-500/10' : 'text-purple-400 bg-purple-500/10'}`}>
                 <span className={`w-1 h-1 rounded-full animate-pulse ${editingTemplateId ? 'bg-amber-500' : 'bg-purple-500'}`} />
                 {editingTemplateId ? 'Unsaved' : 'Draft'}
               </span>
@@ -857,20 +857,20 @@ export default function EntityBuilder() {
         <div className="max-w-[1400px] mx-auto w-full px-6 py-5 flex flex-col flex-1 min-h-0">
 
           {/* AI Prompt Bar */}
-          <div className="mb-4">
+          <div className="mb-4 shrink-0">
             <div className="flex gap-2.5">
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-0">
                 <Sparkles className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors ${nlInput.trim() ? 'text-purple-400' : 'text-[#3a3a3c]'}`} />
                 <input ref={nlInputRef} type="text" value={nlInput}
                   onChange={(e) => setNlInput(e.target.value)}
-                  className="w-full bg-[#111111] text-white rounded-xl pl-10 pr-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-purple-500/25 placeholder-[#3a3a3c] smooth"
+                  className="w-full bg-[#111111] text-white rounded-xl pl-10 pr-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-purple-500/25 placeholder-[#3a3a3c] smooth truncate"
                   style={{ border: '1px solid #2c2c2e' }}
-                  placeholder="Describe an entity to create — e.g. B-BBEE contributor level, certificate expiry date…"
+                  placeholder="Describe an entity — e.g. B-BBEE level, expiry date…"
                   onKeyDown={(e) => e.key === 'Enter' && !isGenerating && nlInput.trim() && parseNaturalLanguage()}
                   data-testid="input-nl" />
               </div>
               <button onClick={parseNaturalLanguage} disabled={isGenerating || !nlInput.trim()}
-                className="shrink-0 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1a1a1a] disabled:text-[#3a3a3c] text-white rounded-xl text-[12px] font-semibold smooth press-sm flex items-center gap-1.5 transition-all"
+                className="shrink-0 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1a1a1a] disabled:text-[#3a3a3c] text-white rounded-xl text-[12px] font-semibold smooth press-sm flex items-center gap-1.5 transition-all whitespace-nowrap"
                 data-testid="button-generate">
                 {isGenerating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating…</> : <><Zap className="w-3.5 h-3.5" />Generate</>}
               </button>
@@ -1242,16 +1242,16 @@ export default function EntityBuilder() {
                 <div className="flex-1 overflow-y-auto">
                   <div className="px-6 py-5 sticky top-0 z-10 shrink-0" style={{ background: '#0d0d0d', borderBottom: '1px solid #1e1e1e' }}>
                     <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <input
                           type="text"
                           value={selectedEntity.label}
                           onChange={(e) => updateEntity(selectedEntity.id, 'label', e.target.value)}
-                          className="w-full bg-transparent text-[20px] font-semibold text-white tracking-tight focus:outline-none placeholder-[#3a3a3c]"
+                          className="w-full bg-transparent text-[20px] font-semibold text-white tracking-tight focus:outline-none placeholder-[#3a3a3c] text-ellipsis overflow-hidden"
                           placeholder="Entity label"
                           data-testid={`input-label-${selectedEntity.id}`}
                         />
-                        <p className="text-[11px] text-[#3a3a3c] mt-0.5">Entity #{selectedEntity.id.toString().slice(-4)}</p>
+                        <p className="text-[11px] text-[#3a3a3c] mt-0.5 truncate">Entity #{selectedEntity.id.toString().slice(-4)}</p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button onClick={() => duplicateEntity(selectedEntity.id)}
@@ -1269,8 +1269,8 @@ export default function EntityBuilder() {
                   <div className="px-6 py-5 space-y-7">
                 <Section title="Definition" icon={<AlignLeft className="w-3.5 h-3.5" />}>
                   <textarea
-                    className="w-full bg-[#111111] text-[13px] text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-none leading-relaxed placeholder-[#3a3a3c]"
-                    style={{ border: '1px solid #1e1e1e' }}
+                    className="w-full bg-[#111111] text-[13px] text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-y leading-relaxed placeholder-[#3a3a3c] break-words overflow-y-auto"
+                    style={{ border: '1px solid #1e1e1e', minHeight: '80px', maxHeight: '200px' }}
                     rows={3}
                     placeholder="Describe what this entity represents and when it appears in documents…"
                     value={selectedEntity.definition}
@@ -1279,10 +1279,10 @@ export default function EntityBuilder() {
                   />
                 </Section>
 
-                <Section title="Pattern" icon={<Code className="w-3.5 h-3.5" />} hint="Regex to match — e.g. INV-\d{4}">
+                <Section title="Pattern" icon={<Code className="w-3.5 h-3.5" />} hint="Regex to match">
                   <input
                     type="text"
-                    className="w-full bg-[#111111] text-[13px] text-white font-mono rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500/20 placeholder-[#3a3a3c]"
+                    className="w-full bg-[#111111] text-[13px] text-white font-mono rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500/20 placeholder-[#3a3a3c] text-ellipsis overflow-hidden"
                     style={{ border: '1px solid #1e1e1e' }}
                     placeholder='e.g. INV-\d{4} or \d{4}-\d{2}-\d{2}'
                     value={selectedEntity.pattern}
@@ -1374,13 +1374,13 @@ export default function EntityBuilder() {
                       { check: selectedEntity.zones.length > 0, text: "Zones", sub: `${selectedEntity.zones.length} selected` },
                       { check: !!selectedEntity.pattern, text: "Pattern", sub: "Regex" },
                     ].map((item, i) => (
-                      <div key={i} className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-[12px] transition-all ${item.check ? 'bg-emerald-500/6 ring-1 ring-emerald-500/12' : 'bg-[#111111] ring-1 ring-white/[0.04]'}`}>
+                      <div key={i} className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-[12px] transition-all overflow-hidden ${item.check ? 'bg-emerald-500/6 ring-1 ring-emerald-500/12' : 'bg-[#111111] ring-1 ring-white/[0.04]'}`}>
                         {item.check
                           ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                           : <div className="w-3.5 h-3.5 rounded-full border border-[#3a3a3c] shrink-0" />}
-                        <div className="min-w-0">
+                        <div className="min-w-0 overflow-hidden">
                           <p className={`font-medium truncate ${item.check ? 'text-white' : 'text-[#636366]'}`}>{item.text}</p>
-                          <p className={`text-[10px] ${item.check ? 'text-[#636366]' : 'text-[#2c2c2e]'}`}>{item.sub}</p>
+                          <p className={`text-[10px] truncate ${item.check ? 'text-[#636366]' : 'text-[#2c2c2e]'}`}>{item.sub}</p>
                         </div>
                       </div>
                     ))}
@@ -1411,10 +1411,10 @@ export default function EntityBuilder() {
 function Section({ title, icon, hint, children }: { title: string; icon?: React.ReactNode; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="flex items-center gap-2 mb-3">
-        {icon && <span className="text-[#636366]">{icon}</span>}
-        <span className="text-[11px] font-semibold text-[#636366] uppercase tracking-widest">{title}</span>
-        {hint && <span className="text-[10px] text-[#2c2c2e] ml-1">— {hint}</span>}
+      <div className="flex items-center gap-2 mb-3 min-w-0">
+        {icon && <span className="text-[#636366] shrink-0">{icon}</span>}
+        <span className="text-[11px] font-semibold text-[#636366] uppercase tracking-widest shrink-0">{title}</span>
+        {hint && <span className="text-[10px] text-[#2c2c2e] ml-1 truncate">{hint}</span>}
       </div>
       {children}
     </div>
@@ -1436,9 +1436,9 @@ function TagField({ items, onAdd, onRemove, placeholder, color, compact }: {
     <div className={`flex flex-wrap gap-1.5 bg-[#111111] rounded-2xl px-3 ${compact ? 'py-2.5 min-h-[48px]' : 'py-3 min-h-[52px]'} items-center focus-within:ring-2 focus-within:ring-purple-500/20 transition-all`}
       style={{ border: '1px solid #1e1e1e' }}>
       {items.map((item: string, i: number) => (
-        <span key={i} className={`${c.bg} ${c.text} text-[11px] px-2.5 py-1 rounded-lg ring-1 ${c.ring} flex items-center gap-1.5 font-medium`}>
-          {item}
-          <button onClick={() => onRemove(i)} className="opacity-40 hover:opacity-100 transition-opacity hover:text-white">
+        <span key={i} className={`${c.bg} ${c.text} text-[11px] px-2.5 py-1 rounded-lg ring-1 ${c.ring} flex items-center gap-1.5 font-medium max-w-full overflow-hidden`}>
+          <span className="truncate min-w-0">{item}</span>
+          <button onClick={() => onRemove(i)} className="opacity-40 hover:opacity-100 transition-opacity hover:text-white shrink-0">
             <X className="w-2.5 h-2.5" />
           </button>
         </span>
