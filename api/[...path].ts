@@ -195,35 +195,61 @@ async function getApp(): Promise<express.Express> {
     }
     app.use(session(sessionConfig));
 
+    const REGISTERED_ORGANIZATIONS = [
+      { id: "okiru", name: "Okiru", subscriptionId: (process.env.OKIRU_SUB_ID || "OKR-2026-001").toUpperCase(), emailDomain: "okiru.co.za" },
+      { id: "param-solutions", name: "Param Solutions", subscriptionId: (process.env.PARAM_SUB_ID || "PRM-2026-001").toUpperCase(), emailDomain: "paramsolutions.co.za" },
+    ];
+
     app.get("/api/health", (_req, res) => {
       res.json({ status: "ok", timestamp: Date.now() });
     });
 
+    app.get("/api/organizations", (_req, res) => {
+      res.json(REGISTERED_ORGANIZATIONS.map(o => ({ id: o.id, name: o.name, emailDomain: o.emailDomain })));
+    });
+
     app.post("/api/auth/register", async (req, res) => {
       try {
-        const { username, password, fullName, email, organizationName } = req.body;
-        if (!username || !password) return res.status(400).json({ message: "Username and password are required" });
-        if (password.length < 4) return res.status(400).json({ message: "Password must be at least 4 characters" });
+        const { username, password, fullName, email, organizationId, subscriptionId, role } = req.body;
 
-        if (isDbConnected) {
-          const existing = await UserModel.findOne({ username });
-          if (existing) return res.status(400).json({ message: "Username already taken" });
-          const hashedPassword = await bcrypt.hash(password, 8);
-          const doc = await UserModel.create({ username, password: hashedPassword, fullName: fullName || null, email: email || null, organizationName: organizationName || null, role: "user", organizationId: null, profilePicture: null });
-          const user = toUser(doc)!;
-          const safeUser = sanitizeUser(user);
-          (req.session as any).userId = user.id;
-          (req.session as any).userData = safeUser;
-          return res.json({ user: safeUser });
+        const trimmedUsername = typeof username === 'string' ? username.trim() : '';
+        const trimmedFullName = typeof fullName === 'string' ? fullName.trim() : '';
+        const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+        const trimmedSubId = typeof subscriptionId === 'string' ? subscriptionId.trim().toUpperCase() : '';
+
+        if (!trimmedUsername || !password) return res.status(400).json({ message: "Username and password are required" });
+        if (trimmedUsername.length < 3) return res.status(400).json({ message: "Username must be at least 3 characters" });
+        if (password.length < 4) return res.status(400).json({ message: "Password must be at least 4 characters" });
+        if (!trimmedFullName) return res.status(400).json({ message: "Full name is required" });
+        if (!trimmedEmail) return res.status(400).json({ message: "Email is required" });
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) return res.status(400).json({ message: "Invalid email address" });
+        if (!organizationId) return res.status(400).json({ message: "Organization is required" });
+
+        const org = REGISTERED_ORGANIZATIONS.find(o => o.id === organizationId);
+        if (!org) return res.status(400).json({ message: "Invalid organization selected" });
+        if (!trimmedSubId || trimmedSubId !== org.subscriptionId) return res.status(400).json({ message: "Invalid subscription ID for this organization" });
+
+        const ALLOWED_ROLES = ["auditor", "analyst", "manager"];
+        const safeRole = ALLOWED_ROLES.includes(role) ? role : "auditor";
+
+        if (!isDbConnected) {
+          return res.status(503).json({ message: "Database is not available. Please try again later." });
         }
 
-        const safeUser = { id: `user-${Date.now()}`, username, fullName: fullName || null, email: email || null, role: "user", organizationId: null, organizationName: organizationName || null, profilePicture: null };
-        const token = signToken(safeUser);
-        res.cookie("okiru_auth", token, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+        const existing = await UserModel.findOne({ username: trimmedUsername });
+        if (existing) return res.status(400).json({ message: "Username already taken" });
+        const existingEmail = await UserModel.findOne({ email: trimmedEmail });
+        if (existingEmail) return res.status(400).json({ message: "Email already registered" });
+        const hashedPassword = await bcrypt.hash(password, 8);
+        const doc = await UserModel.create({ username: trimmedUsername, password: hashedPassword, fullName: trimmedFullName, email: trimmedEmail, organizationName: org.name, organizationId: org.id, role: safeRole, profilePicture: null });
+        const user = toUser(doc)!;
+        const safeUser = sanitizeUser(user);
+        (req.session as any).userId = user.id;
+        (req.session as any).userData = safeUser;
         res.json({ user: safeUser });
       } catch (error: any) {
         console.error("Register error:", error);
-        res.status(500).json({ message: "Registration failed" });
+        res.status(500).json({ message: error.message || "Registration failed" });
       }
     });
 
@@ -233,25 +259,28 @@ async function getApp(): Promise<express.Express> {
         const loginId = username || email;
         if (!loginId || !password) return res.status(400).json({ message: "Username/email and password are required" });
 
-        if (isDbConnected) {
-          const doc = await UserModel.findOne({ $or: [{ username: loginId }, { email: loginId.toLowerCase() }] });
-          if (!doc) return res.status(401).json({ message: "Invalid username or password" });
-          const user = toUser(doc)!;
-          const valid = await bcrypt.compare(password, user.password);
-          if (!valid) return res.status(401).json({ message: "Invalid username or password" });
-          const safeUser = sanitizeUser(user);
-          (req.session as any).userId = user.id;
-          (req.session as any).userData = safeUser;
-          return res.json({ user: safeUser });
+        if (!isDbConnected) {
+          return res.status(503).json({ message: "Database is not available. Please try again later." });
         }
 
-        const safeUser = { id: `user-${Date.now()}`, username: loginId, fullName: null, email: null, role: "user", organizationId: null, organizationName: null, profilePicture: null };
-        const token = signToken(safeUser);
-        res.cookie("okiru_auth", token, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
-        res.json({ user: safeUser });
+        const loginLower = loginId.toLowerCase();
+        const doc = await UserModel.findOne({
+          $or: [
+            { username: { $regex: new RegExp(`^${loginId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+            { email: loginLower }
+          ]
+        });
+        if (!doc) return res.status(401).json({ message: "Invalid username or password" });
+        const user = toUser(doc)!;
+        const valid = await bcrypt.compare(password, user.password);
+        if (!valid) return res.status(401).json({ message: "Invalid username or password" });
+        const safeUser = sanitizeUser(user);
+        (req.session as any).userId = user.id;
+        (req.session as any).userData = safeUser;
+        return res.json({ user: safeUser });
       } catch (error: any) {
         console.error("Login error:", error);
-        res.status(500).json({ message: "Login failed" });
+        res.status(500).json({ message: error.message || "Login failed" });
       }
     });
 

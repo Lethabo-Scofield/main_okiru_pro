@@ -62,7 +62,9 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - **Saved Drafts system**: When starting a new template or loading a repo template while having unfinished work, an Instagram-style prompt appears ("Save your work?") offering "Save to Drafts" or "Discard". Up to 5 drafts stored in `okiru-entity-drafts` (localStorage). Drafts visible in the left sidebar Entities tab with Resume + delete. Amber draft count badge shows in the header. `guardedNew()` intercepts `startNew` and `loadTemplateFromRepo`. URL-param template loads bypass the guard via `_loadTemplateFromRepo`.
 - Onboarding tour (`src/components/OnboardingTour.tsx`): welcome modal + 5-step guided tour for new users. Completion tracked per-user in localStorage (`okiru-onboarding-complete:{userId}`). Help button (?) in dashboard header replays tour. Dismissing (X/backdrop) does not mark as complete; only explicit skip or finishing all steps does.
 - Vercel API (`api/[...path].ts`) includes middleware to preserve pre-parsed request body for proper POST/PUT handling in serverless environment
-- Vercel API gracefully handles missing MONGODB_URI: auth uses session-only mode (any credentials accepted), templates use in-memory storage with 3 starter templates
+- Vercel API requires MONGODB_URI: returns 503 if database not available (no broken no-DB auth fallback)
+- Vercel auth synced with Replit server: organization validation, subscription ID checks, case-insensitive login lookup, proper field extraction
+- Vercel `REGISTERED_ORGANIZATIONS` mirrors `server/routes.ts` config (org + subscription ID validation)
 - Vercel routing (`vercel.json`) uses explicit `routes` array: API routes → catch-all serverless function, then filesystem, then SPA fallback to `index.html`
 - `api/tsconfig.json` uses ES2020 modules (matching `api/package.json` type: module)
 
