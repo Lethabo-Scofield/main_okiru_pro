@@ -906,24 +906,25 @@ export default function EntityBuilder() {
               style={{
                 background: '#0d0d0d',
                 border: '1px solid #1e1e1e',
-                width: leftTab === 'testing' ? '52px' : '240px',
+                width: leftTab === 'testing' ? '140px' : '240px',
                 transition: 'width 0.32s cubic-bezier(0.4,0,0.2,1)',
-                minWidth: leftTab === 'testing' ? '52px' : '240px',
+                minWidth: leftTab === 'testing' ? '140px' : '240px',
               }}>
-              {/* Collapsed icon strip shown in testing mode */}
+              {/* Sidebar nav shown in testing mode */}
               {leftTab === 'testing' && (
-                <div className="flex flex-col items-center py-3 gap-2 flex-1">
+                <div className="flex flex-col py-2 px-2 gap-1 flex-1">
                   <button
                     onClick={() => setLeftTab('entities')}
-                    title="Entities"
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-[#636366] hover:text-white hover:bg-white/[0.08] smooth press-sm transition-colors">
-                    <Shapes className="w-4 h-4" />
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[12px] font-medium text-[#8e8e93] hover:text-white hover:bg-white/[0.08] smooth press-sm transition-colors">
+                    <Shapes className="w-4 h-4 shrink-0" />
+                    <span>Entities</span>
+                    {entities.length > 0 && <span className="ml-auto text-[10px] text-[#3a3a3c]">{entities.length}</span>}
                   </button>
                   <button
                     onClick={() => setLeftTab('testing')}
-                    title="Live Testing"
-                    className="w-8 h-8 rounded-xl flex items-center justify-center bg-purple-500/15 text-purple-400 smooth">
-                    <FlaskConical className="w-4 h-4" />
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[12px] font-semibold bg-purple-500/15 text-purple-400 smooth">
+                    <FlaskConical className="w-4 h-4 shrink-0" />
+                    <span>Live Testing</span>
                   </button>
                 </div>
               )}
