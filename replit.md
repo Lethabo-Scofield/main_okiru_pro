@@ -71,6 +71,12 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - Vercel routing (`vercel.json`) uses explicit `routes` array: API routes → catch-all serverless function, then filesystem, then SPA fallback to `index.html`
 - `api/tsconfig.json` uses ES2020 modules (matching `api/package.json` type: module)
 
+## Processor Sessions API
+- `GET /api/processor-sessions` returns lightweight summaries (no base64 file content, no logo, no extraction data payloads) using MongoDB projection for performance
+- `GET /api/processor-sessions/:sessionId` returns full session data (used when loading a session for editing)
+- `POST /api/processor-sessions` upserts a session (creates or updates by sessionId)
+- `DELETE /api/processor-sessions/:sessionId` deletes a session
+
 ## Document Processor — Manual Entry Tab
 - Manual Entry step added between Extract and Scorecard in the processor wizard
 - Allows users to enter B-BBEE metrics directly without document extraction

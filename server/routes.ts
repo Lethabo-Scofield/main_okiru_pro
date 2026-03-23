@@ -1065,8 +1065,44 @@ Respond ONLY with a valid JSON array.`;
       const user = await storage.getUserById(userId);
       const orgId = user?.organizationId || null;
       const query = orgId ? { organizationId: orgId } : { createdByUserId: userId };
-      const sessions = await ProcessorSessionModel.find(query).sort({ updatedAt: -1 }).lean();
-      res.json(sessions.map((s: any) => ({ ...s, id: s.sessionId })));
+      const sessions = await ProcessorSessionModel.find(query)
+        .select({
+          sessionId: 1,
+          companyInfo: 1,
+          currentStep: 1,
+          isComplete: 1,
+          'filesData.id': 1,
+          'filesData.name': 1,
+          'filesData.size': 1,
+          'filesData.type': 1,
+          'extractionResults.fileName': 1,
+          'extractionResults.templateName': 1,
+          createdAt: 1,
+          updatedAt: 1,
+        })
+        .sort({ updatedAt: -1 })
+        .lean();
+      const lightweight = sessions.map((s: any) => ({
+        id: s.sessionId,
+        sessionId: s.sessionId,
+        companyInfo: {
+          name: s.companyInfo?.name || '',
+          sector: s.companyInfo?.sector || '',
+          registrationNumber: s.companyInfo?.registrationNumber || '',
+          annualTurnover: s.companyInfo?.annualTurnover || '',
+          employees: s.companyInfo?.employees || '',
+          contactName: s.companyInfo?.contactName || '',
+          contactEmail: s.companyInfo?.contactEmail || '',
+          currentBBEELevel: s.companyInfo?.currentBBEELevel || '',
+        },
+        currentStep: s.currentStep,
+        isComplete: s.isComplete,
+        filesData: (s.filesData || []).map((f: any) => ({ id: f.id, name: f.name, size: f.size, type: f.type })),
+        extractionResults: (s.extractionResults || []).map((r: any) => ({ fileName: r.fileName, templateName: r.templateName })),
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+      }));
+      res.json(lightweight);
     } catch (error: any) {
       console.error("Error fetching processor sessions:", error);
       res.status(500).json({ error: "Failed to fetch sessions" });

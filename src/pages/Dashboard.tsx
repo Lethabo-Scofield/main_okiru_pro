@@ -17,9 +17,8 @@ interface ProcessorSession {
   createdAt: string;
   updatedAt: string;
   currentStep: string;
-  filesData: { id: number; name: string; size: string; type: string; textContent: string }[];
-  fileClassifications: Record<string, number>;
-  extractionResults: any[];
+  filesData: { id: number; name: string; size: string; type: string }[];
+  extractionResults: { fileName?: string; templateName?: string }[];
   isComplete: boolean;
 }
 
