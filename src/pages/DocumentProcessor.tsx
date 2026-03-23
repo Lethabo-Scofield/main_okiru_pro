@@ -1541,13 +1541,39 @@ export default function DocumentProcessor() {
                       ))}
                     </div>
                   </>
-                ) : (
+                ) : /* files uploaded – compact "add more" prompt */ (
                   <div className="flex items-center justify-center gap-2 text-[#636366] hover:text-[#8e8e93] transition-colors">
                     <Plus className="w-4 h-4" />
                     <span className="text-[13px] font-medium">Add more files</span>
                   </div>
                 )}
               </div>
+
+              {uploadedFiles.length === 0 && (
+                <div className="mt-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex-1 h-px bg-[#2c2c2e]" />
+                    <span className="text-[11px] text-[#48484a] font-medium uppercase tracking-wider">or</span>
+                    <div className="flex-1 h-px bg-[#2c2c2e]" />
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setCurrentPage('manual-entry'); }}
+                    className="w-full py-3.5 rounded-xl text-[14px] font-semibold transition-all flex items-center justify-center gap-2.5 bg-[#1c1c1e] hover:bg-[#2c2c2e] text-[#d1d1d6] hover:text-white"
+                    style={{ border: '1px solid #2c2c2e' }}
+                    data-testid="button-skip-to-manual-empty"
+                  >
+                    <ClipboardEdit className="w-4 h-4" />
+                    Skip Upload — Enter Data Manually
+                  </button>
+                  <p className="text-[11px] text-[#48484a] text-center mt-2">No documents? You can enter all scorecard data by hand.</p>
+                  <div className="flex gap-3 mt-6">
+                    <button onClick={() => setCurrentPage('company-info')}
+                      className="flex-1 px-5 py-3 bg-[#1c1c1e] text-[#8e8e93] hover:text-white rounded-xl text-[13px] font-medium transition-colors" data-testid="button-back-company-info-empty">
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {uploadedFiles.length > 0 && (
                 <>
@@ -2514,7 +2540,7 @@ export default function DocumentProcessor() {
                 <div className="px-6 py-5">
                   <div className="flex gap-3">
                     <button
-                      onClick={() => setCurrentPage('extract')}
+                      onClick={() => setCurrentPage(uploadedFiles.length > 0 ? 'extract' : 'upload')}
                       className="px-5 py-3 bg-[#1c1c1e] text-[#8e8e93] hover:text-white rounded-xl text-[13px] font-medium transition-colors"
                       data-testid="button-manual-back"
                     >
