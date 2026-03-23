@@ -71,6 +71,16 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - Vercel routing (`vercel.json`) uses explicit `routes` array: API routes → catch-all serverless function, then filesystem, then SPA fallback to `index.html`
 - `api/tsconfig.json` uses ES2020 modules (matching `api/package.json` type: module)
 
+## Document Processor — Manual Entry Tab
+- Manual Entry step added between Extract and Scorecard in the processor wizard
+- Allows users to enter B-BBEE metrics directly without document extraction
+- Form sections: Ownership Metrics (% black, % black female), Management Control (% board, % exec), Skills Development (spend R, learnerships count)
+- Custom Entity Targets: dynamic add/remove rows with name + target value
+- Data persisted to localStorage (`okiru-manual-entry-data`) for cross-session persistence
+- On submit: validates all fields, generates scorecard result, saves to server via `/api/processor-sessions` with `scorecardResult`, navigates to Scorecard step
+- "Skip to Manual Entry" link available from the Upload step
+- Scoring uses simplified proportional calculation against pillar targets (Ownership 25, Management 19, Skills 25)
+
 ## B-BBEE Scorecard — RCOGP Generic Codes Alignment (March 2026)
 
 ### Grand Total: 120 pts (was 133)

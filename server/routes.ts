@@ -1090,25 +1090,29 @@ Respond ONLY with a valid JSON array.`;
       const userId = (req.session as any)?.userId;
       const user = await storage.getUserById(userId);
       const orgId = user?.organizationId || null;
-      const { sessionId, companyInfo, currentStep, filesData, fileClassifications, extractionResults, docStatuses, isComplete } = req.body;
+      const { sessionId, companyInfo, currentStep, filesData, fileClassifications, extractionResults, docStatuses, isComplete, scorecardResult } = req.body;
       if (!sessionId || !companyInfo?.name) {
         return res.status(400).json({ error: "sessionId and companyInfo.name are required" });
       }
+      const updateData: any = {
+        sessionId,
+        organizationId: orgId,
+        createdByUserId: userId,
+        companyInfo,
+        currentStep: currentStep || 'upload',
+        filesData: filesData || [],
+        fileClassifications: fileClassifications || {},
+        extractionResults: extractionResults || [],
+        docStatuses: docStatuses || {},
+        isComplete: isComplete || false,
+        updatedAt: new Date(),
+      };
+      if (scorecardResult !== undefined) {
+        updateData.scorecardResult = scorecardResult;
+      }
       const doc = await ProcessorSessionModel.findOneAndUpdate(
         { sessionId },
-        {
-          sessionId,
-          organizationId: orgId,
-          createdByUserId: userId,
-          companyInfo,
-          currentStep: currentStep || 'upload',
-          filesData: filesData || [],
-          fileClassifications: fileClassifications || {},
-          extractionResults: extractionResults || [],
-          docStatuses: docStatuses || {},
-          isComplete: isComplete || false,
-          updatedAt: new Date(),
-        },
+        updateData,
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
       res.json({ ...doc.toJSON(), id: (doc as any).sessionId });

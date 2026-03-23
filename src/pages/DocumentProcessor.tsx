@@ -10,7 +10,7 @@ import {
   Check, AlertTriangle, PlusCircle, Loader2, Trash2, ChevronRight, ChevronLeft,
   Circle, Zap, ListChecks, CheckCheck, FileText, FileSpreadsheet,
   FileImage, File, FileQuestion, Building2, ScanLine, Monitor, HelpCircle, LogOut,
-  Pencil, Plus, Maximize2, Minimize2, Save, ArrowRightCircle, Send
+  Pencil, Plus, Maximize2, Minimize2, Save, ArrowRightCircle, Send, ClipboardEdit
 } from 'lucide-react';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -69,6 +69,40 @@ interface ProcessorSession {
   scorecardResult?: any;
 }
 
+interface ManualEntryData {
+  blackOwnership: string;
+  blackFemaleOwnership: string;
+  blackBoardMembers: string;
+  blackExecutiveManagement: string;
+  skillsSpendOnBlack: string;
+  blackLearnerships: string;
+  customTargets: { name: string; value: string }[];
+}
+
+const EMPTY_MANUAL_ENTRY: ManualEntryData = {
+  blackOwnership: '',
+  blackFemaleOwnership: '',
+  blackBoardMembers: '',
+  blackExecutiveManagement: '',
+  skillsSpendOnBlack: '',
+  blackLearnerships: '',
+  customTargets: [],
+};
+
+const MANUAL_ENTRY_KEY = 'okiru-manual-entry-data';
+
+function loadManualEntryData(): ManualEntryData {
+  try {
+    const raw = localStorage.getItem(MANUAL_ENTRY_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { ...EMPTY_MANUAL_ENTRY, customTargets: [] };
+}
+
+function saveManualEntryData(data: ManualEntryData) {
+  localStorage.setItem(MANUAL_ENTRY_KEY, JSON.stringify(data));
+}
+
 const BBEE_SECTORS = [
   'Agriculture', 'Construction', 'Education', 'Financial Services',
   'Healthcare', 'Information Technology', 'Manufacturing', 'Mining',
@@ -102,6 +136,7 @@ async function apiSaveSession(session: ProcessorSession): Promise<ProcessorSessi
         extractionResults: session.extractionResults,
         docStatuses: session.docStatuses,
         isComplete: session.isComplete,
+        scorecardResult: session.scorecardResult,
       }),
     });
     if (!res.ok) return null;
@@ -601,7 +636,7 @@ export default function DocumentProcessor() {
   const [location, navigate] = useLocation();
   const { user, logout } = useAuth();
   const entityColors = useMemo(() => getEntityColors(isDark), [isDark]);
-  const [currentPage, setCurrentPage] = useState<'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review'>('company-info');
+  const [currentPage, setCurrentPage] = useState<'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review' | 'manual-entry' | 'scorecard'>('company-info');
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(EMPTY_COMPANY_INFO);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isSavingSession, setIsSavingSession] = useState(false);
@@ -627,6 +662,8 @@ export default function DocumentProcessor() {
   const [processingError, setProcessingError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const processingFinalized = useRef(false);
+  const [manualEntry, setManualEntry] = useState<ManualEntryData>(loadManualEntryData);
+  const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
 
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
@@ -1209,8 +1246,8 @@ export default function DocumentProcessor() {
 
       <div className="bg-black px-6 py-3" style={{ borderBottom: '1px solid #1c1c1e' }}>
         <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
-          {['Company', 'Upload', 'Template', 'Extract', 'Review', 'Scorecard'].map((label, idx) => {
-            const pageMap = ['company-info', 'upload', 'classify', 'extract', 'review', 'scorecard'] as const;
+          {['Company', 'Upload', 'Template', 'Extract', 'Manual Entry', 'Review', 'Scorecard'].map((label, idx) => {
+            const pageMap = ['company-info', 'upload', 'classify', 'extract', 'manual-entry', 'review', 'scorecard'] as const;
             type PageMapType = typeof pageMap[number];
             const safeCurrentPage = currentPage as PageMapType;
             const stepIdx = pageMap.indexOf(safeCurrentPage);
@@ -1238,7 +1275,7 @@ export default function DocumentProcessor() {
                         : 'text-[#48484a]'
                   }`}>{label}</span>
                 </div>
-                {idx < 5 && (
+                {idx < 6 && (
                   <div className="flex-1 h-px mx-4" style={{ background: '#2c2c2e' }}>
                     <div className="h-full transition-all duration-700" style={{ width: isComplete ? '100%' : '0%', background: '#636366' }}></div>
                   </div>
@@ -1557,6 +1594,14 @@ export default function DocumentProcessor() {
                       {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving...</> : 'Continue'}
                     </button>
                   </div>
+                  <button
+                    onClick={() => setCurrentPage('manual-entry')}
+                    className="w-full mt-3 py-2.5 text-[13px] font-medium text-[#636366] hover:text-[#8e8e93] transition-colors flex items-center justify-center gap-2"
+                    data-testid="button-skip-to-manual"
+                  >
+                    <ClipboardEdit className="w-3.5 h-3.5" />
+                    Skip to Manual Entry
+                  </button>
                 </>
               )}
             </div>
@@ -2263,7 +2308,321 @@ export default function DocumentProcessor() {
             );
           })()}
 
-          {currentPage === ('scorecard' as 'scorecard' | 'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review') && (
+          {currentPage === 'manual-entry' && (
+            <div className="max-w-2xl mx-auto w-full">
+              <div className="mb-10">
+                <h2 className="text-[28px] font-semibold text-white tracking-tight leading-tight">Manual Data Entry</h2>
+                <p className="text-[#8e8e93] text-[15px] mt-1.5">Enter B-BBEE metrics directly to generate a scorecard without document extraction.</p>
+              </div>
+
+              <div className="rounded-2xl overflow-hidden" style={{ background: '#0d0d0d', border: '1px solid #1e1e1e' }}>
+
+                <div className="px-6 py-5" style={{ borderBottom: '1px solid #1e1e1e' }}>
+                  <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-5">Ownership Metrics</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[13px] font-medium text-[#d1d1d6] mb-1.5">Black Ownership (%)</label>
+                      <input
+                        type="number" min="0" max="100" step="0.1"
+                        value={manualEntry.blackOwnership}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setManualEntry(p => { const d = { ...p, blackOwnership: v }; saveManualEntryData(d); return d; });
+                          setManualErrors(p => { const n = { ...p }; delete n.blackOwnership; return n; });
+                        }}
+                        placeholder="0.0"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-[13px] text-white placeholder-[#3a3a3c] outline-none transition-colors ${manualErrors.blackOwnership ? 'ring-1 ring-red-500/50' : 'focus:ring-1 focus:ring-[#48484a]'}`}
+                        style={{ background: '#111111', border: '1px solid #2c2c2e' }}
+                        data-testid="input-black-ownership"
+                      />
+                      {manualErrors.blackOwnership && <p className="text-[11px] text-red-400 mt-1">{manualErrors.blackOwnership}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-[13px] font-medium text-[#d1d1d6] mb-1.5">Black Female Ownership (%)</label>
+                      <input
+                        type="number" min="0" max="100" step="0.1"
+                        value={manualEntry.blackFemaleOwnership}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setManualEntry(p => { const d = { ...p, blackFemaleOwnership: v }; saveManualEntryData(d); return d; });
+                          setManualErrors(p => { const n = { ...p }; delete n.blackFemaleOwnership; return n; });
+                        }}
+                        placeholder="0.0"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-[13px] text-white placeholder-[#3a3a3c] outline-none transition-colors ${manualErrors.blackFemaleOwnership ? 'ring-1 ring-red-500/50' : 'focus:ring-1 focus:ring-[#48484a]'}`}
+                        style={{ background: '#111111', border: '1px solid #2c2c2e' }}
+                        data-testid="input-black-female-ownership"
+                      />
+                      {manualErrors.blackFemaleOwnership && <p className="text-[11px] text-red-400 mt-1">{manualErrors.blackFemaleOwnership}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-6 py-5" style={{ borderBottom: '1px solid #1e1e1e' }}>
+                  <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-5">Management Control</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[13px] font-medium text-[#d1d1d6] mb-1.5">Black Board Members (%)</label>
+                      <input
+                        type="number" min="0" max="100" step="0.1"
+                        value={manualEntry.blackBoardMembers}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setManualEntry(p => { const d = { ...p, blackBoardMembers: v }; saveManualEntryData(d); return d; });
+                          setManualErrors(p => { const n = { ...p }; delete n.blackBoardMembers; return n; });
+                        }}
+                        placeholder="0.0"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-[13px] text-white placeholder-[#3a3a3c] outline-none transition-colors ${manualErrors.blackBoardMembers ? 'ring-1 ring-red-500/50' : 'focus:ring-1 focus:ring-[#48484a]'}`}
+                        style={{ background: '#111111', border: '1px solid #2c2c2e' }}
+                        data-testid="input-black-board-members"
+                      />
+                      {manualErrors.blackBoardMembers && <p className="text-[11px] text-red-400 mt-1">{manualErrors.blackBoardMembers}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-[13px] font-medium text-[#d1d1d6] mb-1.5">Black Executive Management (%)</label>
+                      <input
+                        type="number" min="0" max="100" step="0.1"
+                        value={manualEntry.blackExecutiveManagement}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setManualEntry(p => { const d = { ...p, blackExecutiveManagement: v }; saveManualEntryData(d); return d; });
+                          setManualErrors(p => { const n = { ...p }; delete n.blackExecutiveManagement; return n; });
+                        }}
+                        placeholder="0.0"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-[13px] text-white placeholder-[#3a3a3c] outline-none transition-colors ${manualErrors.blackExecutiveManagement ? 'ring-1 ring-red-500/50' : 'focus:ring-1 focus:ring-[#48484a]'}`}
+                        style={{ background: '#111111', border: '1px solid #2c2c2e' }}
+                        data-testid="input-black-executive-mgmt"
+                      />
+                      {manualErrors.blackExecutiveManagement && <p className="text-[11px] text-red-400 mt-1">{manualErrors.blackExecutiveManagement}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-6 py-5" style={{ borderBottom: '1px solid #1e1e1e' }}>
+                  <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-5">Skills Development</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[13px] font-medium text-[#d1d1d6] mb-1.5">Skills Development Spend on Black People (R)</label>
+                      <input
+                        type="number" min="0" step="1"
+                        value={manualEntry.skillsSpendOnBlack}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setManualEntry(p => { const d = { ...p, skillsSpendOnBlack: v }; saveManualEntryData(d); return d; });
+                          setManualErrors(p => { const n = { ...p }; delete n.skillsSpendOnBlack; return n; });
+                        }}
+                        placeholder="0"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-[13px] text-white placeholder-[#3a3a3c] outline-none transition-colors ${manualErrors.skillsSpendOnBlack ? 'ring-1 ring-red-500/50' : 'focus:ring-1 focus:ring-[#48484a]'}`}
+                        style={{ background: '#111111', border: '1px solid #2c2c2e' }}
+                        data-testid="input-skills-spend"
+                      />
+                      {manualErrors.skillsSpendOnBlack && <p className="text-[11px] text-red-400 mt-1">{manualErrors.skillsSpendOnBlack}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-[13px] font-medium text-[#d1d1d6] mb-1.5">Number of Black Learnerships</label>
+                      <input
+                        type="number" min="0" step="1"
+                        value={manualEntry.blackLearnerships}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setManualEntry(p => { const d = { ...p, blackLearnerships: v }; saveManualEntryData(d); return d; });
+                          setManualErrors(p => { const n = { ...p }; delete n.blackLearnerships; return n; });
+                        }}
+                        placeholder="0"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-[13px] text-white placeholder-[#3a3a3c] outline-none transition-colors ${manualErrors.blackLearnerships ? 'ring-1 ring-red-500/50' : 'focus:ring-1 focus:ring-[#48484a]'}`}
+                        style={{ background: '#111111', border: '1px solid #2c2c2e' }}
+                        data-testid="input-black-learnerships"
+                      />
+                      {manualErrors.blackLearnerships && <p className="text-[11px] text-red-400 mt-1">{manualErrors.blackLearnerships}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-6 py-5" style={{ borderBottom: '1px solid #1e1e1e' }}>
+                  <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-5">Custom Entity Targets</p>
+                  <div className="space-y-3">
+                    {manualEntry.customTargets.map((ct, i) => (
+                      <div key={i} className="flex items-start gap-2" data-testid={`custom-target-row-${i}`}>
+                        <div className="flex-1 min-w-0">
+                          <input
+                            type="text"
+                            value={ct.name}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setManualEntry(p => {
+                                const d = { ...p, customTargets: p.customTargets.map((c, j) => j === i ? { ...c, name: v } : c) };
+                                saveManualEntryData(d);
+                                return d;
+                              });
+                            }}
+                            placeholder="Entity Name"
+                            className="w-full px-3.5 py-2.5 rounded-xl text-[13px] text-white placeholder-[#3a3a3c] outline-none focus:ring-1 focus:ring-[#48484a] transition-colors"
+                            style={{ background: '#111111', border: '1px solid #2c2c2e' }}
+                            data-testid={`input-custom-name-${i}`}
+                          />
+                        </div>
+                        <div className="w-[140px] shrink-0">
+                          <input
+                            type="number"
+                            value={ct.value}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setManualEntry(p => {
+                                const d = { ...p, customTargets: p.customTargets.map((c, j) => j === i ? { ...c, value: v } : c) };
+                                saveManualEntryData(d);
+                                return d;
+                              });
+                            }}
+                            placeholder="Target Value"
+                            className="w-full px-3.5 py-2.5 rounded-xl text-[13px] text-white placeholder-[#3a3a3c] outline-none focus:ring-1 focus:ring-[#48484a] transition-colors"
+                            style={{ background: '#111111', border: '1px solid #2c2c2e' }}
+                            data-testid={`input-custom-value-${i}`}
+                          />
+                        </div>
+                        <button
+                          onClick={() => {
+                            setManualEntry(p => {
+                              const d = { ...p, customTargets: p.customTargets.filter((_, j) => j !== i) };
+                              saveManualEntryData(d);
+                              return d;
+                            });
+                          }}
+                          className="p-2.5 rounded-xl text-[#3a3a3c] hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                          data-testid={`button-remove-custom-${i}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => {
+                        setManualEntry(p => {
+                          const d = { ...p, customTargets: [...p.customTargets, { name: '', value: '' }] };
+                          saveManualEntryData(d);
+                          return d;
+                        });
+                      }}
+                      className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-[#8e8e93] hover:text-white hover:bg-white/[0.06] transition-colors"
+                      style={{ border: '1px dashed #2c2c2e' }}
+                      data-testid="button-add-custom-target"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      Add Custom Entity Target
+                    </button>
+                  </div>
+                </div>
+
+                <div className="px-6 py-5">
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setCurrentPage('extract')}
+                      className="px-5 py-3 bg-[#1c1c1e] text-[#8e8e93] hover:text-white rounded-xl text-[13px] font-medium transition-colors"
+                      data-testid="button-manual-back"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const errors: Record<string, string> = {};
+                        const pctFields: { key: keyof ManualEntryData; label: string }[] = [
+                          { key: 'blackOwnership', label: 'Black Ownership' },
+                          { key: 'blackFemaleOwnership', label: 'Black Female Ownership' },
+                          { key: 'blackBoardMembers', label: 'Black Board Members' },
+                          { key: 'blackExecutiveManagement', label: 'Black Executive Management' },
+                        ];
+                        for (const f of pctFields) {
+                          const raw = manualEntry[f.key] as string;
+                          if (!raw || raw.trim() === '') { errors[f.key] = `${f.label} is required`; continue; }
+                          const v = parseFloat(raw);
+                          if (isNaN(v) || v < 0 || v > 100) errors[f.key] = 'Must be between 0 and 100';
+                        }
+                        const spendRaw = manualEntry.skillsSpendOnBlack;
+                        if (!spendRaw || spendRaw.trim() === '') { errors.skillsSpendOnBlack = 'Spend amount is required'; }
+                        else { const sv = parseFloat(spendRaw); if (isNaN(sv) || sv < 0) errors.skillsSpendOnBlack = 'Must be a positive number'; }
+
+                        const learnRaw = manualEntry.blackLearnerships;
+                        if (!learnRaw || learnRaw.trim() === '') { errors.blackLearnerships = 'Number of learnerships is required'; }
+                        else { const lv = parseFloat(learnRaw); if (isNaN(lv) || lv < 0 || !Number.isInteger(lv)) errors.blackLearnerships = 'Must be a non-negative integer'; }
+
+                        if (Object.keys(errors).length > 0) { setManualErrors(errors); return; }
+                        setManualErrors({});
+
+                        setIsSavingSession(true);
+                        try {
+                          const manualScorecardResult = {
+                            ownership: { score: Math.round(parseFloat(manualEntry.blackOwnership) / 100 * 25 * 10) / 10, target: 25, weighting: 25, subMinimumMet: parseFloat(manualEntry.blackOwnership) >= 40 },
+                            managementControl: { score: Math.round(((parseFloat(manualEntry.blackBoardMembers) + parseFloat(manualEntry.blackExecutiveManagement)) / 200) * 19 * 10) / 10, target: 19, weighting: 19 },
+                            skillsDevelopment: { score: Math.min(25, Math.round((parseFloat(manualEntry.skillsSpendOnBlack) / Math.max(1, parseFloat(companyInfo.annualTurnover.replace(/[^\d]/g, '')) || 1000000) * 100) * 25 * 10) / 10), target: 25, weighting: 25, subMinimumMet: true },
+                            procurement: { score: 0, target: 29, weighting: 29, subMinimumMet: false },
+                            supplierDevelopment: { score: 0, target: 10, weighting: 10, subMinimumMet: false },
+                            enterpriseDevelopment: { score: 0, target: 7, weighting: 7, subMinimumMet: false },
+                            socioEconomicDevelopment: { score: 0, target: 5, weighting: 5 },
+                            yesInitiative: { score: 0, target: 5, weighting: 5 },
+                            total: { score: 0, target: 120, weighting: 120 },
+                            achievedLevel: 9,
+                            discountedLevel: 9,
+                            isDiscounted: false,
+                            recognitionLevel: '0%',
+                            manualEntryData: manualEntry,
+                          };
+                          const totalScore =
+                            manualScorecardResult.ownership.score +
+                            manualScorecardResult.managementControl.score +
+                            manualScorecardResult.skillsDevelopment.score +
+                            manualScorecardResult.procurement.score +
+                            manualScorecardResult.supplierDevelopment.score +
+                            manualScorecardResult.enterpriseDevelopment.score +
+                            manualScorecardResult.socioEconomicDevelopment.score;
+                          manualScorecardResult.total.score = Math.round(totalScore * 10) / 10;
+
+                          const pct = totalScore / 120 * 100;
+                          let level = 9;
+                          if (pct >= 100) level = 1;
+                          else if (pct >= 95) level = 2;
+                          else if (pct >= 90) level = 3;
+                          else if (pct >= 80) level = 4;
+                          else if (pct >= 51) level = 5;
+                          else if (pct >= 40) level = 6;
+                          else if (pct >= 30) level = 7;
+                          else if (pct >= 15) level = 8;
+                          manualScorecardResult.achievedLevel = level;
+                          manualScorecardResult.discountedLevel = level;
+                          const recMap: Record<number, string> = { 1: '135%', 2: '125%', 3: '110%', 4: '100%', 5: '80%', 6: '60%', 7: '50%', 8: '10%', 9: '0%' };
+                          manualScorecardResult.recognitionLevel = recMap[level] || '0%';
+
+                          await persistSession('scorecard', {
+                            results: [],
+                            complete: true,
+                            scorecardResult: manualScorecardResult,
+                          });
+
+                          localStorage.removeItem(MANUAL_ENTRY_KEY);
+                          setIsSubmitted(true);
+                          setCurrentPage('scorecard');
+                          toast({ title: "Scorecard generated", description: "Manual entry data has been processed successfully." });
+                        } catch (err: any) {
+                          console.error("Manual scorecard generation error:", err);
+                          toast({ title: "Generation Failed", description: "Could not generate scorecard from manual data.", variant: "destructive" });
+                        } finally {
+                          setIsSavingSession(false);
+                        }
+                      }}
+                      disabled={isSavingSession}
+                      className="flex-1 py-3 bg-white hover:bg-[#e5e5ea] disabled:bg-[#1c1c1e] disabled:text-[#48484a] text-black rounded-xl font-semibold text-[13px] transition-colors flex items-center justify-center gap-2"
+                      data-testid="button-generate-scorecard"
+                    >
+                      {isSavingSession ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" />Generating...</>
+                      ) : (
+                        <><Zap className="w-3.5 h-3.5" />Generate Scorecard</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {currentPage === 'scorecard' && (
             <div className="max-w-4xl mx-auto py-8">
               <div className="bg-[#1c1c1e] rounded-2xl p-8 border border-[#2c2c2e] shadow-xl">
                 <div className="flex items-center justify-between mb-8">
