@@ -267,6 +267,103 @@ export async function registerRoutes(
     "C-91145": { name: "CapeTech Manufacturing", industry: "Manufacturing", revenue: 275000000, npat: 31000000, leviableAmount: 82000000 },
   };
 
+  app.get("/api/clients", async (_req, res) => {
+    try {
+      const clients = Object.entries(companyProfiles).map(([id, p]) => ({
+        id,
+        name: p.name,
+        financialYear: "2025",
+        industrySector: p.industry,
+        logo: null,
+        revenue: p.revenue,
+        createdAt: null,
+      }));
+      res.json(clients);
+    } catch (error: any) {
+      console.error("Error fetching clients:", error);
+      res.status(500).json({ error: "Failed to fetch clients" });
+    }
+  });
+
+  app.post("/api/clients", async (req, res) => {
+    try {
+      const { name, financialYear, industrySector, eapProvince } = req.body;
+      if (!name) return res.status(400).json({ error: "Client name is required" });
+      const id = `C-${Math.floor(10000 + Math.random() * 90000)}`;
+      companyProfiles[id] = {
+        name,
+        industry: industrySector || "Generic",
+        revenue: 0,
+        npat: 0,
+        leviableAmount: 0,
+      };
+      res.json({
+        id,
+        name,
+        financialYear: financialYear || new Date().getFullYear().toString(),
+        industrySector: industrySector || "Generic",
+        logo: null,
+        revenue: 0,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error("Error creating client:", error);
+      res.status(500).json({ error: "Failed to create client" });
+    }
+  });
+
+  app.get("/api/clients/:clientId", async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const profile = companyProfiles[clientId];
+      if (!profile) return res.status(404).json({ error: "Client not found" });
+      res.json({
+        id: clientId,
+        name: profile.name,
+        financialYear: "2025",
+        industrySector: profile.industry,
+        logo: null,
+        revenue: profile.revenue,
+        createdAt: null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch client" });
+    }
+  });
+
+  app.patch("/api/clients/:clientId", async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const profile = companyProfiles[clientId];
+      if (!profile) return res.status(404).json({ error: "Client not found" });
+      const { name, industrySector } = req.body;
+      if (name) profile.name = name;
+      if (industrySector) profile.industry = industrySector;
+      res.json({
+        id: clientId,
+        name: profile.name,
+        financialYear: "2025",
+        industrySector: profile.industry,
+        logo: null,
+        revenue: profile.revenue,
+        createdAt: null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to update client" });
+    }
+  });
+
+  app.delete("/api/clients/:clientId", async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      if (!companyProfiles[clientId]) return res.status(404).json({ error: "Client not found" });
+      delete companyProfiles[clientId];
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to delete client" });
+    }
+  });
+
   app.get("/api/clients/:clientId/data", async (req, res) => {
     try {
       const { clientId } = req.params;
