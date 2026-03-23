@@ -141,61 +141,31 @@ const FileIcon = ({ type, className }: { type: string; className?: string }) => 
 };
 
 function FileFormatBadge({ type, size = 'md' }: { type: string; size?: 'sm' | 'md' | 'lg' }) {
-  const configs: Record<string, { bg: string; text: string; label: string }> = {
-    PDF:  { bg: '#FF3B30', text: '#fff', label: 'PDF' },
-    DOCX: { bg: '#007AFF', text: '#fff', label: 'DOC' },
-    DOC:  { bg: '#007AFF', text: '#fff', label: 'DOC' },
-    XLSX: { bg: '#34C759', text: '#fff', label: 'XLS' },
-    XLS:  { bg: '#34C759', text: '#fff', label: 'XLS' },
-    CSV:  { bg: '#30D158', text: '#fff', label: 'CSV' },
-    TXT:  { bg: '#636366', text: '#fff', label: 'TXT' },
-    JPG:  { bg: '#AF52DE', text: '#fff', label: 'JPG' },
-    JPEG: { bg: '#AF52DE', text: '#fff', label: 'JPG' },
-    PNG:  { bg: '#5E5CE6', text: '#fff', label: 'PNG' },
-    EML:  { bg: '#FF9F0A', text: '#fff', label: 'EML' },
-    JSON: { bg: '#FF6B00', text: '#fff', label: 'JSON' },
-  };
-  const cfg = configs[type?.toUpperCase()] || { bg: '#48484a', text: '#fff', label: type?.slice(0, 4)?.toUpperCase() || 'FILE' };
+  const label = type?.toUpperCase()?.slice(0, 4) || 'FILE';
+  const displayLabel = ({ PDF: 'PDF', DOCX: 'DOC', DOC: 'DOC', XLSX: 'XLS', XLS: 'XLS', CSV: 'CSV', TXT: 'TXT', JPG: 'JPG', JPEG: 'JPG', PNG: 'PNG', EML: 'EML', JSON: 'JSON' } as Record<string, string>)[type?.toUpperCase()] || label;
 
-  const dims = size === 'sm' ? { w: 36, h: 44, foldSize: 9, labelSize: 7 }
-             : size === 'lg' ? { w: 52, h: 64, foldSize: 14, labelSize: 10 }
-             : { w: 44, h: 54, foldSize: 11, labelSize: 8 };
+  const dims = size === 'sm' ? { w: 32, h: 38, r: 6, labelSize: 7 }
+             : size === 'lg' ? { w: 44, h: 52, r: 8, labelSize: 10 }
+             : { w: 38, h: 46, r: 7, labelSize: 8 };
 
-  const { w, h, foldSize, labelSize } = dims;
+  const { w, h, r, labelSize } = dims;
 
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d={`M4 0 H${w - foldSize} L${w} ${foldSize} V${h - 4} Q${w} ${h} ${w - 4} ${h} H4 Q0 ${h} 0 ${h - 4} V4 Q0 0 4 0Z`}
-        fill={cfg.bg}
-        opacity="0.18"
-      />
-      <path
-        d={`M4 0.5 H${w - foldSize} L${w - 0.5} ${foldSize} V${h - 4} Q${w - 0.5} ${h - 0.5} ${w - 4} ${h - 0.5} H4 Q0.5 ${h - 0.5} 0.5 ${h - 4} V4 Q0.5 0.5 4 0.5Z`}
-        stroke={cfg.bg}
-        strokeWidth="1"
-        fill="none"
-        opacity="0.4"
-      />
-      <path
-        d={`M${w - foldSize} 0 L${w - foldSize} ${foldSize} L${w} ${foldSize}`}
-        fill={cfg.bg}
-        opacity="0.35"
-      />
-      <rect x={2} y={h - 18} width={w - 4} height={16} rx={3} fill={cfg.bg} />
-      <text
-        x={w / 2}
-        y={h - 7}
-        textAnchor="middle"
-        fill={cfg.text}
-        fontSize={labelSize}
-        fontWeight="800"
-        fontFamily="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif"
-        letterSpacing="0.5"
+    <div
+      className="inline-flex items-center justify-center shrink-0"
+      style={{
+        width: w, height: h,
+        borderRadius: r,
+        background: '#1c1c1e',
+        border: '1px solid #2c2c2e',
+      }}
+    >
+      <span
+        style={{ fontSize: labelSize, fontWeight: 700, letterSpacing: '0.5px', color: '#8e8e93', fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" }}
       >
-        {cfg.label}
-      </text>
-    </svg>
+        {displayLabel}
+      </span>
+    </div>
   );
 }
 
@@ -1204,47 +1174,42 @@ export default function DocumentProcessor() {
     <div className="bg-black text-white font-sans h-screen overflow-hidden flex flex-col" style={{ letterSpacing: '-0.011em' }}>
 
 
-      <header className="h-14 shrink-0 z-20 sticky top-0 bg-black" style={{ borderBottom: '1px solid #2c2c2e' }}>
+      <header className="h-12 shrink-0 z-20 sticky top-0 bg-black/95 backdrop-blur-xl" style={{ borderBottom: '1px solid #1c1c1e' }}>
         <div className="max-w-[1400px] mx-auto w-full px-6 h-full flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="flex items-center gap-2 text-[#98989f] hover:text-white smooth group shrink-0">
-              <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 smooth" />
-              <span className="text-[13px] font-medium tracking-wide">Back to Dashboard</span>
+          <div className="flex items-center gap-3">
+            <Link href="/dashboard" className="flex items-center gap-1.5 text-[#636366] hover:text-white transition-colors group shrink-0">
+              <ChevronLeft className="h-4 w-4" />
+              <span className="text-[13px] font-medium hidden sm:inline">Dashboard</span>
             </Link>
-            <div className="w-px h-5 bg-[#2c2c2e] hidden sm:block"></div>
-            <div className="flex items-center gap-3 press-sm">
-              <img src={logoCircle} alt="Okiru" className="h-8 w-8 rounded-[8px]" />
-              <span className="text-lg font-semibold tracking-tight text-white border-l border-[#2c2c2e] pl-3">Document Processor</span>
-            </div>
+            <div className="w-px h-4 bg-[#1c1c1e]"></div>
+            <span className="text-[14px] font-medium text-white">Document Processor</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href="/builder" className="text-[13px] font-medium text-[#8e8e93] hover:text-white smooth px-3 py-1.5 rounded-lg hover:bg-[#1c1c1e] press-sm" data-testid="link-builder-nav">
-              <ArrowLeft className="w-3.5 h-3.5 mr-1 inline-block" /> Builder
+            <Link href="/builder" className="text-[13px] font-medium text-[#48484a] hover:text-white transition-colors px-3 py-1.5 rounded-lg" data-testid="link-builder-nav">
+              Builder
             </Link>
-            <div className="w-px h-4 bg-[#2c2c2e] mx-1"></div>
-            <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1c1c1e] text-[12px]" data-testid="user-menu">
-              <span className="inline-flex h-5 w-5 rounded-full bg-purple-600 items-center justify-center text-white font-semibold text-[9px]">
+            <div className="w-px h-4 bg-[#1c1c1e] mx-0.5"></div>
+            <div className="hidden sm:inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-[12px]" data-testid="user-menu">
+              <span className="inline-flex h-5 w-5 rounded-full bg-[#2c2c2e] items-center justify-center text-[#8e8e93] font-semibold text-[9px]">
                 {(user?.fullName || user?.username || 'U').charAt(0).toUpperCase()}
               </span>
-              <span className="text-[#d1d1d6] font-medium">{user?.fullName || user?.username || ''}</span>
+              <span className="text-[#8e8e93] font-medium">{user?.fullName || user?.username || ''}</span>
             </div>
             <button
               onClick={async () => { await logout(); navigate('/auth'); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1c1c1e] hover:bg-[#3a3a3c] text-[12px] smooth press-sm text-[#8e8e93] hover:text-[#d1d1d6]"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] text-[#48484a] hover:text-[#8e8e93] transition-colors"
               data-testid="button-sign-out"
             >
               <LogOut className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>
       </header>
 
-      <div className="bg-black px-6 py-3" style={{ borderBottom: '1px solid #2c2c2e' }}>
+      <div className="bg-black px-6 py-3" style={{ borderBottom: '1px solid #1c1c1e' }}>
         <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
           {['Company', 'Upload', 'Template', 'Extract', 'Review', 'Scorecard'].map((label, idx) => {
-            const StepIcons = [Building2, CloudUpload, Puzzle, Cpu, SearchCheck, FileText];
             const pageMap = ['company-info', 'upload', 'classify', 'extract', 'review', 'scorecard'] as const;
             type PageMapType = typeof pageMap[number];
             const safeCurrentPage = currentPage as PageMapType;
@@ -1252,19 +1217,30 @@ export default function DocumentProcessor() {
             const isComplete = idx < stepIdx;
             const isCurrent = idx === stepIdx;
             const canNavigate = isComplete && safeCurrentPage !== 'company-info';
-            const StepIcon = StepIcons[idx];
             return (
               <React.Fragment key={label}>
-                <div className={`flex items-center gap-2.5 ${canNavigate ? 'cursor-pointer group' : ''}`}
+                <div className={`flex items-center gap-2 ${canNavigate ? 'cursor-pointer group' : ''}`}
                   onClick={() => { if (canNavigate) setCurrentPage(pageMap[idx] as PageMapType); }}>
-                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs smooth ${isComplete ? 'border-green-500 bg-green-500 text-white group-hover:bg-green-400' : isCurrent ? 'border-purple-600 bg-purple-600 text-white' : 'border-transparent text-[#636366]'}`}>
-                    {isComplete ? <Check className="w-3.5 h-3.5" /> : <StepIcon className="w-3.5 h-3.5" />}
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold transition-all ${
+                    isComplete
+                      ? 'bg-white text-black group-hover:bg-[#d1d1d6]'
+                      : isCurrent
+                        ? 'bg-white text-black'
+                        : 'bg-[#1c1c1e] text-[#48484a]'
+                  }`}>
+                    {isComplete ? <Check className="w-3 h-3" /> : idx + 1}
                   </div>
-                  <span className={`text-[13px] font-medium hidden sm:inline smooth ${isComplete ? 'text-green-400 group-hover:text-green-300' : isCurrent ? 'text-purple-400' : 'text-[#636366]'}`}>{label}</span>
+                  <span className={`text-[13px] font-medium hidden sm:inline transition-colors ${
+                    isComplete
+                      ? 'text-[#d1d1d6] group-hover:text-white'
+                      : isCurrent
+                        ? 'text-white'
+                        : 'text-[#48484a]'
+                  }`}>{label}</span>
                 </div>
                 {idx < 5 && (
-                  <div className="flex-1 h-0.5 bg-[#1c1c1e] mx-4 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 transition-all duration-700 rounded-full" style={{ width: isComplete ? '100%' : '0%' }}></div>
+                  <div className="flex-1 h-px mx-4" style={{ background: '#2c2c2e' }}>
+                    <div className="h-full transition-all duration-700" style={{ width: isComplete ? '100%' : '0%', background: '#636366' }}></div>
                   </div>
                 )}
               </React.Fragment>
@@ -1280,19 +1256,15 @@ export default function DocumentProcessor() {
             <div>
               {isLoadingSession ? (
                 <div className="flex flex-col items-center justify-center py-24 gap-4">
-                  <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+                  <Loader2 className="w-8 h-8 text-[#636366] animate-spin" />
                   <p className="text-[#8e8e93] text-sm">Loading session...</p>
                 </div>
               ) : (
                 <div className="max-w-2xl mx-auto w-full">
 
-                  {/* Page header */}
-                  <div className="text-center mb-8">
-                    <div className="w-14 h-14 rounded-2xl bg-purple-500/15 ring-1 ring-purple-500/20 flex items-center justify-center mx-auto mb-4">
-                      <Building2 className="w-6 h-6 text-purple-400" />
-                    </div>
-                    <h2 className="text-[22px] font-bold text-white mb-1 tracking-tight">New Client Assessment</h2>
-                    <p className="text-[#636366] text-[13px]">Enter the client company's details before uploading documents</p>
+                  <div className="mb-10">
+                    <h2 className="text-[28px] font-semibold text-white tracking-tight leading-tight">New Client Assessment</h2>
+                    <p className="text-[#8e8e93] text-[15px] mt-1.5">Enter the client company's details before uploading documents.</p>
                   </div>
 
                   {/* ── Card ── */}
@@ -1303,7 +1275,7 @@ export default function DocumentProcessor() {
                       <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest mb-4">Company Logo</p>
                       <div className="flex items-center gap-5">
                         <div
-                          className="w-[72px] h-[72px] rounded-2xl bg-[#1a1a1a] flex items-center justify-center overflow-hidden shrink-0 cursor-pointer transition-colors hover:ring-2 hover:ring-purple-500/30"
+                          className="w-[72px] h-[72px] rounded-2xl bg-[#1a1a1a] flex items-center justify-center overflow-hidden shrink-0 cursor-pointer transition-colors hover:ring-2 hover:ring-[#48484a]/50"
                           style={{ border: '2px dashed #2c2c2e' }}
                           onClick={() => (document.getElementById('logo-input') as HTMLInputElement)?.click()}
                           data-testid="logo-upload-zone"
@@ -1352,20 +1324,20 @@ export default function DocumentProcessor() {
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Company Name <span className="text-red-400">*</span></label>
                           <input type="text" value={companyInfo.name} onChange={(e) => setCompanyInfo(p => ({ ...p, name: e.target.value }))}
                             placeholder="e.g. Acme Holdings (Pty) Ltd"
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all"
                             data-testid="input-company-name" autoFocus />
                         </div>
                         <div>
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Registration Number</label>
                           <input type="text" value={companyInfo.registrationNumber} onChange={(e) => setCompanyInfo(p => ({ ...p, registrationNumber: e.target.value }))}
                             placeholder="e.g. 2021/123456/07"
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all"
                             data-testid="input-company-regno" />
                         </div>
                         <div>
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Industry Sector <span className="text-red-400">*</span></label>
                           <select value={companyInfo.sector} onChange={(e) => setCompanyInfo(p => ({ ...p, sector: e.target.value }))}
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all appearance-none"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all appearance-none"
                             data-testid="select-company-sector">
                             <option value="">Select a sector…</option>
                             {BBEE_SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -1375,20 +1347,20 @@ export default function DocumentProcessor() {
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Annual Turnover (ZAR)</label>
                           <input type="text" value={companyInfo.annualTurnover} onChange={(e) => setCompanyInfo(p => ({ ...p, annualTurnover: e.target.value }))}
                             placeholder="e.g. R 50,000,000"
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all"
                             data-testid="input-annual-turnover" />
                         </div>
                         <div>
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Number of Employees</label>
                           <input type="text" value={companyInfo.employees} onChange={(e) => setCompanyInfo(p => ({ ...p, employees: e.target.value }))}
                             placeholder="e.g. 150"
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all"
                             data-testid="input-employees" />
                         </div>
                         <div>
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Financial Year End</label>
                           <select value={companyInfo.financialYearEnd} onChange={(e) => setCompanyInfo(p => ({ ...p, financialYearEnd: e.target.value }))}
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all appearance-none"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all appearance-none"
                             data-testid="select-fye">
                             <option value="">Select month…</option>
                             {FYE_MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
@@ -1397,7 +1369,7 @@ export default function DocumentProcessor() {
                         <div>
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Current B-BBEE Level</label>
                           <select value={companyInfo.currentBBEELevel} onChange={(e) => setCompanyInfo(p => ({ ...p, currentBBEELevel: e.target.value }))}
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all appearance-none"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all appearance-none"
                             data-testid="select-bbee-level">
                             <option value="">Select level…</option>
                             {BBEE_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
@@ -1407,7 +1379,7 @@ export default function DocumentProcessor() {
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Physical Address</label>
                           <input type="text" value={companyInfo.address} onChange={(e) => setCompanyInfo(p => ({ ...p, address: e.target.value }))}
                             placeholder="e.g. 10 Mandela Square, Sandton, 2196"
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all"
                             data-testid="input-address" />
                         </div>
                       </div>
@@ -1421,21 +1393,21 @@ export default function DocumentProcessor() {
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Full Name</label>
                           <input type="text" value={companyInfo.contactName} onChange={(e) => setCompanyInfo(p => ({ ...p, contactName: e.target.value }))}
                             placeholder="e.g. Jane Dlamini"
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all"
                             data-testid="input-contact-name" />
                         </div>
                         <div>
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Email Address</label>
                           <input type="email" value={companyInfo.contactEmail} onChange={(e) => setCompanyInfo(p => ({ ...p, contactEmail: e.target.value }))}
                             placeholder="e.g. jane@company.co.za"
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all"
                             data-testid="input-contact-email" />
                         </div>
                         <div>
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Phone Number</label>
                           <input type="tel" value={companyInfo.contactPhone} onChange={(e) => setCompanyInfo(p => ({ ...p, contactPhone: e.target.value }))}
                             placeholder="e.g. +27 82 123 4567"
-                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all"
+                            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all"
                             data-testid="input-contact-phone" />
                         </div>
                       </div>
@@ -1447,7 +1419,7 @@ export default function DocumentProcessor() {
                       <textarea value={companyInfo.notes} onChange={(e) => setCompanyInfo(p => ({ ...p, notes: e.target.value }))}
                         placeholder="Any additional context about this client or assessment…"
                         rows={3}
-                        className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500/10 transition-all resize-none"
+                        className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder-[#3a3a3c] focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all resize-none"
                         data-testid="input-notes" />
                     </div>
 
@@ -1476,12 +1448,12 @@ export default function DocumentProcessor() {
                       setCurrentPage('upload');
                     }}
                     disabled={!companyInfo.name.trim() || !companyInfo.sector || isSavingSession}
-                    className="w-full mt-4 py-3.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1a1a1a] disabled:text-[#3a3a3c] disabled:border disabled:border-[#2a2a2a] text-white rounded-2xl font-semibold text-[13px] smooth press transition-colors"
+                    className="w-full mt-4 py-3 bg-white hover:bg-[#e5e5ea] disabled:bg-[#1a1a1a] disabled:text-[#3a3a3c] text-black rounded-xl font-semibold text-[13px] transition-colors"
                     data-testid="button-next-upload"
                   >
                     {isSavingSession
-                      ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving…</>
-                      : <>Continue to Upload <ChevronRight className="w-3 h-3 ml-1.5 inline-block" /></>}
+                      ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving...</>
+                      : 'Continue'}
                   </button>
                 </div>
               )}
@@ -1489,24 +1461,29 @@ export default function DocumentProcessor() {
           )}
 
           {currentPage === 'upload' && (
-            <div>
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-white mb-1">Upload Documents</h2>
-                <p className="text-[#8e8e93] text-sm">Drag and drop files or click to browse</p>
+            <div className="max-w-2xl mx-auto w-full">
+              <div className="mb-10">
+                <h2 className="text-[28px] font-semibold text-white tracking-tight leading-tight">Upload Documents</h2>
+                <p className="text-[#8e8e93] text-[15px] mt-1.5">Drag and drop files or click to browse.</p>
               </div>
 
               {templates.length === 0 && !loadingTemplates && (
-                <div className="bg-amber-500/10 rounded-xl p-4 mb-6 flex items-start gap-3">
-                  <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                <div className="rounded-xl p-4 mb-6 flex items-start gap-3" style={{ background: '#1a1a1a', border: '1px solid #2c2c2e' }}>
+                  <AlertTriangle className="w-4 h-4 text-[#8e8e93] mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-amber-400">No templates in repository</p>
-                    <p className="text-xs text-amber-500/70 mt-1">Publish a template from the Entity Builder first. <Link href="/builder" className="underline font-medium text-amber-400">Go to Builder</Link></p>
+                    <p className="text-sm font-medium text-[#d1d1d6]">No templates available</p>
+                    <p className="text-xs text-[#636366] mt-1">Create a template in the Entity Builder first. <Link href="/builder" className="underline text-white">Go to Builder</Link></p>
                   </div>
                 </div>
               )}
 
               <div
-                className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer mb-6 ${isDragActive ? 'border-purple-500 bg-purple-500/10' : uploadedFiles.length > 0 ? 'border-[#2c2c2e] bg-[#1c1c1e] p-6' : 'border-[#2c2c2e] bg-[#1c1c1e] hover:border-[#3a3a3c]'}`}
+                className="rounded-2xl text-center transition-all cursor-pointer mb-8"
+                style={{
+                  background: '#111111',
+                  border: `1px dashed ${isDragActive ? '#636366' : '#2c2c2e'}`,
+                  padding: uploadedFiles.length > 0 ? '16px' : '48px 24px',
+                }}
                 onDragOver={(e) => { e.preventDefault(); setIsDragActive(true); }}
                 onDragLeave={(e) => { e.preventDefault(); setIsDragActive(false); }}
                 onDrop={(e) => { e.preventDefault(); setIsDragActive(false); if (e.dataTransfer.files?.length) handleFiles(Array.from(e.dataTransfer.files)); }}
@@ -1516,21 +1493,21 @@ export default function DocumentProcessor() {
                   onChange={(e) => { if (e.target.files?.length) handleFiles(Array.from(e.target.files)); }} />
                 {uploadedFiles.length === 0 ? (
                   <>
-                    <div className={`w-16 h-16 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center mx-auto mb-4 transition-transform ${isDragActive ? 'scale-110' : ''}`}>
-                      <CloudUpload className="w-7 h-7" />
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-transform ${isDragActive ? 'scale-105' : ''}`} style={{ background: '#1c1c1e', border: '1px solid #2c2c2e' }}>
+                      <CloudUpload className="w-6 h-6 text-[#636366]" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-1">Drop files here</h3>
-                    <p className="text-[#8e8e93] text-sm mb-3">or click to browse</p>
-                    <div className="flex items-center justify-center gap-2 text-xs text-[#636366]">
-                      {['PDF', 'XLSX', 'XLS', 'CSV', 'DOCX', 'TXT'].map(ext => (
-                        <span key={ext} className="px-2 py-0.5 bg-[#2c2c2e] rounded-lg text-[#8e8e93]">{ext}</span>
+                    <h3 className="text-[15px] font-medium text-white mb-1">Drop files here</h3>
+                    <p className="text-[13px] text-[#636366] mb-4">or click to browse</p>
+                    <div className="flex items-center justify-center gap-1.5 text-[11px]">
+                      {['PDF', 'XLSX', 'CSV', 'DOCX', 'TXT'].map(ext => (
+                        <span key={ext} className="px-2 py-0.5 rounded text-[#48484a]" style={{ background: '#1c1c1e' }}>{ext}</span>
                       ))}
                     </div>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 text-purple-400">
-                    <PlusCircle className="w-4 h-4" />
-                    <span className="text-sm font-medium">Add more files</span>
+                  <div className="flex items-center justify-center gap-2 text-[#636366] hover:text-[#8e8e93] transition-colors">
+                    <Plus className="w-4 h-4" />
+                    <span className="text-[13px] font-medium">Add more files</span>
                   </div>
                 )}
               </div>
@@ -1538,33 +1515,33 @@ export default function DocumentProcessor() {
               {uploadedFiles.length > 0 && (
                 <>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-white text-sm">
+                    <p className="text-[13px] font-medium text-[#8e8e93]">
                       {uploadedFiles.length} document{uploadedFiles.length !== 1 ? 's' : ''}
-                      {!allReady && <span className="text-purple-400 ml-2 font-normal text-xs inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Loading...</span>}
-                    </h3>
-                    <button onClick={() => { setUploadedFiles([]); setFileClassifications({}); }} className="text-xs text-red-400 hover:text-red-300 smooth press-sm" data-testid="button-clear-all">
-                      <Trash2 className="w-3 h-3 mr-1 inline-block" />Clear all
+                      {!allReady && <span className="text-[#636366] ml-2 inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Processing...</span>}
+                    </p>
+                    <button onClick={() => { setUploadedFiles([]); setFileClassifications({}); }} className="text-[12px] text-[#48484a] hover:text-[#8e8e93] transition-colors" data-testid="button-clear-all">
+                      Clear all
                     </button>
                   </div>
-                  <div className="space-y-2 mb-6">
+                  <div className="space-y-1.5 mb-8">
                     {uploadedFiles.map((file) => (
-                      <div key={file.id} className={`bg-[#1c1c1e] rounded-2xl px-4 py-3 flex items-center gap-3 transition-all ${file.status === 'uploading' ? 'opacity-70' : ''}`} data-testid={`file-row-${file.id}`}>
+                      <div key={file.id} className={`rounded-xl px-4 py-3 flex items-center gap-3 transition-all ${file.status === 'uploading' ? 'opacity-70' : ''}`} style={{ background: '#111111', border: '1px solid #1c1c1e' }} data-testid={`file-row-${file.id}`}>
                         <div className="shrink-0">
                           <FileFormatBadge type={file.type} size="sm" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-white truncate">{file.name}</div>
+                          <div className="text-[13px] font-medium text-white truncate">{file.name}</div>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-[#8e8e93]">{file.size} KB</span>
+                            <span className="text-[11px] text-[#48484a]">{file.size}</span>
                             {file.status === 'uploading' && (
-                              <div className="flex-1 h-1 bg-[#2c2c2e] rounded-full overflow-hidden max-w-[100px]">
-                                <div className="h-full bg-purple-600 transition-all rounded-full" style={{ width: `${file.uploadProgress}%` }}></div>
+                              <div className="flex-1 h-0.5 bg-[#2c2c2e] rounded-full overflow-hidden max-w-[100px]">
+                                <div className="h-full bg-white transition-all rounded-full" style={{ width: `${file.uploadProgress}%` }}></div>
                               </div>
                             )}
-                            {file.status === 'ready' && <span className="text-xs text-green-400 inline-flex items-center gap-0.5"><Check className="w-2.5 h-2.5" />Ready</span>}
+                            {file.status === 'ready' && <Check className="w-3 h-3 text-[#636366]" />}
                           </div>
                         </div>
-                        <button onClick={() => removeFile(file.id)} className="p-2 text-[#636366] hover:text-red-400 rounded-[10px] hover:bg-red-500/10 smooth press-sm" data-testid={`button-remove-${file.id}`}>
+                        <button onClick={() => removeFile(file.id)} className="p-1.5 text-[#3a3a3c] hover:text-[#8e8e93] rounded-lg transition-colors" data-testid={`button-remove-${file.id}`}>
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -1572,12 +1549,12 @@ export default function DocumentProcessor() {
                   </div>
                   <div className="flex gap-3">
                     <button onClick={() => setCurrentPage('company-info')}
-                      className="px-5 py-3.5 bg-[#1c1c1e] text-[#d1d1d6] hover:text-white rounded-2xl text-[13px] font-medium smooth press-sm" data-testid="button-back-company-info">
-                      <ChevronLeft className="w-3 h-3 mr-1.5 inline-block" /> Back
+                      className="px-5 py-3 bg-[#1c1c1e] text-[#8e8e93] hover:text-white rounded-xl text-[13px] font-medium transition-colors" data-testid="button-back-company-info">
+                      Back
                     </button>
                     <button onClick={async () => { if (allReady && !isSavingSession) { setIsSavingSession(true); await persistSession('classify'); setIsSavingSession(false); setCurrentPage('classify'); } }} disabled={!allReady || isSavingSession}
-                      className="flex-1 py-3.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1c1c1e] disabled:text-[#636366] text-white rounded-2xl font-semibold text-[13px] smooth press" data-testid="button-next-classify">
-                      {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving...</> : <>Continue <ChevronRight className="w-3 h-3 ml-1.5 inline-block" /></>}
+                      className="flex-1 py-3 bg-white hover:bg-[#e5e5ea] disabled:bg-[#1c1c1e] disabled:text-[#48484a] text-black rounded-xl font-semibold text-[13px] transition-colors" data-testid="button-next-classify">
+                      {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving...</> : 'Continue'}
                     </button>
                   </div>
                 </>
@@ -1586,12 +1563,13 @@ export default function DocumentProcessor() {
           )}
 
           {currentPage === 'classify' && (
-            <div>
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-white mb-2">Assign Templates</h2>
-                <p className="text-[#8e8e93] text-sm">Choose which template to use for each document</p>
+            <div className="max-w-2xl mx-auto w-full">
+              <div className="mb-10">
+                <h2 className="text-[28px] font-semibold text-white tracking-tight leading-tight">Assign Templates</h2>
+                <p className="text-[#8e8e93] text-[15px] mt-1.5">Select a template for each document to define the fields to extract.</p>
               </div>
-              <div className="space-y-3 mb-8">
+
+              <div className="space-y-2 mb-10">
                 {uploadedFiles.map((file) => {
                   const selectedId = fileClassifications[String(file.id)];
                   const selectedTemplate = templates.find(t => t.id === selectedId);
@@ -1603,145 +1581,133 @@ export default function DocumentProcessor() {
                       return (
                         <div
                           key={file.id}
-                          className={`rounded-2xl transition-all ${selectedTemplate ? 'ring-1 ring-purple-500/25' : 'ring-1 ring-[#2c2c2e]'}`}
-                          style={{ background: '#1c1c1e', position: 'relative', zIndex: isDropdownOpen ? 50 : 1 }}
+                          className="rounded-2xl transition-all"
+                          style={{
+                            background: '#111111',
+                            border: `1px solid ${selectedTemplate ? '#3a3a3c' : '#222224'}`,
+                            position: 'relative',
+                            zIndex: isDropdownOpen ? 50 : 1,
+                          }}
                           data-testid={`classify-row-${file.id}`}
                         >
-                          {/* Main row: icon + name + controls */}
-                          <div className="flex items-start gap-4 p-4">
-                            {/* File format badge */}
-                            <div className="shrink-0 pt-0.5">
+                          <div className="flex items-center gap-4 p-4">
+                            <div className="shrink-0">
                               <FileFormatBadge type={file.type} size="md" />
                             </div>
 
-                            {/* Content */}
-                            <div className="flex-1 min-w-0 space-y-3">
-                              {/* File name + size */}
-                              <div>
-                                <div className="text-[14px] font-semibold text-white truncate leading-tight">{file.name}</div>
-                                <div className="text-[11px] text-[#636366] mt-0.5">{file.size} KB</div>
-                              </div>
-
-                              {/* Template picker */}
-                              <div className="relative" data-testid={`select-template-${file.id}`}>
-                                <button
-                                  type="button"
-                                  onClick={() => setOpenTemplateDropdown(prev => prev === String(file.id) ? null : String(file.id))}
-                                  className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-left transition-all ${
-                                    selectedTemplate
-                                      ? 'bg-purple-500/10 border border-purple-500/30 text-white'
-                                      : 'bg-[#141414] border border-[#3a3a3c] text-[#8e8e93] hover:border-[#48484a] hover:text-white'
-                                  }`}
-                                >
-                                  <Puzzle className={`w-3.5 h-3.5 shrink-0 ${selectedTemplate ? 'text-purple-400' : 'text-[#48484a]'}`} />
-                                  <span className="flex-1 truncate">
-                                    {selectedTemplate ? selectedTemplate.name : 'Choose a template…'}
-                                  </span>
-                                  {selectedTemplate
-                                    ? <span className="text-[10px] text-purple-400/60 shrink-0 font-normal">{selectedTemplate.entities.length} fields</span>
-                                    : null}
-                                  <svg className={`w-4 h-4 shrink-0 text-[#48484a] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 16 16" fill="none">
-                                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                </button>
-
-                                {isDropdownOpen && (
-                                  <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setOpenTemplateDropdown(null)} />
-                                    <div className="absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl shadow-2xl overflow-hidden" style={{ background: '#2c2c2e', border: '1px solid #3a3a3c' }}>
-                                      <div className="px-3 pt-3 pb-1.5">
-                                        <p className="text-[10px] font-semibold text-[#636366] uppercase tracking-widest">Select Template</p>
-                                      </div>
-                                      <div className="max-h-56 overflow-y-auto pb-1.5">
-                                        {loadingTemplates ? (
-                                          <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-[#8e8e93]">
-                                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
-                                          </div>
-                                        ) : templates.length === 0 ? (
-                                          <div className="px-4 py-3 text-[13px] text-[#636366]">No templates — create one in Builder first.</div>
-                                        ) : (
-                                          templates.map((t) => {
-                                            const isSel = selectedId === t.id;
-                                            return (
-                                              <button
-                                                key={t.id}
-                                                type="button"
-                                                onClick={() => {
-                                                  setFileClassifications(prev => ({ ...prev, [String(file.id)]: t.id }));
-                                                  setOpenTemplateDropdown(null);
-                                                }}
-                                                className={`w-full flex items-center gap-3 px-3 py-2.5 mx-1.5 rounded-xl text-left transition-colors mb-0.5 ${
-                                                  isSel ? 'bg-purple-500/20' : 'hover:bg-[#3a3a3c]'
-                                                }`}
-                                                style={{ width: 'calc(100% - 12px)' }}
-                                              >
-                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isSel ? 'bg-purple-500/30' : 'bg-[#1c1c1e]'}`}>
-                                                  <Puzzle className={`w-3.5 h-3.5 ${isSel ? 'text-purple-300' : 'text-[#636366]'}`} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                  <div className={`text-[13px] font-semibold truncate ${isSel ? 'text-purple-200' : 'text-white'}`}>{t.name}</div>
-                                                  <div className="text-[11px] text-[#636366]">{t.entities.length} field{t.entities.length !== 1 ? 's' : ''} · v{t.version}</div>
-                                                </div>
-                                                {isSel && (
-                                                  <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
-                                                    <Check className="w-3 h-3 text-white" />
-                                                  </div>
-                                                )}
-                                              </button>
-                                            );
-                                          })
-                                        )}
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-
-                              {/* Document type segmented pill */}
-                              <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#141414', border: '1px solid #2c2c2e' }} data-testid={`select-doctype-${file.id}`}>
-                                <button
-                                  type="button"
-                                  onClick={() => setFileDocTypes(prev => ({ ...prev, [String(file.id)]: 'digital' }))}
-                                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-[10px] text-[12px] font-semibold transition-all ${
-                                    !isScanned ? 'bg-[#1c4ed8]/25 text-blue-300' : 'text-[#636366] hover:text-[#8e8e93]'
-                                  }`}
-                                >
-                                  <Monitor className="w-3.5 h-3.5" />
-                                  Digital
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setFileDocTypes(prev => ({ ...prev, [String(file.id)]: 'scanned' }))}
-                                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-[10px] text-[12px] font-semibold transition-all ${
-                                    isScanned ? 'bg-amber-500/20 text-amber-300' : 'text-[#636366] hover:text-[#8e8e93]'
-                                  }`}
-                                >
-                                  <ScanLine className="w-3.5 h-3.5" />
-                                  Scanned
-                                </button>
-                              </div>
-
-                              {/* Entity chips */}
-                              {selectedTemplate && selectedTemplate.entities.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                                  {selectedTemplate.entities.slice(0, 6).map((ent, i) => (
-                                    <span key={i} className="text-[10px] px-2 py-1 rounded-lg font-medium" style={{ background: '#2c2c2e', color: '#8e8e93' }}>{ent.label}</span>
-                                  ))}
-                                  {selectedTemplate.entities.length > 6 && (
-                                    <span className="text-[10px] px-2 py-1 rounded-lg font-medium" style={{ background: '#2c2c2e', color: '#636366' }}>+{selectedTemplate.entities.length - 6} more</span>
-                                  )}
-                                </div>
-                              )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[14px] font-medium text-white truncate leading-tight">{file.name}</div>
+                              <div className="text-[12px] text-[#636366] mt-0.5">{file.size}</div>
                             </div>
 
-                            {/* Remove button */}
                             <button
                               onClick={() => removeFile(file.id)}
-                              className="shrink-0 p-2 rounded-xl text-[#48484a] hover:text-red-400 hover:bg-red-500/10 transition-all mt-0.5"
+                              className="shrink-0 p-1.5 rounded-lg text-[#3a3a3c] hover:text-[#8e8e93] transition-colors"
                               data-testid={`button-remove-${file.id}`}
                             >
                               <X className="w-4 h-4" />
                             </button>
+                          </div>
+
+                          <div className="px-4 pb-4 space-y-3">
+                            <div className="relative" data-testid={`select-template-${file.id}`}>
+                              <button
+                                type="button"
+                                onClick={() => setOpenTemplateDropdown(prev => prev === String(file.id) ? null : String(file.id))}
+                                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-left transition-all"
+                                style={{
+                                  background: selectedTemplate ? '#1a1a1a' : '#0c0c0c',
+                                  border: `1px solid ${selectedTemplate ? '#3a3a3c' : '#222224'}`,
+                                  color: selectedTemplate ? '#ffffff' : '#636366',
+                                }}
+                              >
+                                <span className="flex-1 truncate">
+                                  {selectedTemplate ? selectedTemplate.name : 'Select template...'}
+                                </span>
+                                {selectedTemplate && (
+                                  <span className="text-[11px] text-[#636366] shrink-0">{selectedTemplate.entities.length} fields</span>
+                                )}
+                                <svg className={`w-4 h-4 shrink-0 text-[#48484a] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 16 16" fill="none">
+                                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </button>
+
+                              {isDropdownOpen && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => setOpenTemplateDropdown(null)} />
+                                  <div
+                                    className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden"
+                                    style={{ background: '#1c1c1e', border: '1px solid #2c2c2e', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
+                                  >
+                                    <div className="max-h-56 overflow-y-auto py-1">
+                                      {loadingTemplates ? (
+                                        <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-[#636366]">
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
+                                        </div>
+                                      ) : templates.length === 0 ? (
+                                        <div className="px-4 py-3 text-[13px] text-[#48484a]">No templates yet. Create one in Builder.</div>
+                                      ) : (
+                                        templates.map((t) => {
+                                          const isSel = selectedId === t.id;
+                                          return (
+                                            <button
+                                              key={t.id}
+                                              type="button"
+                                              onClick={() => {
+                                                setFileClassifications(prev => ({ ...prev, [String(file.id)]: t.id }));
+                                                setOpenTemplateDropdown(null);
+                                              }}
+                                              className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[#2c2c2e]"
+                                            >
+                                              <div className="flex-1 min-w-0">
+                                                <div className={`text-[13px] font-medium truncate ${isSel ? 'text-white' : 'text-[#d1d1d6]'}`}>{t.name}</div>
+                                                <div className="text-[11px] text-[#48484a]">{t.entities.length} field{t.entities.length !== 1 ? 's' : ''} · v{t.version}</div>
+                                              </div>
+                                              {isSel && <Check className="w-4 h-4 text-white shrink-0" />}
+                                            </button>
+                                          );
+                                        })
+                                      )}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+
+                            <div className="flex rounded-lg overflow-hidden" style={{ background: '#0c0c0c', border: '1px solid #222224' }} data-testid={`select-doctype-${file.id}`}>
+                              <button
+                                type="button"
+                                onClick={() => setFileDocTypes(prev => ({ ...prev, [String(file.id)]: 'digital' }))}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-medium transition-all ${
+                                  !isScanned ? 'bg-[#1c1c1e] text-white' : 'text-[#48484a] hover:text-[#636366]'
+                                }`}
+                              >
+                                <Monitor className="w-3 h-3" />
+                                Digital
+                              </button>
+                              <div className="w-px" style={{ background: '#222224' }} />
+                              <button
+                                type="button"
+                                onClick={() => setFileDocTypes(prev => ({ ...prev, [String(file.id)]: 'scanned' }))}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-medium transition-all ${
+                                  isScanned ? 'bg-[#1c1c1e] text-white' : 'text-[#48484a] hover:text-[#636366]'
+                                }`}
+                              >
+                                <ScanLine className="w-3 h-3" />
+                                Scanned
+                              </button>
+                            </div>
+
+                            {selectedTemplate && selectedTemplate.entities.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {selectedTemplate.entities.slice(0, 5).map((ent, i) => (
+                                  <span key={i} className="text-[11px] px-2 py-0.5 rounded-md font-medium text-[#636366]" style={{ background: '#1a1a1a' }}>{ent.label}</span>
+                                ))}
+                                {selectedTemplate.entities.length > 5 && (
+                                  <span className="text-[11px] px-2 py-0.5 rounded-md font-medium text-[#48484a]" style={{ background: '#1a1a1a' }}>+{selectedTemplate.entities.length - 5}</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -1749,13 +1715,14 @@ export default function DocumentProcessor() {
                   );
                 })}
               </div>
+
               <div className="flex gap-3">
-                <button onClick={() => setCurrentPage('upload')} className="px-5 py-3.5 bg-[#1c1c1e] text-[#d1d1d6] hover:text-white rounded-2xl text-[13px] font-medium smooth press-sm" data-testid="button-back-upload">
-                  <ChevronLeft className="w-3 h-3 mr-1.5 inline-block" /> Back
+                <button onClick={() => setCurrentPage('upload')} className="px-5 py-3 bg-[#1c1c1e] text-[#8e8e93] hover:text-white rounded-xl text-[13px] font-medium transition-colors" data-testid="button-back-upload">
+                  Back
                 </button>
                 <button onClick={async () => { if (allClassified && !isSavingSession) { setIsSavingSession(true); await persistSession('extract'); setIsSavingSession(false); setCurrentPage('extract'); } }} disabled={!allClassified || isSavingSession}
-                  className="flex-1 py-3.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1c1c1e] disabled:text-[#636366] text-white rounded-2xl font-semibold text-[13px] smooth press" data-testid="button-next-extract">
-                  {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving...</> : <>Continue <ChevronRight className="w-3 h-3 ml-1.5 inline-block" /></>}
+                  className="flex-1 py-3 bg-white hover:bg-[#e5e5ea] disabled:bg-[#1c1c1e] disabled:text-[#48484a] text-black rounded-xl font-semibold text-[13px] transition-colors" data-testid="button-next-extract">
+                  {isSavingSession ? <><Loader2 className="w-3.5 h-3.5 mr-2 inline-block animate-spin" />Saving...</> : 'Continue'}
                 </button>
               </div>
             </div>
@@ -1777,71 +1744,57 @@ export default function DocumentProcessor() {
             const anyDone = Object.values(docStatuses).some(s => s === 'done');
             const allDone = uploadedFiles.length > 0 && uploadedFiles.every((_, i) => docStatuses[i] === 'done');
             return (
-              <div>
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold text-white mb-2">
+              <div className="max-w-2xl mx-auto w-full">
+                <div className="mb-10">
+                  <h2 className="text-[28px] font-semibold text-white tracking-tight leading-tight">
                     {anyProcessing ? 'Extracting...' : allDone ? 'Extraction Complete' : 'Ready to Extract'}
                   </h2>
-                  <p className="text-[#8e8e93] text-sm">
+                  <p className="text-[#8e8e93] text-[15px] mt-1.5">
                     {anyProcessing ? `Processing ${Object.values(docStatuses).filter(s => s === 'processing').length} of ${uploadedFiles.length} documents` :
-                     allDone ? 'All entities have been extracted from your documents' :
-                     `${allEntities.length} entities will be extracted from ${uploadedFiles.length} document${uploadedFiles.length !== 1 ? 's' : ''}`}
+                     allDone ? 'All entities have been extracted from your documents.' :
+                     `${allEntities.length} entities will be extracted from ${uploadedFiles.length} document${uploadedFiles.length !== 1 ? 's' : ''}.`}
                   </p>
                 </div>
 
                 {!anyProcessing && !allDone && (
-                  <div className="bg-[#1c1c1e] rounded-2xl p-5 mb-6">
+                  <div className="rounded-2xl p-5 mb-6" style={{ background: '#111111', border: '1px solid #1c1c1e' }}>
                     <div className="flex items-center gap-2 mb-4">
-                      <ListChecks className="w-4 h-4 text-purple-400" />
-                      <span className="text-sm font-semibold text-white">Entities to Extract</span>
-                      <span className="text-xs text-[#636366] ml-auto">{allEntities.length} total</span>
+                      <span className="text-[13px] font-medium text-[#8e8e93]">Entities to Extract</span>
+                      <span className="text-[12px] text-[#48484a] ml-auto">{allEntities.length}</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {allEntities.map((ent, i) => {
-                        const color = entityColors[i % entityColors.length];
-                        return (
-                          <div key={ent.label} className="flex items-start gap-3 p-3 rounded-xl bg-[#2c2c2e]">
-                            <div className="w-1.5 h-full min-h-[36px] rounded-full shrink-0 mt-0.5" style={{ backgroundColor: color.underline }}></div>
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm font-medium text-white">{ent.label}</span>
-                              {ent.definition && <p className="text-[11px] text-[#8e8e93] mt-0.5 line-clamp-1">{ent.definition}</p>}
-                            </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {allEntities.map((ent) => (
+                        <div key={ent.label} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: '#1a1a1a' }}>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[13px] font-medium text-[#d1d1d6]">{ent.label}</span>
+                            {ent.definition && <p className="text-[11px] text-[#48484a] mt-0.5 line-clamp-1">{ent.definition}</p>}
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
 
-                <div className="space-y-2 mb-8">
+                <div className="space-y-1.5 mb-8">
                   {uploadedFiles.map((file, idx) => {
                     const status = docStatuses[idx] || 'waiting';
                     const tid = fileClassifications[String(file.id)];
                     const tmpl = templates.find(t => t.id === tid);
                     return (
-                      <div key={file.id} className={`bg-[#1c1c1e] rounded-2xl px-4 py-3 flex items-center gap-3 transition-all ${status === 'done' ? 'ring-1 ring-green-500/20' : status === 'error' ? 'ring-1 ring-red-500/20' : status === 'processing' ? 'ring-1 ring-purple-500/20' : ''}`} data-testid={`extract-row-${idx}`}>
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${status === 'done' ? 'bg-green-500/15' : status === 'processing' ? 'bg-purple-500/15' : status === 'error' ? 'bg-red-500/15' : 'bg-[#2c2c2e]'}`}>
-                          {status === 'waiting' && <Circle className="w-2 h-2 text-[#636366]" />}
-                          {status === 'processing' && <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />}
-                          {status === 'done' && <Check className="w-4 h-4 text-green-400" />}
-                          {status === 'error' && <X className="w-4 h-4 text-red-400" />}
+                      <div key={file.id} className="rounded-xl px-4 py-3 flex items-center gap-3 transition-all" style={{ background: '#111111', border: `1px solid ${status === 'done' ? '#2c2c2e' : '#1c1c1e'}` }} data-testid={`extract-row-${idx}`}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#1c1c1e' }}>
+                          {status === 'waiting' && <Circle className="w-2 h-2 text-[#48484a]" />}
+                          {status === 'processing' && <Loader2 className="w-3.5 h-3.5 text-[#8e8e93] animate-spin" />}
+                          {status === 'done' && <Check className="w-3.5 h-3.5 text-white" />}
+                          {status === 'error' && <X className="w-3.5 h-3.5 text-[#8e8e93]" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-white truncate">{file.name}</div>
-                          <div className="text-xs text-[#636366] mt-0.5">
-                            {status === 'processing' ? 'Extracting entities...' : status === 'done' ? 'Complete' : status === 'error' ? 'Failed' : tmpl ? tmpl.name : ''}
+                          <div className="text-[13px] font-medium text-white truncate">{file.name}</div>
+                          <div className="text-[11px] text-[#48484a] mt-0.5">
+                            {status === 'processing' ? 'Extracting...' : status === 'done' ? 'Complete' : status === 'error' ? 'Failed' : tmpl ? tmpl.name : ''}
                           </div>
                         </div>
-                        {status === 'processing' && (
-                          <div className="flex gap-1">
-                            {[0, 1, 2].map(i => (
-                              <div key={i} className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" style={{ animationDelay: `${i * 0.15}s` }}></div>
-                            ))}
-                          </div>
-                        )}
-                        {status === 'done' && (
-                          <span className="text-xs text-green-400 font-medium inline-flex items-center gap-1"><Check className="w-2.5 h-2.5" />Done</span>
-                        )}
+                        {status === 'done' && <Check className="w-3.5 h-3.5 text-[#636366] shrink-0" />}
                       </div>
                     );
                   })}
@@ -1849,25 +1802,23 @@ export default function DocumentProcessor() {
 
                 {anyProcessing && (
                   <div className="max-w-md mx-auto mb-8">
-                    <div className="h-1.5 bg-[#2c2c2e] rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-600 transition-all duration-500 rounded-full" style={{ width: `${uploadedFiles.length > 0 ? (Object.values(docStatuses).filter(s => s === 'done').length / uploadedFiles.length) * 100 : 0}%` }}></div>
+                    <div className="h-1 bg-[#1c1c1e] rounded-full overflow-hidden">
+                      <div className="h-full bg-white transition-all duration-500 rounded-full" style={{ width: `${uploadedFiles.length > 0 ? (Object.values(docStatuses).filter(s => s === 'done').length / uploadedFiles.length) * 100 : 0}%` }}></div>
                     </div>
                   </div>
                 )}
 
                 <div className="flex gap-3">
                   <button onClick={() => { if (!anyProcessing) setCurrentPage('classify'); }} disabled={anyProcessing}
-                    className="px-5 py-3.5 bg-[#1c1c1e] text-[#d1d1d6] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl text-[13px] font-medium smooth press-sm" data-testid="button-back-classify">
-                    <ChevronLeft className="w-3 h-3 mr-1.5 inline-block" /> Back
+                    className="px-5 py-3 bg-[#1c1c1e] text-[#8e8e93] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-[13px] font-medium transition-colors" data-testid="button-back-classify">
+                    Back
                   </button>
                   {!allDone && (
                     <button onClick={startProcessing} disabled={anyProcessing}
-                      className="flex-1 py-3.5 bg-purple-600 hover:bg-purple-500 disabled:bg-[#1c1c1e] disabled:text-[#636366] text-white rounded-2xl font-semibold text-[13px] smooth press" data-testid="button-start-extract">
+                      className="flex-1 py-3 bg-white hover:bg-[#e5e5ea] disabled:bg-[#1c1c1e] disabled:text-[#48484a] text-black rounded-xl font-semibold text-[13px] transition-colors" data-testid="button-start-extract">
                       {anyProcessing ? (
                         <><Loader2 className="w-3.5 h-3.5 mr-1.5 inline-block animate-spin" />Extracting...</>
-                      ) : (
-                        <><Zap className="w-3.5 h-3.5 mr-1.5 inline-block" />Extract All</>
-                      )}
+                      ) : 'Extract All'}
                     </button>
                   )}
                   {allDone && (
@@ -1884,8 +1835,8 @@ export default function DocumentProcessor() {
                         setCurrentPage('review');
                       }
                     }}
-                    className="flex-1 py-3.5 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-semibold text-[13px] smooth press" data-testid="button-go-review">
-                      Review Results <ChevronRight className="w-3 h-3 ml-1.5 inline-block" />
+                    className="flex-1 py-3 bg-white hover:bg-[#e5e5ea] text-black rounded-xl font-semibold text-[13px] transition-colors" data-testid="button-go-review">
+                      Review Results
                     </button>
                   )}
                 </div>
