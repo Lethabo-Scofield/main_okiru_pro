@@ -164,6 +164,7 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
   });
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [emailManuallyEdited, setEmailManuallyEdited] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/organizations`)
@@ -530,7 +531,12 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
                               <Input
                                 value={form.fullName}
                                 onChange={e => {
-                                  setForm({ ...form, fullName: e.target.value });
+                                  const name = e.target.value;
+                                  const updates: Record<string, string> = { fullName: name };
+                                  if (!emailManuallyEdited) {
+                                    updates.emailName = name.trim().toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9._-]/g, '');
+                                  }
+                                  setForm(prev => ({ ...prev, ...updates }));
                                   setFieldErrors(prev => ({ ...prev, fullName: '' }));
                                 }}
                                 placeholder="e.g. Thabo Mokoena"
@@ -550,10 +556,11 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
                                   value={form.emailName}
                                   onChange={e => {
                                     const val = e.target.value.replace(/[^a-zA-Z0-9._-]/g, '');
-                                    setForm({ ...form, emailName: val });
+                                    setForm(prev => ({ ...prev, emailName: val }));
                                     setFieldErrors(prev => ({ ...prev, emailName: '' }));
+                                    setEmailManuallyEdited(true);
                                   }}
-                                  placeholder="thabo"
+                                  placeholder="thabo.mokoena"
                                   className="h-10 rounded-r-none border-r-0 flex-1"
                                   data-testid="input-email-name"
                                 />
