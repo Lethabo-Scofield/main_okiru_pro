@@ -662,7 +662,8 @@ function Reveal({ children, delay = "", className = "" }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function OkiruLanding({ onNavigateAuth }: { onNavigateAuth: () => void }) {
+export default function OkiruLanding({ onNavigateAuth, onNavigateRegister }: { onNavigateAuth: () => void; onNavigateRegister?: () => void }) {
+  const goRegister = onNavigateRegister || onNavigateAuth;
   // Inject scoped CSS once, keyed by ID so it's never duplicated
   useEffect(() => {
     const id = "okiru-styles";
@@ -693,7 +694,7 @@ export default function OkiruLanding({ onNavigateAuth }: { onNavigateAuth: () =>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button className="ok-btn-ghost" onClick={onNavigateAuth}>Sign in</button>
-            <button className="ok-btn-pur" onClick={onNavigateAuth}>Get started</button>
+            <button className="ok-btn-pur" onClick={goRegister}>Get started</button>
           </div>
         </div>
       </nav>
@@ -711,7 +712,7 @@ export default function OkiruLanding({ onNavigateAuth }: { onNavigateAuth: () =>
               Import your Excel toolkit. Get an instant, verified scorecard across all five pillars. Export compliance packs in one click.
             </p>
             <div className="ok-hero-btns ok-anim-4">
-              <button className="ok-btn-main" onClick={onNavigateAuth}>
+              <button className="ok-btn-main" onClick={goRegister}>
                 Start for free <span className="arr"><ArrowRight size={14} /></span>
               </button>
               <button className="ok-btn-sec" onClick={onNavigateAuth}>Learn more</button>
@@ -827,7 +828,7 @@ export default function OkiruLanding({ onNavigateAuth }: { onNavigateAuth: () =>
             <Reveal className="ok-cta-grid">
               <h2 className="ok-cta-h2">Compliance shouldn't<br />take <em>all week.</em></h2>
               <div className="ok-cta-r">
-                <button className="ok-btn-main" style={{ fontSize: 15, padding: "14px 34px" }} onClick={onNavigateAuth}>
+                <button className="ok-btn-main" style={{ fontSize: 15, padding: "14px 34px" }} onClick={goRegister}>
                   Start for free <span className="arr"><ArrowRight size={15} /></span>
                 </button>
                 <span className="ok-cta-note">No credit card · Free to start</span>

@@ -139,7 +139,7 @@ function OtpInput({ value, onChange, length = 6 }: { value: string; onChange: (v
 }
 
 export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'login' | 'register' } = {}) {
-  const [mode, setMode] = useState<'login' | 'register' | 'otp'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'otp'>(defaultMode);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
