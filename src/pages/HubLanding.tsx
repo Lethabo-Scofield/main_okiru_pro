@@ -186,36 +186,7 @@ export default function HubLanding() {
           </p>
         </section>
 
-        <section className="max-w-5xl mx-auto mb-16 fade-in stagger-1">
-          <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5 flex flex-col sm:flex-row items-center gap-5 relative overflow-hidden">
-            <div className="w-11 h-11 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center shrink-0">
-              <Sparkles className="w-5 h-5 text-emerald-400/80" />
-            </div>
-            <div className="flex-1 text-center sm:text-left">
-              <div className="text-[14px] font-semibold text-[#d1d1d6] tracking-tight">AI Compliance Assistant</div>
-              <div className="text-[12px] text-[#636366] mt-0.5">Ask anything about your compliance status, upcoming deadlines, or regulatory changes.</div>
-            </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <input
-                type="text"
-                placeholder="e.g. What's my B-BBEE status?"
-                className="flex-1 sm:w-[240px] rounded-xl bg-white/[0.04] border border-white/[0.07] px-4 py-2.5 text-[13px] text-white outline-none focus:ring-1 focus:ring-white/[0.10] placeholder:text-[#48484a] smooth"
-                onKeyDown={(e) => { if (e.key === 'Enter') handleComingSoon(); }}
-                data-testid="input-ai-assistant"
-              />
-              <button
-                onClick={handleComingSoon}
-                className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-[13px] font-semibold text-[#d1d1d6] smooth press-sm border border-white/[0.06]"
-                data-testid="btn-ask-ai"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Ask AI
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section className="max-w-5xl mx-auto fade-in stagger-2">
+        <section className="max-w-5xl mx-auto fade-in stagger-1">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-[12px] font-semibold text-[#48484a] uppercase tracking-widest">
               Toolkits · <span className="text-[#8e8e93]">{filteredToolkits.length}</span>
