@@ -594,7 +594,7 @@ function PDFDocumentViewer({ file, entities, hoveredEntity, onHoverEntity }: {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+        <Loader2 className="w-6 h-6 text-[#d1d1d6] animate-spin" />
         <p className="text-[#8e8e93] text-sm">Rendering document...</p>
       </div>
     );
@@ -2039,7 +2039,7 @@ export default function DocumentProcessor() {
                       ${isSubmitted
                         ? 'bg-green-600 text-white'
                         : allSaved
-                          ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                          ? 'bg-white/[0.12] hover:bg-white/[0.18] text-white'
                           : 'bg-[#1c1c1e] border border-[#2c2c2e] text-[#48484a] cursor-not-allowed'}
                       disabled:opacity-60`}
                     data-testid="button-submit">
@@ -2181,7 +2181,7 @@ export default function DocumentProcessor() {
                         return (
                           <div key={realIdx}
                             className={`rounded-2xl border transition-all duration-150 group ${
-                              isEditingThis ? 'border-purple-500/40 shadow-[0_0_0_3px_rgba(168,85,247,0.08)]' :
+                              isEditingThis ? 'border-white/[0.16] shadow-[0_0_0_3px_rgba(168,85,247,0.08)]' :
                               isApproved ? 'border-green-500/25' :
                               isRejected ? 'border-[#2c2c2e] opacity-35' :
                               isHovered ? 'border-[#3a3a3c]' : 'border-[#2c2c2e]'
@@ -2204,7 +2204,7 @@ export default function DocumentProcessor() {
                                     </span>
                                   )}
                                   {isEdited && !isEditingThis && (
-                                    <span className="text-[10px] text-purple-400 font-medium shrink-0">Edited</span>
+                                    <span className="text-[10px] text-[#d1d1d6] font-medium shrink-0">Edited</span>
                                   )}
                                   {isRejected && (
                                     <span className="text-[10px] text-red-400 font-medium shrink-0">Rejected</span>
@@ -2265,7 +2265,7 @@ export default function DocumentProcessor() {
                                     }}
                                     rows={Math.min(Math.max((editingEntity.draft.match(/\n/g) || []).length + 1, 1), 4)}
                                     placeholder="Enter value…"
-                                    className="w-full text-[14px] text-white bg-[#2c2c2e] rounded-xl px-3 py-2.5 border border-purple-500/40 focus:border-purple-400 focus:outline-none resize-none transition-colors placeholder:text-[#48484a]"
+                                    className="w-full text-[14px] text-white bg-[#2c2c2e] rounded-xl px-3 py-2.5 border border-white/[0.16] focus:border-white/[0.25] focus:outline-none resize-none transition-colors placeholder:text-[#48484a]"
                                     data-testid={`input-entity-value-${realIdx}`}
                                   />
                                   <div className="flex items-center justify-end gap-2">
@@ -2274,7 +2274,7 @@ export default function DocumentProcessor() {
                                       Cancel
                                     </button>
                                     <button onClick={saveEdit}
-                                      className="px-3 py-1.5 text-[12px] font-semibold text-white bg-purple-600 hover:bg-purple-500 rounded-lg smooth press-sm flex items-center gap-1"
+                                      className="px-3 py-1.5 text-[12px] font-semibold text-white bg-white/[0.12] hover:bg-white/[0.18] rounded-lg smooth press-sm flex items-center gap-1"
                                       data-testid={`button-save-entity-${realIdx}`}>
                                       <Check className="w-3 h-3" />Save
                                     </button>
@@ -2653,8 +2653,8 @@ export default function DocumentProcessor() {
               <div className="bg-[#1c1c1e] rounded-2xl p-8 border border-[#2c2c2e] shadow-xl">
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-purple-500/30">
-                      <ScanLine className="w-8 h-8 text-purple-400" />
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-white/[0.06] to-blue-500/20 flex items-center justify-center border border-white/[0.12]">
+                      <ScanLine className="w-8 h-8 text-[#d1d1d6]" />
                     </div>
                     <div>
                       <h2 className="text-2xl font-bold text-white mb-1">B-BBEE Scorecard</h2>
@@ -2668,7 +2668,7 @@ export default function DocumentProcessor() {
 
                 {isSavingSession ? (
                   <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin text-purple-400 mb-4" />
+                    <Loader2 className="w-8 h-8 animate-spin text-[#d1d1d6] mb-4" />
                     <p className="text-[#8e8e93]">Generating scorecard...</p>
                   </div>
                 ) : (
@@ -2677,7 +2677,7 @@ export default function DocumentProcessor() {
                     <p className="text-[#a1a1aa] max-w-lg mx-auto leading-relaxed">
                       Scorecard calculation has been processed by the engine. You can view the fully generated certificate and metrics in the main Toolkit Dashboard.
                     </p>
-                    <Link href="/dashboard" className="inline-block mt-8 px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-semibold smooth press">
+                    <Link href="/dashboard" className="inline-block mt-8 px-8 py-3 bg-white/[0.12] hover:bg-white/[0.18] text-white rounded-xl font-semibold smooth press">
                       Go to Dashboard
                     </Link>
                   </div>

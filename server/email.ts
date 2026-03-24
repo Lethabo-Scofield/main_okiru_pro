@@ -62,10 +62,10 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, userName?: 
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <div style="background: #1a1a2e; border-radius: 12px; padding: 32px; color: #ffffff; text-align: center;">
-            <h2 style="margin: 0 0 8px; font-size: 16px; color: #a78bfa; font-weight: 600;">Verification Code</h2>
+            <h2 style="margin: 0 0 8px; font-size: 16px; color: #818cf8; font-weight: 600;">Verification Code</h2>
             <p style="margin: 0 0 24px; font-size: 13px; color: #9ca3af;">Hi ${displayName}, use the code below to verify your identity.</p>
             <div style="background: #2d2d4a; border-radius: 8px; padding: 20px; margin: 0 0 24px;">
-              <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #a78bfa; font-family: 'SF Mono', Monaco, 'Courier New', monospace;">${otpCode}</span>
+              <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #818cf8; font-family: 'SF Mono', Monaco, 'Courier New', monospace;">${otpCode}</span>
             </div>
             <p style="margin: 0 0 4px; font-size: 12px; color: #9ca3af;">This code expires in <strong style="color: #ffffff;">${expiryMinutes} minutes</strong>.</p>
             <p style="margin: 0; font-size: 12px; color: #6b7280;">If you didn't request this code, please ignore this email.</p>
@@ -103,7 +103,7 @@ export async function sendLoginNotification(userEmail: string, fullName: string 
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <div style="background: #1a1a2e; border-radius: 12px; padding: 24px; color: #ffffff;">
-            <h2 style="margin: 0 0 16px; font-size: 18px; color: #a78bfa;">Staff Login Notification</h2>
+            <h2 style="margin: 0 0 16px; font-size: 18px; color: #818cf8;">Staff Login Notification</h2>
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 8px 0; color: #9ca3af; font-size: 13px;">Name</td>

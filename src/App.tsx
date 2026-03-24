@@ -23,7 +23,7 @@ function ToolkitLoader() {
     <Suspense fallback={
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-3">
-          <div className="h-10 w-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="h-10 w-10 border-2 border-[#636366] border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="text-muted-foreground text-sm">Loading Toolkit...</p>
         </div>
       </div>
