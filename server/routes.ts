@@ -140,24 +140,48 @@ export async function registerRoutes(
       const safeRole = ALLOWED_ROLES.includes(role) ? role : "auditor";
 
       const existing = await storage.getUserByUsername(trimmedUsername);
-      if (existing) {
+      if (existing && existing.isVerified) {
         return res.status(400).json({ message: "Username already taken" });
       }
       const existingEmail = await storage.getUserByUsernameOrEmail(trimmedEmail);
-      if (existingEmail) {
+      if (existingEmail && existingEmail.isVerified) {
         return res.status(400).json({ message: "Email already registered" });
       }
-      const hashedPassword = await bcrypt.hash(password, 8);
-      const user = await storage.createUser({
-        username: trimmedUsername,
-        password: hashedPassword,
-        fullName: trimmedFullName,
-        email: trimmedEmail,
-        organizationName: org.name,
-        organizationId: org.id,
-        role: safeRole,
-        profilePicture: null,
-      });
+
+      let user: any;
+      if (existingEmail && !existingEmail.isVerified) {
+        const hashedPassword = await bcrypt.hash(password, 8);
+        user = await storage.updateUser(existingEmail.id, {
+          username: trimmedUsername,
+          password: hashedPassword,
+          fullName: trimmedFullName,
+          organizationName: org.name,
+          organizationId: org.id,
+          role: safeRole,
+        } as any);
+      } else if (existing && !existing.isVerified) {
+        const hashedPassword = await bcrypt.hash(password, 8);
+        user = await storage.updateUser(existing.id, {
+          password: hashedPassword,
+          fullName: trimmedFullName,
+          email: trimmedEmail,
+          organizationName: org.name,
+          organizationId: org.id,
+          role: safeRole,
+        } as any);
+      } else {
+        const hashedPassword = await bcrypt.hash(password, 8);
+        user = await storage.createUser({
+          username: trimmedUsername,
+          password: hashedPassword,
+          fullName: trimmedFullName,
+          email: trimmedEmail,
+          organizationName: org.name,
+          organizationId: org.id,
+          role: safeRole,
+          profilePicture: null,
+        });
+      }
 
       const otp = generateOtp();
       const expiryMinutes = getOtpExpiryMinutes();
