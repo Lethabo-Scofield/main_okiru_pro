@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data?.user) setUser(data.user);
   }, []);
 
-  const register = useCallback(async (regData: RegisterData) => {
+  const register = useCallback(async (regData: RegisterData): Promise<{ requiresVerification?: boolean; message?: string; emailHint?: string }> => {
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/api/auth/register`, {
@@ -181,11 +181,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data?.message || 'Registration failed');
     }
     const result = await res.json().catch(() => null);
-    if (!result?.user) {
-      throw new Error('Registration failed. Please try again.');
+    if (result?.requiresVerification) {
+      return { requiresVerification: true, message: result.message, emailHint: result.emailHint };
     }
-    setUser(result.user);
-    queryClient.clear();
+    if (result?.user) {
+      setUser(result.user);
+    }
+    return {};
   }, [queryClient]);
 
   const logout = useCallback(async () => {

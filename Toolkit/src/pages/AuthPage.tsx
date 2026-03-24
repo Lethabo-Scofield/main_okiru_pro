@@ -158,11 +158,13 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
     confirmPassword: '',
     fullName: '',
     emailName: '',
+    personalEmail: '',
     organizationId: '',
     subscriptionId: '',
     role: 'auditor',
   });
 
+  const [emailType, setEmailType] = useState<'company' | 'personal'>('company');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [emailManuallyEdited, setEmailManuallyEdited] = useState(false);
 
@@ -181,9 +183,12 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
 
   const selectedOrg = organizations.find(o => o.id === form.organizationId);
   const fullEmail = useMemo(() => {
+    if (emailType === 'personal') {
+      return form.personalEmail.trim().toLowerCase();
+    }
     if (!form.emailName.trim() || !selectedOrg) return '';
     return `${form.emailName.trim().toLowerCase()}@${selectedOrg.emailDomain}`;
-  }, [form.emailName, selectedOrg]);
+  }, [form.emailName, form.personalEmail, selectedOrg, emailType]);
 
   const validateStep = (s: number): boolean => {
     const errors: Record<string, string> = {};
@@ -192,7 +197,12 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
       if (!form.subscriptionId.trim()) errors.subscriptionId = "Subscription ID is required";
     } else if (s === 2) {
       if (!form.fullName.trim()) errors.fullName = "Full name is required";
-      if (!form.emailName.trim()) errors.emailName = "Email name is required";
+      if (emailType === 'company') {
+        if (!form.emailName.trim()) errors.emailName = "Email name is required";
+      } else {
+        if (!form.personalEmail.trim()) errors.personalEmail = "Email is required";
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.personalEmail.trim())) errors.personalEmail = "Enter a valid email address";
+      }
     } else if (s === 3) {
       if (!form.username.trim()) errors.username = "Username is required";
       else if (form.username.length < 3) errors.username = "At least 3 characters";
@@ -266,7 +276,7 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
     if (step < TOTAL_STEPS) { goToStep(step + 1); return; }
     setIsLoading(true);
     try {
-      await register({
+      const result = await register({
         username: form.username,
         password: form.password,
         fullName: form.fullName,
@@ -275,6 +285,12 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
         subscriptionId: form.subscriptionId,
         role: form.role,
       });
+      if (result?.requiresVerification) {
+        setEmailHint(result.emailHint || fullEmail);
+        setMode('otp');
+        setOtpValue('');
+        toast({ title: "Verify Your Email", description: result.message || "Check your email for the code." });
+      }
     } catch (error: any) {
       toast({ title: "Registration Failed", description: error.message, variant: "destructive" });
     } finally {
@@ -533,7 +549,7 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
                                 onChange={e => {
                                   const name = e.target.value;
                                   const updates: Record<string, string> = { fullName: name };
-                                  if (!emailManuallyEdited) {
+                                  if (!emailManuallyEdited && emailType === 'company') {
                                     updates.emailName = name.trim().toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9._-]/g, '');
                                   }
                                   setForm(prev => ({ ...prev, ...updates }));
@@ -551,30 +567,79 @@ export default function AuthPage({ defaultMode = 'login' }: { defaultMode?: 'log
 
                             <div className="space-y-1.5">
                               <Label className="text-[12px] font-medium text-muted-foreground/70">Email</Label>
-                              <div className="flex items-center gap-0">
-                                <Input
-                                  value={form.emailName}
-                                  onChange={e => {
-                                    const val = e.target.value.replace(/[^a-zA-Z0-9._-]/g, '');
-                                    setForm(prev => ({ ...prev, emailName: val }));
-                                    setFieldErrors(prev => ({ ...prev, emailName: '' }));
-                                    setEmailManuallyEdited(true);
-                                  }}
-                                  placeholder="thabo.mokoena"
-                                  className="h-10 rounded-r-none border-r-0 flex-1"
-                                  data-testid="input-email-name"
-                                />
-                                <div className="h-10 px-3 flex items-center bg-muted/50 border border-l-0 border-border rounded-r-md text-[12px] text-muted-foreground font-mono whitespace-nowrap">
-                                  @{selectedOrg?.emailDomain || 'company.co.za'}
-                                </div>
+                              <div className="flex gap-2 mb-2">
+                                <button
+                                  type="button"
+                                  onClick={() => { setEmailType('company'); setFieldErrors(prev => ({ ...prev, emailName: '', personalEmail: '' })); }}
+                                  className={`flex-1 text-[11px] font-medium py-2 px-3 rounded-lg border transition-colors ${
+                                    emailType === 'company'
+                                      ? 'border-primary bg-primary/10 text-primary'
+                                      : 'border-border bg-transparent text-muted-foreground hover:border-muted-foreground/30'
+                                  }`}
+                                  data-testid="btn-email-company"
+                                >
+                                  Company Email
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setEmailType('personal'); setFieldErrors(prev => ({ ...prev, emailName: '', personalEmail: '' })); }}
+                                  className={`flex-1 text-[11px] font-medium py-2 px-3 rounded-lg border transition-colors ${
+                                    emailType === 'personal'
+                                      ? 'border-primary bg-primary/10 text-primary'
+                                      : 'border-border bg-transparent text-muted-foreground hover:border-muted-foreground/30'
+                                  }`}
+                                  data-testid="btn-email-personal"
+                                >
+                                  Personal Email
+                                </button>
                               </div>
+
+                              {emailType === 'company' ? (
+                                <>
+                                  <div className="flex items-center gap-0">
+                                    <Input
+                                      value={form.emailName}
+                                      onChange={e => {
+                                        const val = e.target.value.replace(/[^a-zA-Z0-9._-]/g, '');
+                                        setForm(prev => ({ ...prev, emailName: val }));
+                                        setFieldErrors(prev => ({ ...prev, emailName: '' }));
+                                        setEmailManuallyEdited(true);
+                                      }}
+                                      placeholder="thabo.mokoena"
+                                      className="h-10 rounded-r-none border-r-0 flex-1"
+                                      data-testid="input-email-name"
+                                    />
+                                    <div className="h-10 px-3 flex items-center bg-muted/50 border border-l-0 border-border rounded-r-md text-[12px] text-muted-foreground font-mono whitespace-nowrap">
+                                      @{selectedOrg?.emailDomain || 'company.co.za'}
+                                    </div>
+                                  </div>
+                                  {fieldErrors.emailName && (
+                                    <p className="text-[11px] text-destructive" data-testid="error-email">{fieldErrors.emailName}</p>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <Input
+                                    type="email"
+                                    value={form.personalEmail}
+                                    onChange={e => {
+                                      setForm(prev => ({ ...prev, personalEmail: e.target.value }));
+                                      setFieldErrors(prev => ({ ...prev, personalEmail: '' }));
+                                    }}
+                                    placeholder="thabo.mokoena@gmail.com"
+                                    className="h-10"
+                                    autoComplete="email"
+                                    data-testid="input-personal-email"
+                                  />
+                                  {fieldErrors.personalEmail && (
+                                    <p className="text-[11px] text-destructive" data-testid="error-personal-email">{fieldErrors.personalEmail}</p>
+                                  )}
+                                </>
+                              )}
                               {fullEmail && (
                                 <p className="text-[11px] text-muted-foreground/60 mt-1" data-testid="text-full-email">
-                                  Your email: <span className="text-foreground font-medium">{fullEmail}</span>
+                                  Verification will be sent to: <span className="text-foreground font-medium">{fullEmail}</span>
                                 </p>
-                              )}
-                              {fieldErrors.emailName && (
-                                <p className="text-[11px] text-destructive" data-testid="error-email">{fieldErrors.emailName}</p>
                               )}
                             </div>
                           </div>

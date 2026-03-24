@@ -158,10 +158,23 @@ export async function registerRoutes(
         role: safeRole,
         profilePicture: null,
       });
-      const safeUser = sanitizeUser(user);
-      (req.session as any).userId = user.id;
-      (req.session as any).userData = safeUser;
-      res.json({ user: safeUser });
+
+      const otp = generateOtp();
+      const expiryMinutes = getOtpExpiryMinutes();
+      const expiry = new Date(Date.now() + expiryMinutes * 60 * 1000);
+      await storage.setUserOtp(user.id, otp, expiry);
+      const sent = await sendOtpEmail(trimmedEmail, otp, trimmedFullName);
+
+      (req.session as any).pendingUserId = user.id;
+      (req.session as any).otpVerified = false;
+
+      res.json({
+        requiresVerification: true,
+        message: sent
+          ? "Account created! A verification code has been sent to your email."
+          : "Account created but we couldn't send the verification email. Please try resending.",
+        emailHint: trimmedEmail.replace(/(.{2})(.*)(@.*)/, "$1***$3"),
+      });
     } catch (error: any) {
       console.error("Registration error:", error);
       res.status(500).json({ message: "Registration failed" });
@@ -284,9 +297,13 @@ export async function registerRoutes(
 
       await storage.clearUserOtp(user.id);
       await storage.setLastLogin(user.id);
+      if (!user.isVerified) {
+        await storage.updateUser(user.id, { isVerified: true } as any);
+      }
       delete (req.session as any).pendingUserId;
 
-      const safeUser = sanitizeUser(user);
+      const updatedUser = await storage.getUserById(user.id);
+      const safeUser = sanitizeUser(updatedUser || user);
       (req.session as any).userId = user.id;
       (req.session as any).userData = safeUser;
       (req.session as any).otpVerified = true;
