@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
 import {
   LogOut, HelpCircle, ChevronRight, Search, Sparkles, X,
-  BarChart3, Award, Leaf, Users, BookOpen, Briefcase
+  BarChart3, Award, Leaf, Users, BookOpen, Briefcase, ShieldCheck
 } from 'lucide-react';
 import { useOnboarding, OnboardingWelcome, OnboardingTour } from '@/components/OnboardingTour';
 
@@ -137,6 +137,16 @@ export default function HubLanding() {
             >
               <HelpCircle className="h-4 w-4" />
             </button>
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => navigate('/admin/users')}
+                className="p-2 rounded-full bg-[#1c1c1e] hover:bg-[#3a3a3c] smooth press-sm text-[#8e8e93] hover:text-green-400"
+                title="User Management"
+                data-testid="btn-admin-users"
+              >
+                <ShieldCheck className="h-4 w-4" />
+              </button>
+            )}
             <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1c1c1e] text-[12px]">
               <span className="inline-flex h-5 w-5 rounded-full bg-purple-600 items-center justify-center text-white font-semibold text-[9px]">
                 {(user?.fullName || user?.username || 'U').charAt(0).toUpperCase()}

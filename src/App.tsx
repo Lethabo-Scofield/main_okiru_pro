@@ -14,6 +14,7 @@ import Dashboard from "@/pages/Dashboard";
 import EntityBuilder from "@/pages/EntityBuilder";
 import DocumentProcessor from "@/pages/DocumentProcessor";
 import NotFound from "@/pages/NotFound";
+import AdminUsers from "@/pages/AdminUsers";
 
 const ToolkitView = lazy(() => import("@/pages/ToolkitView"));
 
@@ -52,6 +53,9 @@ function AppRouter() {
       </Route>
       <Route path="/processor">
         <ProtectedRoute><DocumentProcessor /></ProtectedRoute>
+      </Route>
+      <Route path="/admin/users">
+        <ProtectedRoute><AdminUsers /></ProtectedRoute>
       </Route>
       <Route path="/toolkit/:clientId" nest>
         <ProtectedRoute><ToolkitLoader /></ProtectedRoute>

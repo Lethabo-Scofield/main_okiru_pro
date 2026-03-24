@@ -5,7 +5,7 @@ import session from "express-session";
 import MongoStore from "connect-mongo";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
-import { sendLoginNotification } from "./email";
+import { sendLoginNotification, sendOtpEmail, generateOtp, getOtpExpiryMinutes, getMaxOtpAttempts } from "./email";
 import { ProcessorSessionModel, ClientModel } from "../shared/schema";
 
 async function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -18,6 +18,10 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
     req.session.destroy(() => {});
     return res.status(401).json({ message: "User no longer exists" });
   }
+  if (user.twofaEnabled && (req.session as any).otpVerified !== true) {
+    return res.status(403).json({ message: "2FA verification required", requires2FA: true });
+  }
+  (req as any).user = user;
   next();
 }
 
@@ -48,7 +52,7 @@ async function llmGenerate(systemPrompt: string, userPrompt: string, options?: {
 }
 
 function sanitizeUser(user: any) {
-  const { password, ...safe } = user;
+  const { password, otpCode, otpExpiry, otpAttempts, ...safe } = user;
   return safe;
 }
 
@@ -164,6 +168,10 @@ export async function registerRoutes(
     }
   });
 
+  const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+  const LOGIN_RATE_LIMIT = 10;
+  const LOGIN_RATE_WINDOW = 15 * 60 * 1000;
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, email, password } = req.body;
@@ -171,6 +179,19 @@ export async function registerRoutes(
       if (!loginId || !password) {
         return res.status(400).json({ message: "Username/email and password are required" });
       }
+
+      const ip = req.ip || "unknown";
+      const now = Date.now();
+      const attempts = loginAttempts.get(ip);
+      if (attempts && attempts.resetAt > now && attempts.count >= LOGIN_RATE_LIMIT) {
+        return res.status(429).json({ message: "Too many login attempts. Please try again later." });
+      }
+      if (!attempts || attempts.resetAt <= now) {
+        loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_RATE_WINDOW });
+      } else {
+        attempts.count++;
+      }
+
       const user = await storage.getUserByUsernameOrEmail(loginId);
       if (!user) {
         return res.status(401).json({ message: "Invalid username or password" });
@@ -179,9 +200,31 @@ export async function registerRoutes(
       if (!valid) {
         return res.status(401).json({ message: "Invalid username or password" });
       }
+
+      if (user.twofaEnabled) {
+        const otp = generateOtp();
+        const expiryMinutes = getOtpExpiryMinutes();
+        const expiry = new Date(Date.now() + expiryMinutes * 60 * 1000);
+        await storage.setUserOtp(user.id, otp, expiry);
+
+        const emailTarget = user.email || loginId;
+        const sent = await sendOtpEmail(emailTarget, otp, user.fullName);
+
+        (req.session as any).pendingUserId = user.id;
+        (req.session as any).otpVerified = false;
+
+        return res.json({
+          requires2FA: true,
+          message: sent ? "Verification code sent to your email" : "Could not send verification code. Please try again.",
+          emailHint: emailTarget.replace(/(.{2})(.*)(@.*)/, "$1***$3"),
+        });
+      }
+
       const safeUser = sanitizeUser(user);
       (req.session as any).userId = user.id;
       (req.session as any).userData = safeUser;
+      (req.session as any).otpVerified = true;
+      await storage.setLastLogin(user.id);
       res.json({ user: safeUser });
 
       sendLoginNotification(
@@ -192,6 +235,110 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post("/api/auth/verify-otp", async (req, res) => {
+    try {
+      const pendingUserId = (req.session as any)?.pendingUserId;
+      if (!pendingUserId) {
+        return res.status(400).json({ message: "No pending verification. Please log in again." });
+      }
+
+      const { otp } = req.body;
+      if (!otp || typeof otp !== "string") {
+        return res.status(400).json({ message: "Verification code is required" });
+      }
+
+      const user = await storage.getUserById(pendingUserId);
+      if (!user) {
+        return res.status(400).json({ message: "User not found. Please log in again." });
+      }
+
+      const maxAttempts = getMaxOtpAttempts();
+      if (user.otpAttempts >= maxAttempts) {
+        await storage.clearUserOtp(user.id);
+        delete (req.session as any).pendingUserId;
+        return res.status(429).json({ message: "Too many attempts. Please log in again to get a new code." });
+      }
+
+      if (!user.otpCode || !user.otpExpiry) {
+        return res.status(400).json({ message: "No active verification code. Please log in again." });
+      }
+
+      if (new Date() > new Date(user.otpExpiry)) {
+        await storage.clearUserOtp(user.id);
+        delete (req.session as any).pendingUserId;
+        return res.status(400).json({ message: "Verification code has expired. Please log in again." });
+      }
+
+      if (otp.trim() !== user.otpCode) {
+        const attempts = await storage.incrementOtpAttempts(user.id);
+        const remaining = maxAttempts - attempts;
+        return res.status(401).json({
+          message: remaining > 0
+            ? `Invalid code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
+            : "Too many attempts. Please log in again to get a new code.",
+        });
+      }
+
+      await storage.clearUserOtp(user.id);
+      await storage.setLastLogin(user.id);
+      delete (req.session as any).pendingUserId;
+
+      const safeUser = sanitizeUser(user);
+      (req.session as any).userId = user.id;
+      (req.session as any).userData = safeUser;
+      (req.session as any).otpVerified = true;
+      res.json({ user: safeUser });
+
+      sendLoginNotification(
+        user.email || user.username,
+        user.fullName || null,
+        user.organizationName || null
+      ).catch(() => {});
+    } catch (error: any) {
+      console.error("OTP verification error:", error);
+      res.status(500).json({ message: "Verification failed" });
+    }
+  });
+
+  const resendCooldowns = new Map<string, number>();
+  const RESEND_COOLDOWN_MS = 30 * 1000;
+
+  app.post("/api/auth/resend-otp", async (req, res) => {
+    try {
+      const pendingUserId = (req.session as any)?.pendingUserId;
+      if (!pendingUserId) {
+        return res.status(400).json({ message: "No pending verification. Please log in again." });
+      }
+
+      const lastResend = resendCooldowns.get(pendingUserId);
+      if (lastResend && Date.now() - lastResend < RESEND_COOLDOWN_MS) {
+        const waitSecs = Math.ceil((RESEND_COOLDOWN_MS - (Date.now() - lastResend)) / 1000);
+        return res.status(429).json({ message: `Please wait ${waitSecs}s before requesting a new code.` });
+      }
+
+      const user = await storage.getUserById(pendingUserId);
+      if (!user || !user.email) {
+        return res.status(400).json({ message: "User not found or no email configured." });
+      }
+
+      const otp = generateOtp();
+      const expiryMinutes = getOtpExpiryMinutes();
+      const expiry = new Date(Date.now() + expiryMinutes * 60 * 1000);
+      await storage.setUserOtp(user.id, otp, expiry);
+
+      const sent = await sendOtpEmail(user.email, otp, user.fullName);
+      if (!sent) {
+        return res.status(500).json({ message: "Failed to send verification code. Please try again." });
+      }
+
+      resendCooldowns.set(pendingUserId, Date.now());
+      res.json({ message: "New verification code sent to your email." });
+    } catch (error: any) {
+      console.error("Resend OTP error:", error);
+      res.status(500).json({ message: "Failed to resend code" });
     }
   });
 
@@ -225,6 +372,127 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Auth check error:", error);
       res.status(401).json({ message: "Not authenticated" });
+    }
+  });
+
+  app.post("/api/auth/toggle-2fa", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const { enabled } = req.body;
+      if (typeof enabled !== "boolean") {
+        return res.status(400).json({ message: "enabled (boolean) is required" });
+      }
+      const user = await storage.getUserById(userId);
+      if (!user || !user.email) {
+        return res.status(400).json({ message: "You must have an email address to enable 2FA." });
+      }
+
+      if (enabled) {
+        const otp = generateOtp();
+        const expiryMinutes = getOtpExpiryMinutes();
+        const expiry = new Date(Date.now() + expiryMinutes * 60 * 1000);
+        await storage.setUserOtp(userId, otp, expiry);
+        const sent = await sendOtpEmail(user.email, otp, user.fullName);
+        if (!sent) {
+          return res.status(500).json({ message: "Failed to send verification email. 2FA not enabled." });
+        }
+        (req.session as any).pending2FAEnable = true;
+        return res.json({ requiresVerification: true, message: "Verification code sent. Enter it to enable 2FA." });
+      } else {
+        const updated = await storage.setTwofaEnabled(userId, false);
+        if (!updated) return res.status(404).json({ message: "User not found" });
+        const safeUser = sanitizeUser(updated);
+        (req.session as any).userData = safeUser;
+        return res.json({ user: safeUser, message: "Two-factor authentication has been disabled." });
+      }
+    } catch (error: any) {
+      console.error("Toggle 2FA error:", error);
+      res.status(500).json({ message: "Failed to update 2FA settings" });
+    }
+  });
+
+  app.post("/api/auth/confirm-2fa", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const pending = (req.session as any)?.pending2FAEnable;
+      if (!pending) {
+        return res.status(400).json({ message: "No pending 2FA activation." });
+      }
+
+      const { otp } = req.body;
+      if (!otp || typeof otp !== "string") {
+        return res.status(400).json({ message: "Verification code is required" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const maxAttempts = getMaxOtpAttempts();
+      if (user.otpAttempts >= maxAttempts) {
+        await storage.clearUserOtp(userId);
+        delete (req.session as any).pending2FAEnable;
+        return res.status(429).json({ message: "Too many attempts. Please try again." });
+      }
+
+      if (!user.otpCode || !user.otpExpiry || new Date() > new Date(user.otpExpiry)) {
+        await storage.clearUserOtp(userId);
+        delete (req.session as any).pending2FAEnable;
+        return res.status(400).json({ message: "Verification code expired. Please try again." });
+      }
+
+      if (otp.trim() !== user.otpCode) {
+        await storage.incrementOtpAttempts(userId);
+        return res.status(401).json({ message: "Invalid verification code." });
+      }
+
+      await storage.clearUserOtp(userId);
+      const updated = await storage.setTwofaEnabled(userId, true);
+      delete (req.session as any).pending2FAEnable;
+
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      const safeUser = sanitizeUser(updated);
+      (req.session as any).userData = safeUser;
+      res.json({ user: safeUser, message: "Two-factor authentication is now enabled." });
+    } catch (error: any) {
+      console.error("Confirm 2FA error:", error);
+      res.status(500).json({ message: "Failed to confirm 2FA" });
+    }
+  });
+
+  async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+    const userId = (req.session as any)?.userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const user = await storage.getUserById(userId);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    next();
+  }
+
+  app.get("/api/admin/users", requireAuth, requireAdmin, async (_req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const safeUsers = users.map((u) => sanitizeUser(u));
+      res.json(safeUsers);
+    } catch (error: any) {
+      console.error("Admin users error:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/admin/users/:userId/2fa", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { enabled } = req.body;
+      if (typeof enabled !== "boolean") {
+        return res.status(400).json({ message: "enabled (boolean) is required" });
+      }
+      const updated = await storage.setTwofaEnabled(userId, enabled);
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      res.json({ user: sanitizeUser(updated) });
+    } catch (error: any) {
+      console.error("Admin toggle 2FA error:", error);
+      res.status(500).json({ message: "Failed to update user 2FA" });
     }
   });
 

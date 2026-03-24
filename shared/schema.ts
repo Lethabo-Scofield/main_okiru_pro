@@ -72,6 +72,12 @@ export interface User {
   organizationId: string | null;
   organizationName: string | null;
   profilePicture: string | null;
+  isVerified: boolean;
+  twofaEnabled: boolean;
+  otpCode: string | null;
+  otpExpiry: Date | null;
+  otpAttempts: number;
+  lastLogin: Date | null;
   createdAt: Date;
 }
 
@@ -84,6 +90,8 @@ export interface InsertUser {
   organizationId?: string | null;
   organizationName?: string | null;
   profilePicture?: string | null;
+  isVerified?: boolean;
+  twofaEnabled?: boolean;
 }
 
 export interface Template {
@@ -135,6 +143,12 @@ const userSchema = new Schema({
   organizationId: { type: String, default: null },
   organizationName: { type: String, default: null },
   profilePicture: { type: String, default: null },
+  isVerified: { type: Boolean, default: false },
+  twofaEnabled: { type: Boolean, default: false },
+  otpCode: { type: String, default: null },
+  otpExpiry: { type: Date, default: null },
+  otpAttempts: { type: Number, default: 0 },
+  lastLogin: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -38,6 +38,22 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - Protected routes: `/dashboard`, `/builder`, `/processor`, `/toolkit/:clientId`
 - Guest-only routes: `/` (landing), `/auth` (login/register)
 - 404 page is auth-aware: links to Dashboard if logged in, Home if not
+
+## Two-Factor Authentication (2FA)
+- Email-based OTP: 6-digit codes sent via Zoho SMTP (contact@okiru.co.za)
+- OTP expires after 5 minutes, max 5 verification attempts per code
+- Login flow with 2FA: login → OTP email → verify OTP → session created
+- Enable flow: Profile → Enable 2FA → OTP sent → verify OTP → twofaEnabled=true
+- Environment: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_FROM (shared), SMTP_PASS (secret)
+- Backend endpoints: `/api/auth/verify-otp`, `/api/auth/resend-otp`, `/api/auth/toggle-2fa`, `/api/auth/confirm-2fa`
+- Admin endpoints: `GET /api/admin/users`, `PATCH /api/admin/users/:userId/2fa` (require admin role)
+- Admin dashboard at `/admin/users` with user stats, search, per-user 2FA management
+- Admin link (shield icon) visible in HubLanding header for admin users only
+- Profile page (`Toolkit/src/pages/Profile.tsx`) has Security section for 2FA enable/disable
+- Login rate limiting: 10 attempts per IP per 15 minutes (in-memory)
+- `sanitizeUser()` strips password, otpCode, otpExpiry, otpAttempts before sending to client
+- Email service in `server/email.ts` using nodemailer with Zoho SMTP transport
+- `pendingUserId` stored in session during 2FA verification flow
 - Clients (companies) are stored in MongoDB `clients` collection with full CRUD via `/api/clients` endpoints
 - `ClientModel` in `shared/schema.ts` stores: clientId, name, financialYear, industrySector, eapProvince, revenue, npat, leviableAmount, organizationId, createdByUserId
 - Both Express (`server/routes.ts`) and Vercel (`api/[...path].ts`) use MongoDB-backed client routes
