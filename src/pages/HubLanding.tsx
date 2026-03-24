@@ -229,7 +229,7 @@ export default function HubLanding() {
               const innerContent = (
                 <div className="flex flex-col h-full">
                   <div className="flex items-start justify-between mb-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isActive ? 'bg-white/[0.06] border border-white/[0.10] text-white' : 'bg-white/[0.02] border border-white/[0.04] text-[#48484a]'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isActive ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400' : 'bg-white/[0.02] border border-white/[0.04] text-[#48484a]'}`}>
                       {toolkit.icon}
                     </div>
                     <div className="flex items-center gap-2">
@@ -244,7 +244,7 @@ export default function HubLanding() {
                     <span className={`text-[10px] font-medium tracking-wide ${isActive ? 'text-emerald-400/70' : 'text-[#2c2c2e]'}`}>{toolkit.aiBadge}</span>
                   </div>
                   
-                  <h3 className={`text-[16px] font-semibold mb-2 tracking-tight leading-snug ${isActive ? 'text-white' : 'text-[#48484a]'}`}>
+                  <h3 className={`text-[16px] font-semibold mb-2 tracking-tight leading-snug ${isActive ? 'text-indigo-300' : 'text-[#48484a]'}`}>
                     {toolkit.title}
                   </h3>
                   <p className={`text-[12px] leading-relaxed font-light flex-1 mb-4 ${isActive ? 'text-[#8e8e93]' : 'text-[#3a3a3c]'}`}>
@@ -284,7 +284,7 @@ export default function HubLanding() {
                   <Link
                     key={toolkit.id}
                     href={toolkit.link!}
-                    className={`relative block rounded-2xl bg-white/[0.03] p-5 cursor-pointer overflow-hidden transition-all duration-300 border border-white/[0.07] hover:border-white/[0.14] hover:-translate-y-0.5 hover:bg-white/[0.05] fade-in stagger-${Math.min(idx + 1, 6)} group`}
+                    className={`relative block rounded-2xl bg-white/[0.03] p-5 cursor-pointer overflow-hidden transition-all duration-300 border border-indigo-500/15 hover:border-indigo-500/30 hover:-translate-y-0.5 hover:bg-white/[0.05] hover:shadow-lg hover:shadow-indigo-500/5 fade-in stagger-${Math.min(idx + 1, 6)} group`}
                     data-testid={`card-toolkit-${toolkit.id}`}
                   >
                     {innerContent}
