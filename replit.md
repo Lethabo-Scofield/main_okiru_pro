@@ -55,9 +55,11 @@ Full-stack Vite + Express application for B-BBEE compliance management. Migrated
 - Email service in `server/email.ts` using nodemailer with Zoho SMTP transport
 - `pendingUserId` stored in session during 2FA verification flow
 - Clients (companies) are stored in MongoDB `clients` collection with full CRUD via `/api/clients` endpoints
-- `ClientModel` in `shared/schema.ts` stores: clientId, name, financialYear, industrySector, eapProvince, revenue, npat, leviableAmount, organizationId, createdByUserId
+- `ClientModel` in `shared/schema.ts` stores: clientId, name, financialYear, industrySector, eapProvince, revenue, npat, leviableAmount, tmps, companyValue, outstandingDebt, organizationId, createdByUserId — **plus entity arrays**: shareholders, employees, trainingPrograms, suppliers, esdContributions, sedContributions (all `Schema.Types.Mixed[]`)
 - Both Express (`server/routes.ts`) and Vercel (`api/[...path].ts`) use MongoDB-backed client routes
-- Toolkit client data (ownership, management, skills, procurement) will move to ArangoDB (not yet implemented)
+- `POST /api/clients/:clientId/bulk-import` — saves all B-BBEE entities in one request (used by Document Processor on CSV submit)
+- `GET /api/clients/:clientId/data` — returns full client + all entity arrays (fed into Toolkit store via `loadClientData`)
+- **Document Processor CSV submit flow**: parse CSV → create client → bulk-import entities → navigate to `/toolkit/:clientId/scorecard` where the Toolkit loads and scores all data live
 
 ## Registration Wizard (4-step flow)
 - Step 1 — Organization: Select from registered orgs (Okiru, Param Solutions) + enter subscription ID

@@ -2223,11 +2223,60 @@ export default function DocumentProcessor() {
                   if (combinedResult && combinedResult.entityCount > 0) {
                     const result = buildScorecardFromCsvImport(combinedResult);
                     setScorecardResult(result);
-                    await persistSession('scorecard', {
-                      results: extractionResults,
-                      complete: true,
-                      scorecardResult: result,
-                    });
+
+                    // Create a Toolkit client, bulk-import entities, then navigate to the scorecard
+                    try {
+                      toast({ title: "Populating Toolkit...", description: "Creating client and importing entities." });
+
+                      const turnoverRaw = companyInfo.annualTurnover.replace(/[^\d.]/g, '');
+                      const revenue = combinedResult.financials.revenue > 0
+                        ? combinedResult.financials.revenue
+                        : (parseFloat(turnoverRaw) || 0);
+
+                      const clientRes = await fetch('/api/clients', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          name: companyInfo.name || 'Imported Company',
+                          financialYear: companyInfo.financialYearEnd || new Date().getFullYear().toString(),
+                          industrySector: companyInfo.sector || null,
+                          revenue,
+                          npat: combinedResult.financials.npat || 0,
+                          leviableAmount: combinedResult.financials.leviableAmount || 0,
+                        }),
+                      });
+
+                      if (!clientRes.ok) throw new Error('Failed to create client');
+                      const newClient = await clientRes.json();
+                      const toolkitClientId = newClient.clientId;
+
+                      const importRes = await fetch(`/api/clients/${toolkitClientId}/bulk-import`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          shareholders: combinedResult.shareholders,
+                          employees: combinedResult.employees,
+                          trainingPrograms: combinedResult.trainingPrograms,
+                          suppliers: combinedResult.suppliers,
+                          esdContributions: combinedResult.esdContributions,
+                          sedContributions: combinedResult.sedContributions,
+                          financials: combinedResult.financials,
+                        }),
+                      });
+
+                      if (!importRes.ok) throw new Error('Bulk import failed');
+
+                      await persistSession('scorecard', { results: extractionResults, complete: true, scorecardResult: result });
+                      setIsSubmitted(true);
+                      toast({ title: "Toolkit populated!", description: `${combinedResult.entityCount} entities imported. Opening scorecard…` });
+                      navigate(`/toolkit/${toolkitClientId}/scorecard`);
+                      return;
+                    } catch (importErr) {
+                      console.error("Toolkit import failed, falling back to local scorecard:", importErr);
+                    }
+
+                    // Fallback: show local scorecard in the processor
+                    await persistSession('scorecard', { results: extractionResults, complete: true, scorecardResult: result });
                     setIsSubmitted(true);
                     setCurrentPage('scorecard');
                     toast({ title: "Scorecard generated", description: `${combinedResult.entityCount} entities extracted from CSV.` });

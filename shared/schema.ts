@@ -332,10 +332,19 @@ const clientSchema = new Schema({
   revenue: { type: Number, default: 0 },
   npat: { type: Number, default: 0 },
   leviableAmount: { type: Number, default: 0 },
+  tmps: { type: Number, default: 0 },
+  companyValue: { type: Number, default: 0 },
+  outstandingDebt: { type: Number, default: 0 },
   organizationId: { type: String, default: null, index: true },
   createdByUserId: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  shareholders: { type: [Schema.Types.Mixed], default: [] },
+  employees: { type: [Schema.Types.Mixed], default: [] },
+  trainingPrograms: { type: [Schema.Types.Mixed], default: [] },
+  suppliers: { type: [Schema.Types.Mixed], default: [] },
+  esdContributions: { type: [Schema.Types.Mixed], default: [] },
+  sedContributions: { type: [Schema.Types.Mixed], default: [] },
 });
 
 clientSchema.set("toJSON", {

@@ -666,27 +666,27 @@ export async function registerRoutes(
         },
         ownership: {
           id: `own-${clientId}`,
-          shareholders: [],
-          companyValue: 0,
-          outstandingDebt: 0,
+          shareholders: c.shareholders || [],
+          companyValue: c.companyValue || 0,
+          outstandingDebt: c.outstandingDebt || 0,
           yearsHeld: 0,
         },
         management: {
-          employees: [],
+          employees: c.employees || [],
         },
         skills: {
           leviableAmount: c.leviableAmount || 0,
-          trainingPrograms: [],
+          trainingPrograms: c.trainingPrograms || [],
         },
         procurement: {
-          tmps: 0,
-          suppliers: [],
+          tmps: c.tmps || 0,
+          suppliers: c.suppliers || [],
         },
         esd: {
-          contributions: [],
+          contributions: c.esdContributions || [],
         },
         sed: {
-          contributions: [],
+          contributions: c.sedContributions || [],
         },
         financialYears: [],
         scenarios: [],
@@ -694,6 +694,49 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Error fetching client data:", error);
       res.status(500).json({ error: "Failed to fetch client data" });
+    }
+  });
+
+  // Bulk-import all B-BBEE entities into a client in one request
+  app.post("/api/clients/:clientId/bulk-import", requireAuth, async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const { shareholders, employees, trainingPrograms, suppliers, esdContributions, sedContributions, financials } = req.body;
+
+      const client = await ClientModel.findOne({ clientId });
+      if (!client) return res.status(404).json({ error: "Client not found" });
+
+      const update: Record<string, any> = { updatedAt: new Date() };
+      if (Array.isArray(shareholders)) update.shareholders = shareholders;
+      if (Array.isArray(employees)) update.employees = employees;
+      if (Array.isArray(trainingPrograms)) update.trainingPrograms = trainingPrograms;
+      if (Array.isArray(suppliers)) update.suppliers = suppliers;
+      if (Array.isArray(esdContributions)) update.esdContributions = esdContributions;
+      if (Array.isArray(sedContributions)) update.sedContributions = sedContributions;
+      if (financials) {
+        if (financials.revenue > 0) update.revenue = financials.revenue;
+        if (financials.npat !== undefined) update.npat = financials.npat;
+        if (financials.leviableAmount > 0) update.leviableAmount = financials.leviableAmount;
+        if (financials.tmps > 0) update.tmps = financials.tmps;
+        if (financials.industrySector) update.industrySector = financials.industrySector;
+      }
+
+      await ClientModel.updateOne({ clientId }, { $set: update });
+
+      res.json({
+        success: true,
+        counts: {
+          shareholders: (shareholders || []).length,
+          employees: (employees || []).length,
+          trainingPrograms: (trainingPrograms || []).length,
+          suppliers: (suppliers || []).length,
+          esdContributions: (esdContributions || []).length,
+          sedContributions: (sedContributions || []).length,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error bulk-importing client data:", error);
+      res.status(500).json({ error: "Failed to import client data" });
     }
   });
 
