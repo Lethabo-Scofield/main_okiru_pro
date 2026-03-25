@@ -749,13 +749,169 @@ function PDFDocumentViewer({ file, entities, hoveredEntity, onHoverEntity }: {
   );
 }
 
+// ─── Populating Screen ────────────────────────────────────────────────────────
+interface PopulatingPillar {
+  label: string;
+  color: string;
+  icon: string;
+  entities: string[];
+}
+
+function PopulatingScreen({
+  pillars, totalEntities, companyName, onDone,
+}: {
+  pillars: PopulatingPillar[];
+  totalEntities: number;
+  companyName: string;
+  onDone: () => void;
+}) {
+  const [revealedPillar, setRevealedPillar] = useState(-1);
+  const [revealedRows, setRevealedRows] = useState<number[]>([]);
+  const [done, setDone] = useState(false);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  useEffect(() => {
+    let cancelled = false;
+    const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
+    (async () => {
+      await delay(300);
+      for (let p = 0; p < pillars.length; p++) {
+        if (cancelled) return;
+        setRevealedPillar(p);
+        setRevealedRows([]);
+        await delay(160);
+        const rows = pillars[p].entities;
+        for (let r = 0; r < rows.length; r++) {
+          if (cancelled) return;
+          await delay(90);
+          setRevealedRows(prev => [...prev, r]);
+        }
+        await delay(220);
+      }
+      if (cancelled) return;
+      setDone(true);
+      await delay(900);
+      if (!cancelled) onDoneRef.current();
+    })();
+
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const progress = pillars.length > 0
+    ? Math.min(100, ((revealedPillar + 1) / pillars.length) * 100)
+    : 0;
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0b] flex flex-col items-center justify-start pt-10 pb-16 px-6">
+      {/* Header */}
+      <div className="w-full max-w-2xl mb-8">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-2 h-2 rounded-full bg-[#5e9bff] animate-pulse" />
+          <span className="text-[11px] font-semibold tracking-widest uppercase text-[#5e9bff]">
+            {done ? 'Populating complete' : 'Populating Toolkit'}
+          </span>
+        </div>
+        <h1 className="text-2xl font-bold text-white mb-1">
+          {done ? 'Opening scorecard…' : `Importing ${companyName}`}
+        </h1>
+        <p className="text-[13px] text-[#8e8e93]">
+          {totalEntities} entities extracted · loading into B-BBEE engine
+        </p>
+
+        {/* Progress bar */}
+        <div className="mt-5 h-1 bg-[#1c1c1e] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${done ? 100 : progress}%`, background: 'linear-gradient(90deg,#5e9bff,#a78bfa)' }}
+          />
+        </div>
+      </div>
+
+      {/* Pillar cards */}
+      <div className="w-full max-w-2xl space-y-3">
+        {pillars.map((pillar, pi) => {
+          const active = pi === revealedPillar;
+          const revealed = pi < revealedPillar || (pi === revealedPillar && !active) || done;
+          const visible = pi <= revealedPillar || done;
+          if (!visible) return null;
+
+          return (
+            <div
+              key={pillar.label}
+              className="rounded-xl border border-[#2a2a2e] bg-[#111113] overflow-hidden"
+              style={{ borderLeftColor: pillar.color, borderLeftWidth: 3, opacity: visible ? 1 : 0, transition: 'opacity 0.3s' }}
+            >
+              {/* Pillar header */}
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#1e1e22]">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: pillar.color }} />
+                <span className="text-[12px] font-semibold text-white/80 tracking-wide">{pillar.label}</span>
+                <span className="ml-auto text-[11px] text-[#5e5e6a]">
+                  {pillar.entities.length} {pillar.entities.length === 1 ? 'record' : 'records'}
+                </span>
+                {(revealed || done) && (
+                  <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                {active && !revealed && (
+                  <svg className="w-3.5 h-3.5 animate-spin text-[#5e9bff]" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                )}
+              </div>
+
+              {/* Entity rows */}
+              <div className="divide-y divide-[#1a1a1e]">
+                {pillar.entities.map((row, ri) => {
+                  const rowVisible = done || (pi < revealedPillar) || (pi === revealedPillar && revealedRows.includes(ri));
+                  if (!rowVisible) return null;
+                  return (
+                    <div
+                      key={ri}
+                      className="flex items-center gap-2 px-4 py-2"
+                      style={{ animation: 'fadeSlideIn 0.25s ease-out' }}
+                    >
+                      <span className="text-[11px] text-[#5e9bff]/60">→</span>
+                      <span className="text-[12px] text-[#c0c0cc] font-mono leading-relaxed">{row}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Done state */}
+      {done && (
+        <div className="mt-8 flex items-center gap-3 text-emerald-400 animate-pulse">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="text-[13px] font-semibold">Entities populated · opening Toolkit scorecard</span>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateX(-8px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 export default function DocumentProcessor() {
   const { isDark } = useTheme();
   const { toast } = useToast();
   const [location, navigate] = useLocation();
   const { user, logout } = useAuth();
   const entityColors = useMemo(() => getEntityColors(isDark), [isDark]);
-  const [currentPage, setCurrentPage] = useState<'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review' | 'manual-entry' | 'scorecard'>('company-info');
+  const [currentPage, setCurrentPage] = useState<'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review' | 'manual-entry' | 'populating' | 'scorecard'>('company-info');
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(EMPTY_COMPANY_INFO);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isSavingSession, setIsSavingSession] = useState(false);
@@ -784,6 +940,9 @@ export default function DocumentProcessor() {
   const [manualEntry, setManualEntry] = useState<ManualEntryData>(loadManualEntryData);
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
   const [scorecardResult, setScorecardResult] = useState<any>(null);
+  const [populatingData, setPopulatingData] = useState<ClientSideImportResult | null>(null);
+  const populatingClientIdRef = useRef<string | null>(null);
+  const populatingErrorRef = useRef<boolean>(false);
 
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
@@ -1462,9 +1621,104 @@ export default function DocumentProcessor() {
 
   const stepIdx = currentPage === 'company-info' ? 0 : currentPage === 'upload' ? 1 : currentPage === 'classify' ? 2 : (currentPage === 'extract' || currentPage === 'processing') ? 3 : 4;
 
+  // Called by PopulatingScreen when its animation completes
+  const handlePopulatingDone = async () => {
+    // Wait up to 8 s for the background API calls to finish
+    let retries = 0;
+    while (!populatingClientIdRef.current && !populatingErrorRef.current && retries < 32) {
+      await new Promise<void>(r => setTimeout(r, 250));
+      retries++;
+    }
+    if (populatingClientIdRef.current) {
+      await persistSession('scorecard', { results: extractionResults, complete: true, scorecardResult });
+      navigate(`/toolkit/${populatingClientIdRef.current}/scorecard`);
+    } else {
+      // API failed — fall back to local scorecard display
+      await persistSession('scorecard', { results: extractionResults, complete: true, scorecardResult });
+      setCurrentPage('scorecard');
+    }
+  };
+
+  // ── Populating screen: full-screen early return ────────────────────────────
+  if (currentPage === 'populating' && populatingData) {
+    const fmt = (n: number) => `R ${Math.round(n).toLocaleString('en-ZA')}`;
+    const pct = (n: number) => `${Math.round(n * 100)}%`;
+    const populatingPillars: PopulatingPillar[] = [
+      {
+        label: 'Ownership',
+        color: '#5e9bff',
+        icon: '○',
+        entities: populatingData.shareholders.map(sh =>
+          `${sh.name}  ·  ${pct(sh.blackOwnership || 0)} Black  ·  ${pct(sh.blackWomenOwnership || 0)} Black Women  ·  ${Math.round(sh.shares || 0)} shares`
+        ),
+      },
+      {
+        label: 'Management Control',
+        color: '#34d399',
+        icon: '○',
+        entities: populatingData.employees.slice(0, 10).map(e =>
+          `${e.name}  ·  ${e.designation}  ·  ${e.race}  ·  ${e.gender}`
+        ),
+      },
+      {
+        label: 'Skills Development',
+        color: '#f59e0b',
+        icon: '○',
+        entities: populatingData.trainingPrograms.slice(0, 8).map(tp =>
+          `${tp.name}  ·  ${fmt(tp.cost || 0)}  ·  ${tp.category}  ·  ${tp.isBlack ? 'Black' : 'Non-Black'}`
+        ),
+      },
+      {
+        label: 'Preferential Procurement',
+        color: '#a78bfa',
+        icon: '○',
+        entities: populatingData.suppliers.slice(0, 8).map(s =>
+          `${s.name}  ·  Level ${s.beeLevel}  ·  ${fmt(s.spend || 0)}`
+        ),
+      },
+      {
+        label: 'Enterprise & Supplier Development',
+        color: '#38bdf8',
+        icon: '○',
+        entities: populatingData.esdContributions.map(c =>
+          `${c.beneficiary}  ·  ${fmt(c.amount || 0)}  ·  ${c.category || 'enterprise_development'}`
+        ),
+      },
+      {
+        label: 'Socio-Economic Development',
+        color: '#f472b6',
+        icon: '○',
+        entities: populatingData.sedContributions.map(c =>
+          `${c.beneficiary}  ·  ${fmt(c.amount || 0)}`
+        ),
+      },
+      {
+        label: 'Financials',
+        color: '#fb923c',
+        icon: '○',
+        entities: [
+          populatingData.financials.revenue > 0 ? `Revenue  ·  ${fmt(populatingData.financials.revenue)}` : null,
+          populatingData.financials.npat ? `NPAT  ·  ${fmt(populatingData.financials.npat)}` : null,
+          populatingData.financials.leviableAmount > 0 ? `Leviable Amount  ·  ${fmt(populatingData.financials.leviableAmount)}` : null,
+          populatingData.financials.tmps > 0 ? `Total Measured Procurement Spend  ·  ${fmt(populatingData.financials.tmps)}` : null,
+        ].filter(Boolean) as string[],
+      },
+    ].filter(p => p.entities.length > 0);
+
+    return (
+      <div className="bg-[#0a0a0b] h-screen overflow-y-auto">
+        <PopulatingScreen
+          pillars={populatingPillars}
+          totalEntities={populatingData.entityCount}
+          companyName={companyInfo.name || 'Company'}
+          onDone={handlePopulatingDone}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-black text-white font-sans h-screen overflow-hidden flex flex-col" style={{ letterSpacing: '-0.011em' }}>
-
 
       <header className="h-12 shrink-0 z-20 sticky top-0 bg-black/95 backdrop-blur-xl" style={{ borderBottom: '1px solid #1c1c1e' }}>
         <div className="max-w-[1400px] mx-auto w-full px-6 h-full flex items-center justify-between">
@@ -2224,62 +2478,60 @@ export default function DocumentProcessor() {
                     const result = buildScorecardFromCsvImport(combinedResult);
                     setScorecardResult(result);
 
-                    // Create a Toolkit client, bulk-import entities, then navigate to the scorecard
-                    try {
-                      toast({ title: "Populating Toolkit...", description: "Creating client and importing entities." });
+                    // Fire off API calls in the background while the populating screen animates
+                    populatingClientIdRef.current = null;
+                    populatingErrorRef.current = false;
 
-                      const turnoverRaw = companyInfo.annualTurnover.replace(/[^\d.]/g, '');
-                      const revenue = combinedResult.financials.revenue > 0
-                        ? combinedResult.financials.revenue
-                        : (parseFloat(turnoverRaw) || 0);
+                    const turnoverRaw = companyInfo.annualTurnover.replace(/[^\d.]/g, '');
+                    const revenue = combinedResult.financials.revenue > 0
+                      ? combinedResult.financials.revenue
+                      : (parseFloat(turnoverRaw) || 0);
 
-                      const clientRes = await fetch('/api/clients', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          name: companyInfo.name || 'Imported Company',
-                          financialYear: companyInfo.financialYearEnd || new Date().getFullYear().toString(),
-                          industrySector: companyInfo.sector || null,
-                          revenue,
-                          npat: combinedResult.financials.npat || 0,
-                          leviableAmount: combinedResult.financials.leviableAmount || 0,
-                        }),
-                      });
+                    (async () => {
+                      try {
+                        const clientRes = await fetch('/api/clients', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            name: companyInfo.name || 'Imported Company',
+                            financialYear: companyInfo.financialYearEnd || new Date().getFullYear().toString(),
+                            industrySector: companyInfo.sector || null,
+                            revenue,
+                            npat: combinedResult.financials.npat || 0,
+                            leviableAmount: combinedResult.financials.leviableAmount || 0,
+                          }),
+                        });
+                        if (!clientRes.ok) throw new Error('Failed to create client');
+                        const newClient = await clientRes.json();
+                        const toolkitClientId = newClient.clientId;
 
-                      if (!clientRes.ok) throw new Error('Failed to create client');
-                      const newClient = await clientRes.json();
-                      const toolkitClientId = newClient.clientId;
+                        const importRes = await fetch(`/api/clients/${toolkitClientId}/bulk-import`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            shareholders: combinedResult.shareholders,
+                            employees: combinedResult.employees,
+                            trainingPrograms: combinedResult.trainingPrograms,
+                            suppliers: combinedResult.suppliers,
+                            esdContributions: combinedResult.esdContributions,
+                            sedContributions: combinedResult.sedContributions,
+                            financials: combinedResult.financials,
+                          }),
+                        });
+                        if (!importRes.ok) throw new Error('Bulk import failed');
 
-                      const importRes = await fetch(`/api/clients/${toolkitClientId}/bulk-import`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          shareholders: combinedResult.shareholders,
-                          employees: combinedResult.employees,
-                          trainingPrograms: combinedResult.trainingPrograms,
-                          suppliers: combinedResult.suppliers,
-                          esdContributions: combinedResult.esdContributions,
-                          sedContributions: combinedResult.sedContributions,
-                          financials: combinedResult.financials,
-                        }),
-                      });
+                        populatingClientIdRef.current = toolkitClientId;
+                      } catch (err) {
+                        console.error('Background import failed:', err);
+                        populatingErrorRef.current = true;
+                      }
+                    })();
 
-                      if (!importRes.ok) throw new Error('Bulk import failed');
-
-                      await persistSession('scorecard', { results: extractionResults, complete: true, scorecardResult: result });
-                      setIsSubmitted(true);
-                      toast({ title: "Toolkit populated!", description: `${combinedResult.entityCount} entities imported. Opening scorecard…` });
-                      navigate(`/toolkit/${toolkitClientId}/scorecard`);
-                      return;
-                    } catch (importErr) {
-                      console.error("Toolkit import failed, falling back to local scorecard:", importErr);
-                    }
-
-                    // Fallback: show local scorecard in the processor
-                    await persistSession('scorecard', { results: extractionResults, complete: true, scorecardResult: result });
+                    // Show the populating animation screen
+                    setPopulatingData(combinedResult);
+                    setCurrentPage('populating');
                     setIsSubmitted(true);
-                    setCurrentPage('scorecard');
-                    toast({ title: "Scorecard generated", description: `${combinedResult.entityCount} entities extracted from CSV.` });
+                    setIsSavingSession(false);
                     return;
                   }
                 }
