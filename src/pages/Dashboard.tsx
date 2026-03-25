@@ -4,7 +4,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@toolkit/lib/auth';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
 import { Trash2, Loader2, LogOut, Pencil, ChevronLeft, Search, ChevronRight, Plus, FileText, Building2, Sparkles, HelpCircle, Play, UploadCloud, ExternalLink } from 'lucide-react';
-import { starterTemplates as staticTemplates } from '@/data/starterTemplates';
 import { useOnboarding, OnboardingWelcome, OnboardingTour } from '@/components/OnboardingTour';
 
 interface ProcessorSession {
@@ -58,14 +57,6 @@ function statusPillClass(status: string) {
   return `${base} bg-white/[0.06] text-[#8e8e93]`;
 }
 
-const categoryColor: Record<string, string> = {
-  "B-BBEE": "bg-emerald-500/15 text-emerald-400",
-  Finance: "bg-white/[0.08] text-[#d1d1d6]",
-  Compliance: "bg-white/[0.06] text-[#d1d1d6]",
-  Governance: "bg-indigo-500/15 text-indigo-400",
-  Corporate: "bg-white/[0.06] text-[#8e8e93]",
-};
-
 export default function Dashboard() {
   const search = useSearch();
   const initialTab = new URLSearchParams(search).get('tab') as Page | null;
@@ -82,7 +73,6 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [storedTemplates, setStoredTemplates] = useState<StoredTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
-  const [publishingKey, setPublishingKey] = useState<string | null>(null);
   const { needsOnboarding, showTour, startTour, completeTour, dismissTour } = useOnboarding(user?.id);
   const [processorSessions, setProcessorSessions] = useState<ProcessorSession[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
@@ -169,37 +159,6 @@ export default function Dashboard() {
     }
   }, []);
 
-  const useTemplate = useCallback(async (template: typeof staticTemplates[0]) => {
-    if (publishingKey) return;
-    setPublishingKey(template.key);
-    try {
-      const templateEntities = template.entities.map(e => ({
-        label: e.label, definition: e.definition, synonyms: e.synonyms,
-        positives: e.positives, negatives: e.negatives, zones: e.zones,
-        keywords: e.keywords, pattern: e.pattern,
-      }));
-      const freshRes = await fetch("/api/templates");
-      const freshTemplates: StoredTemplate[] = freshRes.ok ? await freshRes.json() : [];
-      const existing = freshTemplates.find(t => t.name === template.name);
-      const url = existing ? `/api/templates/${existing.id}` : "/api/templates";
-      const method = existing ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: template.name, description: template.description, version: "1.0", entities: templateEntities }),
-      });
-      if (!res.ok) throw new Error("Failed to publish");
-      await fetchTemplates();
-      toast({ title: "Template ready", description: `"${template.name}" published — select it in Document Processor` });
-      navigate("/processor");
-    } catch (err) {
-      console.error("Error publishing starter template:", err);
-      toast({ title: "Publish failed", description: "Could not save template to repository", variant: "destructive" });
-    } finally {
-      setPublishingKey(null);
-    }
-  }, [publishingKey, fetchTemplates, toast, navigate]);
-
   const allCompanies = useMemo<CompanyRow[]>(() => {
     return processorSessions.map(s => ({
       name: s.companyInfo.name,
@@ -233,12 +192,6 @@ export default function Dashboard() {
     }
     return result;
   }, [allCompanies, companySearch, industryFilter, statusFilter, rowOrder]);
-
-  const filteredStaticTemplates = useMemo(() => {
-    const q = templateSearch.toLowerCase();
-    const base = q ? staticTemplates.filter(t => t.name.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)) : staticTemplates.slice(0, 3);
-    return base;
-  }, [templateSearch]);
 
   const filteredStoredTemplates = useMemo(() => {
     const q = templateSearch.toLowerCase();
@@ -537,60 +490,11 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="mb-4">
-              <h2 className="text-[12px] font-semibold text-[#98989f] uppercase tracking-wider">Starter Templates</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-testid="templates-grid">
-              {filteredStaticTemplates.map((t, idx) => (
-                <div key={t.key} className={`rounded-2xl bg-[#1c1c1e] p-5 hover:bg-[#2c2c2e] smooth opacity-0 fade-in stagger-${Math.min(idx + 1, 6)}`} data-testid={`template-${t.key}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-[14px] font-semibold tracking-tight text-white">{t.name}</div>
-                      <div className={`text-[10px] font-semibold mt-1.5 px-2 py-0.5 rounded-full inline-block ${categoryColor[t.category] || 'bg-white/[0.06] text-[#8e8e93]'}`}>{t.category}</div>
-                    </div>
-                  </div>
-                  <p className="text-[13px] text-[#98989f] mt-3 leading-relaxed">{t.description}</p>
-
-                  <div className="mt-4">
-                    <div className="text-[10px] font-semibold text-[#636366] uppercase tracking-wider">Entities</div>
-                    <ul className="mt-2 space-y-1 text-[12px] text-[#98989f]">
-                      {t.entities.slice(0, 4).map((e, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <span className="h-1 w-1 rounded-full bg-[#a0a0a5] shrink-0" />
-                          {e.label}
-                        </li>
-                      ))}
-                      {t.entities.length > 4 && <li className="text-[#636366] font-medium">+ {t.entities.length - 4} more</li>}
-                    </ul>
-                  </div>
-
-                  <div className="mt-5 pt-4 border-t border-white/[0.06] flex items-center justify-between">
-                    <Link href={`/builder?starter=${t.key}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-[12px] font-medium smooth press-sm text-[#8e8e93]"
-                      data-testid={`button-edit-${t.key}`}
-                    >
-                      Edit
-                      <Pencil className="h-3 w-3 text-[#636366]" />
-                    </Link>
-                    <button
-                      onClick={() => useTemplate(t)}
-                      disabled={publishingKey === t.key}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white/[0.12] text-white hover:bg-white/[0.18] text-[12px] font-semibold smooth press-sm shadow-sm shadow-black/8 disabled:opacity-60"
-                      data-testid={`button-use-${t.key}`}
-                    >
-                      {publishingKey === t.key ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                      {publishingKey === t.key ? "Publishing…" : "Use Template"}
-                      {publishingKey !== t.key && <ChevronRight className="h-3 w-3" />}
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {filteredStaticTemplates.length === 0 && filteredStoredTemplates.length === 0 && (
-                <div className="rounded-2xl bg-[#1c1c1e] p-8 text-[14px] text-[#636366] col-span-full text-center fade-in">
-                  No templates found. Try a different search.
-                </div>
-              )}
-            </div>
+            {filteredStoredTemplates.length === 0 && (
+              <div className="rounded-2xl bg-[#1c1c1e] p-8 text-[14px] text-[#636366] text-center fade-in" data-testid="templates-empty">
+                No templates found. Try a different search.
+              </div>
+            )}
           </section>
         )}
 
