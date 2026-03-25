@@ -4,6 +4,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { useTheme } from '@/lib/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@toolkit/lib/auth';
+import { parseExcelClientSide, type ClientSideImportResult } from '@toolkit/lib/excel-parser';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
 import {
   X, Home, ArrowLeft, CloudUpload, Puzzle, Cpu, SearchCheck,
@@ -101,6 +102,124 @@ function loadManualEntryData(): ManualEntryData {
 
 function saveManualEntryData(data: ManualEntryData) {
   localStorage.setItem(MANUAL_ENTRY_KEY, JSON.stringify(data));
+}
+
+function bbeeLevel(total: number): number {
+  if (total >= 100) return 1;
+  if (total >= 95) return 2;
+  if (total >= 90) return 3;
+  if (total >= 80) return 4;
+  if (total >= 75) return 5;
+  if (total >= 70) return 6;
+  if (total >= 55) return 7;
+  if (total >= 40) return 8;
+  return 9;
+}
+
+function bbeeRecognition(level: number): string {
+  const map: Record<number, string> = { 1: '135%', 2: '125%', 3: '110%', 4: '100%', 5: '80%', 6: '60%', 7: '50%', 8: '10%' };
+  return map[level] || '0%';
+}
+
+function buildScorecardFromCsvImport(data: ClientSideImportResult): any {
+  const BLACK_RACES = ['African', 'Coloured', 'Indian'];
+
+  const totalShares = data.shareholders.reduce((s, sh) => s + (sh.shares || 0), 0);
+  const blackShares = data.shareholders.reduce((s, sh) => s + (sh.shares || 0) * Math.min(1, sh.blackOwnership || 0), 0);
+  const blackWomenShares = data.shareholders.reduce((s, sh) => s + (sh.shares || 0) * Math.min(1, sh.blackWomenOwnership || 0), 0);
+  const blackOwnerPct = totalShares > 0 ? (blackShares / totalShares) * 100 : 0;
+  const blackWomenPct = totalShares > 0 ? (blackWomenShares / totalShares) * 100 : 0;
+  const ownershipScore = Math.min(25,
+    Math.min(4, (blackOwnerPct / 25) * 4) +
+    Math.min(4, (blackOwnerPct / 25) * 4) +
+    Math.min(2, (blackWomenPct / 10) * 2) +
+    Math.min(3, (blackOwnerPct / 25) * 3) +
+    Math.min(2, (blackWomenPct / 10) * 2) +
+    Math.min(3, (blackOwnerPct / 25) * 3) +
+    Math.min(3, (blackOwnerPct / 25) * 3)
+  );
+
+  const board = data.employees.filter(e => e.designation === 'Board');
+  const exec = data.employees.filter(e => e.designation === 'Executive');
+  const senior = data.employees.filter(e => e.designation === 'Senior');
+  const middle = data.employees.filter(e => e.designation === 'Middle');
+  const junior = data.employees.filter(e => e.designation === 'Junior');
+  const blackBoardPct = board.length > 0 ? (board.filter(e => BLACK_RACES.includes(e.race)).length / board.length) * 100 : 0;
+  const blackExecPct = exec.length > 0 ? (exec.filter(e => BLACK_RACES.includes(e.race)).length / exec.length) * 100 : 0;
+  const blackSeniorPct = senior.length > 0 ? (senior.filter(e => BLACK_RACES.includes(e.race)).length / senior.length) * 100 : 0;
+  const blackMiddlePct = middle.length > 0 ? (middle.filter(e => BLACK_RACES.includes(e.race)).length / middle.length) * 100 : 0;
+  const blackJuniorPct = junior.length > 0 ? (junior.filter(e => BLACK_RACES.includes(e.race)).length / junior.length) * 100 : 0;
+  const mgmtScore = Math.min(19,
+    Math.min(2, (blackBoardPct / 50) * 2) +
+    Math.min(2, (blackBoardPct / 25) * 2) +
+    Math.min(3, (blackExecPct / 60) * 3) +
+    Math.min(2, (blackExecPct / 25) * 2) +
+    Math.min(4, (blackSeniorPct / 60) * 4) +
+    Math.min(4, (blackMiddlePct / 75) * 4) +
+    Math.min(2, (blackJuniorPct / 88) * 2)
+  );
+
+  const leviable = data.financials.leviableAmount || 0;
+  const blackTrainingSpend = data.trainingPrograms.filter(t => t.isBlack).reduce((s, t) => s + (t.cost || 0), 0);
+  const skillsPct = leviable > 0 ? (blackTrainingSpend / leviable) * 100 : 0;
+  const skillsScore = Math.min(25, (skillsPct / 6) * 20 + (data.trainingPrograms.filter(t => t.isBlack && t.isEmployed).length > 0 ? 5 : 0));
+
+  const allSpend = data.suppliers.reduce((s, sup) => s + (sup.spend || 0), 0);
+  const tmps = data.financials.tmps > 0 ? data.financials.tmps : allSpend;
+  const LEVEL_WEIGHTS: Record<number, number> = { 1: 1, 2: 0.9, 3: 0.8, 4: 0.6, 5: 0.5, 6: 0.4, 7: 0.3, 8: 0.1 };
+  const recognizedSpend = data.suppliers.reduce((s, sup) => s + (sup.spend || 0) * (LEVEL_WEIGHTS[sup.beeLevel] ?? 0), 0);
+  const procPct = tmps > 0 ? (recognizedSpend / tmps) * 100 : 0;
+  const procScore = Math.min(29, (procPct / 80) * 25 + (data.suppliers.filter(s => s.enterpriseType === 'eme').length > 0 ? 2 : 0) + (data.suppliers.filter(s => s.enterpriseType === 'qse').length > 0 ? 2 : 0));
+
+  const npat = data.financials.npat || 0;
+  const sdContribs = data.esdContributions.filter(c => c.category === 'supplier_development').reduce((s, c) => s + c.amount, 0);
+  const edContribs = data.esdContributions.filter(c => c.category === 'enterprise_development').reduce((s, c) => s + c.amount, 0);
+  const sedContribs = data.sedContributions.reduce((s, c) => s + c.amount, 0);
+  const sdTarget = npat * 0.02;
+  const edTarget = npat * 0.01;
+  const sedTarget = npat * 0.01;
+  const sdScore = npat > 0 ? Math.min(10, sdContribs > 0 ? Math.min(10, (sdContribs / sdTarget) * 10) : 0) : sdContribs > 0 ? 5 : 0;
+  const edScore = npat > 0 ? Math.min(7, edContribs > 0 ? Math.min(7, (edContribs / edTarget) * 7) : 0) : edContribs > 0 ? 3 : 0;
+  const sedScore = npat > 0 ? Math.min(5, sedContribs > 0 ? Math.min(5, (sedContribs / sedTarget) * 5) : 0) : sedContribs > 0 ? 3 : 0;
+
+  const total = ownershipScore + mgmtScore + skillsScore + procScore + sdScore + edScore + sedScore;
+  const level = bbeeLevel(total);
+  const ownSubMin = blackOwnerPct >= 25 && blackWomenPct >= 10;
+  const skSubMin = skillsPct >= 6;
+  const prSubMin = procPct >= 40;
+  const isDiscounted = !ownSubMin || !skSubMin || !prSubMin;
+  const discountedLevel = isDiscounted ? Math.min(8, level + 1) : level;
+
+  return {
+    ownership: { score: Math.round(ownershipScore * 10) / 10, target: 25, weighting: 25, subMinimumMet: ownSubMin },
+    managementControl: { score: Math.round(mgmtScore * 10) / 10, target: 19, weighting: 19 },
+    skillsDevelopment: { score: Math.round(skillsScore * 10) / 10, target: 25, weighting: 25, subMinimumMet: skSubMin },
+    procurement: { score: Math.round(procScore * 10) / 10, target: 29, weighting: 29, subMinimumMet: prSubMin },
+    supplierDevelopment: { score: Math.round(sdScore * 10) / 10, target: 10, weighting: 10, subMinimumMet: sdContribs > 0 },
+    enterpriseDevelopment: { score: Math.round(edScore * 10) / 10, target: 7, weighting: 7, subMinimumMet: edContribs > 0 },
+    socioEconomicDevelopment: { score: Math.round(sedScore * 10) / 10, target: 5, weighting: 5 },
+    yesInitiative: { score: 0, target: 5, weighting: 5 },
+    total: { score: Math.round(total * 10) / 10, target: 120, weighting: 120 },
+    achievedLevel: level,
+    discountedLevel,
+    isDiscounted,
+    recognitionLevel: bbeeRecognition(discountedLevel),
+    _source: 'csv_import',
+    _entityCounts: {
+      shareholders: data.shareholders.length,
+      employees: data.employees.length,
+      trainingPrograms: data.trainingPrograms.length,
+      suppliers: data.suppliers.length,
+      esdContributions: data.esdContributions.length,
+      sedContributions: data.sedContributions.length,
+    },
+    _financials: {
+      revenue: data.financials.revenue,
+      npat: data.financials.npat,
+      leviableAmount: data.financials.leviableAmount,
+      tmps,
+    },
+  };
 }
 
 const BBEE_SECTORS = [
@@ -664,6 +783,7 @@ export default function DocumentProcessor() {
   const processingFinalized = useRef(false);
   const [manualEntry, setManualEntry] = useState<ManualEntryData>(loadManualEntryData);
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
+  const [scorecardResult, setScorecardResult] = useState<any>(null);
 
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
@@ -728,6 +848,7 @@ export default function DocumentProcessor() {
         : sess.filesData && sess.filesData.length > 0 ? 'classify'
         : 'upload';
       setCurrentPage(step as any);
+      if (sess.scorecardResult) setScorecardResult(sess.scorecardResult);
       toast({ title: `Resumed: ${sess.companyInfo.name}`, description: 'Your session has been loaded.' });
     });
   }, [location]);
@@ -1941,50 +2062,128 @@ export default function DocumentProcessor() {
             };
             const handleSubmit = async () => {
               setIsSavingSession(true);
-              
-              // 1. Gather all document texts
-              const documentTexts = uploadedFiles
-                .filter(file => file.textContent)
-                .map(file => file.textContent);
-
-              // 2. Base fallback if info missing
-              const sectorCode = 'RCOGP'; // Defaulting to generic for now until sector logic upgraded
-              const scorecardType = parseFloat(companyInfo.annualTurnover.replace(/[^\d]/g, '')) <= 50000000 ? 'QSE' : 'Generic';
 
               try {
-                // 3. Make the API Call to extract-and-score
+                // 1. Check if any uploaded file is CSV or Excel — use direct client-side parsing
+                const csvExcelFiles = uploadedFiles.filter(f => {
+                  const name = f.name.toLowerCase();
+                  return name.endsWith('.csv') || name.endsWith('.xlsx') || name.endsWith('.xls') ||
+                    f.file.type === 'text/csv' ||
+                    f.file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                    f.file.type === 'application/vnd.ms-excel';
+                });
+
+                if (csvExcelFiles.length > 0) {
+                  // Parse CSV/Excel files directly — no AI needed
+                  let combinedResult: ClientSideImportResult | null = null;
+                  for (const file of csvExcelFiles) {
+                    try {
+                      const parsed = await parseExcelClientSide(file.file);
+                      if (parsed.entityCount > 0) {
+                        combinedResult = parsed;
+                        break;
+                      }
+                    } catch { /* try next file */ }
+                  }
+
+                  if (combinedResult && combinedResult.entityCount > 0) {
+                    const result = buildScorecardFromCsvImport(combinedResult);
+                    setScorecardResult(result);
+                    await persistSession('scorecard', {
+                      results: extractionResults,
+                      complete: true,
+                      scorecardResult: result,
+                    });
+                    setIsSubmitted(true);
+                    setCurrentPage('scorecard');
+                    toast({ title: "Scorecard generated", description: `${combinedResult.entityCount} entities extracted from CSV.` });
+                    return;
+                  }
+                }
+
+                // 2. Fall back to API-based extraction (requires GROQ_API_KEY)
+                const documentTexts = uploadedFiles
+                  .filter(file => file.textContent)
+                  .map(file => file.textContent);
+
+                const sectorCode = 'RCOGP';
+                const scorecardType = parseFloat(companyInfo.annualTurnover.replace(/[^\d]/g, '')) <= 50000000 ? 'QSE' : 'Generic';
+
                 const res = await fetch('/api/extract-and-score', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    documentTexts,
-                    sectorCode,
-                    scorecardType,
-                    clientName: companyInfo.name
-                  }),
+                  body: JSON.stringify({ documentTexts, sectorCode, scorecardType, clientName: companyInfo.name }),
                 });
 
-                if (!res.ok) throw new Error('Scoring failed');
-                
+                if (!res.ok) throw new Error('API scoring failed');
+
                 const scoreData = await res.json();
-                
-                // 4. Update the session with the new scorecardResult
-                await persistSession('scorecard', { 
-                  results: extractionResults, 
-                  complete: true,
-                  scorecardResult: scoreData
-                });
-                
+
+                // Normalise the API response into the pillar-keyed format
+                const pillarsById: Record<string, any> = {};
+                if (scoreData.scorecard?.pillars) {
+                  for (const p of scoreData.scorecard.pillars) {
+                    const key = p.pillar.toLowerCase().replace(/[^a-z]/g, '');
+                    pillarsById[key] = p;
+                  }
+                }
+                const totalScore = scoreData.scorecard?.totalScore || 0;
+                const normalised = {
+                  ownership: { score: pillarsById['ownership']?.weightedScore || 0, target: 25, weighting: 25, subMinimumMet: false },
+                  managementControl: { score: pillarsById['managementcontrol']?.weightedScore || 0, target: 19, weighting: 19 },
+                  skillsDevelopment: { score: pillarsById['skillsdevelopment']?.weightedScore || 0, target: 25, weighting: 25, subMinimumMet: false },
+                  procurement: { score: pillarsById['enterprisesupplierdevelopment']?.subItems?.[0]?.score || 0, target: 29, weighting: 29, subMinimumMet: false },
+                  supplierDevelopment: { score: pillarsById['enterprisesupplierdevelopment']?.subItems?.[1]?.score || 0, target: 10, weighting: 10, subMinimumMet: false },
+                  enterpriseDevelopment: { score: 0, target: 7, weighting: 7, subMinimumMet: false },
+                  socioEconomicDevelopment: { score: pillarsById['socioeconomicdevelopment']?.weightedScore || 0, target: 5, weighting: 5 },
+                  yesInitiative: { score: 0, target: 5, weighting: 5 },
+                  total: { score: totalScore, target: 120, weighting: 120 },
+                  achievedLevel: bbeeLevel(totalScore),
+                  discountedLevel: bbeeLevel(totalScore),
+                  isDiscounted: false,
+                  recognitionLevel: bbeeRecognition(bbeeLevel(totalScore)),
+                  _source: 'api_extraction',
+                };
+
+                setScorecardResult(normalised);
+                await persistSession('scorecard', { results: extractionResults, complete: true, scorecardResult: normalised });
                 setIsSubmitted(true);
                 setCurrentPage('scorecard');
                 toast({ title: "Assessment complete", description: "Scorecard generated successfully!" });
 
               } catch (err: any) {
                 console.error("Scorecard generation error", err);
-                toast({ title: "Generation Failed", description: "Could not generate scorecard. Review extraction results.", variant: "destructive" });
-                // Fallback to basic complete if scoring fails
-                await persistSession('review', { results: extractionResults, complete: true });
+                // Build a basic scorecard from whatever extraction results we have
+                const extractedData: Record<string, any> = {};
+                for (const doc of extractionResults) {
+                  for (const entity of (doc.entities || [])) {
+                    if (entity.status !== 'rejected' && entity.value) {
+                      extractedData[entity.name] = entity.value;
+                    }
+                  }
+                }
+                const fallback = {
+                  ownership: { score: 0, target: 25, weighting: 25, subMinimumMet: false },
+                  managementControl: { score: 0, target: 19, weighting: 19 },
+                  skillsDevelopment: { score: 0, target: 25, weighting: 25, subMinimumMet: false },
+                  procurement: { score: 0, target: 29, weighting: 29, subMinimumMet: false },
+                  supplierDevelopment: { score: 0, target: 10, weighting: 10, subMinimumMet: false },
+                  enterpriseDevelopment: { score: 0, target: 7, weighting: 7, subMinimumMet: false },
+                  socioEconomicDevelopment: { score: 0, target: 5, weighting: 5 },
+                  yesInitiative: { score: 0, target: 5, weighting: 5 },
+                  total: { score: 0, target: 120, weighting: 120 },
+                  achievedLevel: 9,
+                  discountedLevel: 9,
+                  isDiscounted: false,
+                  recognitionLevel: '0%',
+                  _source: 'fallback',
+                  _error: err.message,
+                };
+                setScorecardResult(fallback);
+                await persistSession('scorecard', { results: extractionResults, complete: true, scorecardResult: fallback });
                 setIsSubmitted(true);
+                setCurrentPage('scorecard');
+                toast({ title: "Partial Scorecard", description: "Scorecard generated from reviewed entities.", variant: "default" });
               } finally {
                 setIsSavingSession(false);
               }
@@ -2621,6 +2820,7 @@ export default function DocumentProcessor() {
                             scorecardResult: manualScorecardResult,
                           });
 
+                          setScorecardResult(manualScorecardResult);
                           localStorage.removeItem(MANUAL_ENTRY_KEY);
                           setIsSubmitted(true);
                           setCurrentPage('scorecard');
@@ -2648,43 +2848,169 @@ export default function DocumentProcessor() {
             </div>
           )}
 
-          {currentPage === 'scorecard' && (
-            <div className="max-w-4xl mx-auto py-8">
-              <div className="bg-[#1c1c1e] rounded-2xl p-8 border border-[#2c2c2e] shadow-xl">
-                <div className="flex items-center justify-between mb-8">
+          {currentPage === 'scorecard' && (() => {
+            const sc = scorecardResult;
+            const PILLARS = [
+              { key: 'ownership', label: 'Ownership', target: 25, color: '#5e9bff' },
+              { key: 'managementControl', label: 'Management Control', target: 19, color: '#34d399' },
+              { key: 'skillsDevelopment', label: 'Skills Development', target: 25, color: '#f59e0b' },
+              { key: 'procurement', label: 'Preferential Procurement', target: 29, color: '#a78bfa' },
+              { key: 'supplierDevelopment', label: 'Supplier Development', target: 10, color: '#38bdf8' },
+              { key: 'enterpriseDevelopment', label: 'Enterprise Development', target: 7, color: '#fb923c' },
+              { key: 'socioEconomicDevelopment', label: 'Socio-Economic Dev.', target: 5, color: '#f472b6' },
+            ];
+            const totalScore = sc?.total?.score ?? 0;
+            const totalTarget = sc?.total?.target ?? 120;
+            const level = sc?.discountedLevel ?? sc?.achievedLevel ?? 9;
+            const recognition = sc?.recognitionLevel ?? '0%';
+            const levelColors: Record<number, string> = {
+              1: '#22c55e', 2: '#4ade80', 3: '#86efac', 4: '#fbbf24',
+              5: '#f59e0b', 6: '#fb923c', 7: '#f87171', 8: '#ef4444', 9: '#6b7280'
+            };
+            const levelColor = levelColors[level] || '#6b7280';
+            const source = sc?._source;
+
+            return (
+              <div className="max-w-4xl mx-auto py-8 space-y-5" data-testid="scorecard-result">
+                {/* Header */}
+                <div className="bg-[#1c1c1e] rounded-2xl p-6 border border-[#2c2c2e] flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-white/[0.06] to-blue-500/20 flex items-center justify-center border border-white/[0.12]">
-                      <ScanLine className="w-8 h-8 text-[#d1d1d6]" />
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-white/[0.06] to-blue-500/20 flex items-center justify-center border border-white/[0.12]">
+                      <ScanLine className="w-7 h-7 text-[#d1d1d6]" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-white mb-1">B-BBEE Scorecard</h2>
-                      <p className="text-[#8e8e93] text-sm">{companyInfo.name} • {companyInfo.sector}</p>
+                      <h2 className="text-xl font-bold text-white">B-BBEE Scorecard</h2>
+                      <p className="text-[#8e8e93] text-sm" data-testid="scorecard-company">{companyInfo.name || 'Client'} • {companyInfo.sector || 'General'}</p>
                     </div>
                   </div>
-                  <button className="px-4 py-2 bg-[#2c2c2e] hover:bg-[#3a3a3c] text-white rounded-xl text-sm font-medium smooth press-sm border border-[#48484a]" onClick={() => window.print()}>
-                    Export PDF
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {source === 'csv_import' && (
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">CSV Import</span>
+                    )}
+                    <button className="px-4 py-2 bg-[#2c2c2e] hover:bg-[#3a3a3c] text-white rounded-xl text-sm font-medium transition-colors border border-[#48484a]" onClick={() => window.print()}>
+                      Export PDF
+                    </button>
+                  </div>
                 </div>
 
                 {isSavingSession ? (
-                  <div className="flex flex-col items-center justify-center py-20">
+                  <div className="flex flex-col items-center justify-center py-20 bg-[#1c1c1e] rounded-2xl border border-[#2c2c2e]">
                     <Loader2 className="w-8 h-8 animate-spin text-[#d1d1d6] mb-4" />
                     <p className="text-[#8e8e93]">Generating scorecard...</p>
                   </div>
+                ) : sc ? (
+                  <>
+                    {/* Level banner */}
+                    <div className="bg-[#1c1c1e] rounded-2xl p-6 border border-[#2c2c2e] flex flex-col sm:flex-row items-center gap-6" data-testid="scorecard-level-banner">
+                      <div className="flex-shrink-0 flex flex-col items-center justify-center w-28 h-28 rounded-2xl border-2" style={{ borderColor: levelColor, background: `${levelColor}18` }}>
+                        <span className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: levelColor }}>Level</span>
+                        <span className="text-5xl font-black" style={{ color: levelColor }} data-testid="scorecard-level-number">{level}</span>
+                      </div>
+                      <div className="flex-1 flex flex-col gap-2">
+                        <div className="flex items-end gap-3">
+                          <span className="text-4xl font-black text-white" data-testid="scorecard-total-score">{totalScore}</span>
+                          <span className="text-[#8e8e93] text-lg mb-1">/ {totalTarget} points</span>
+                        </div>
+                        <div className="w-full h-3 bg-[#2c2c2e] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, (totalScore / totalTarget) * 100)}%`, background: levelColor }} />
+                        </div>
+                        <div className="flex items-center gap-4 mt-1">
+                          <span className="text-[#8e8e93] text-sm">Recognition: <strong className="text-white" data-testid="scorecard-recognition">{recognition}</strong></span>
+                          {sc.isDiscounted && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              Level discounted (sub-minimum not met)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pillar breakdown */}
+                    <div className="bg-[#1c1c1e] rounded-2xl border border-[#2c2c2e] overflow-hidden" data-testid="scorecard-pillars">
+                      <div className="px-6 py-4 border-b border-[#2c2c2e]">
+                        <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Pillar Breakdown</h3>
+                      </div>
+                      <div className="divide-y divide-[#2c2c2e]">
+                        {PILLARS.map(pillar => {
+                          const p = sc[pillar.key] || { score: 0, target: pillar.target, weighting: pillar.target };
+                          const pct = pillar.target > 0 ? Math.min(100, (p.score / pillar.target) * 100) : 0;
+                          return (
+                            <div key={pillar.key} className="px-6 py-4" data-testid={`scorecard-pillar-${pillar.key}`}>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-[#d1d1d6]">{pillar.label}</span>
+                                <div className="flex items-center gap-3">
+                                  {p.subMinimumMet === false && (
+                                    <span className="text-[10px] font-semibold uppercase text-amber-500" title="Sub-minimum not met">⚠ Sub-min</span>
+                                  )}
+                                  {p.subMinimumMet === true && (
+                                    <span className="text-[10px] font-semibold uppercase text-green-500">✓ Sub-min</span>
+                                  )}
+                                  <span className="text-sm font-bold text-white">
+                                    {p.score} <span className="font-normal text-[#8e8e93]">/ {pillar.target}</span>
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="w-full h-2 bg-[#2c2c2e] rounded-full overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%`, background: pillar.color }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="px-6 py-4 bg-[#141414] border-t border-[#2c2c2e] flex items-center justify-between">
+                        <span className="text-sm font-semibold text-[#d1d1d6]">TOTAL</span>
+                        <span className="text-sm font-bold text-white" data-testid="scorecard-total-row">{totalScore} / {totalTarget}</span>
+                      </div>
+                    </div>
+
+                    {/* Source info */}
+                    {sc._entityCounts && (
+                      <div className="bg-[#1c1c1e] rounded-2xl p-5 border border-[#2c2c2e]" data-testid="scorecard-entity-summary">
+                        <h3 className="text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-3">Entities Extracted</h3>
+                        <div className="flex flex-wrap gap-3">
+                          {Object.entries(sc._entityCounts as Record<string, number>).map(([k, v]) => (
+                            <div key={k} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c2c2e] rounded-xl">
+                              <span className="text-[#8e8e93] text-xs capitalize">{k.replace(/([A-Z])/g, ' $1').toLowerCase()}:</span>
+                              <span className="text-white text-xs font-semibold">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex gap-3">
+                      <Link href="/dashboard" className="flex-1 text-center px-6 py-3 bg-[#1c1c1e] hover:bg-[#2c2c2e] text-white rounded-xl font-semibold transition-colors border border-[#2c2c2e]">
+                        Go to Dashboard
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setScorecardResult(null);
+                          setCurrentPage('company-info');
+                          setUploadedFiles([]);
+                          setExtractionResults([]);
+                          setIsSubmitted(false);
+                        }}
+                        className="px-6 py-3 bg-[#1c1c1e] hover:bg-[#2c2c2e] text-[#8e8e93] hover:text-white rounded-xl font-semibold transition-colors border border-[#2c2c2e]"
+                      >
+                        New Assessment
+                      </button>
+                    </div>
+                  </>
                 ) : (
-                  <div className="text-center py-12">
-                    <p className="text-3xl font-bold text-green-400 mb-2">Operation Complete</p>
-                    <p className="text-[#a1a1aa] max-w-lg mx-auto leading-relaxed">
-                      Scorecard calculation has been processed by the engine. You can view the fully generated certificate and metrics in the main Toolkit Dashboard.
-                    </p>
-                    <Link href="/dashboard" className="inline-block mt-8 px-8 py-3 bg-white/[0.12] hover:bg-white/[0.18] text-white rounded-xl font-semibold smooth press">
-                      Go to Dashboard
-                    </Link>
+                  <div className="text-center py-16 bg-[#1c1c1e] rounded-2xl border border-[#2c2c2e]">
+                    <p className="text-[#8e8e93] mb-4">No scorecard data yet. Complete the previous steps to generate a scorecard.</p>
+                    <button onClick={() => setCurrentPage('review')} className="px-6 py-2.5 bg-white/[0.08] hover:bg-white/[0.12] text-white rounded-xl text-sm transition-colors">
+                      Back to Review
+                    </button>
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
         </div>
       </main>
