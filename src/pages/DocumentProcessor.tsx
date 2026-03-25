@@ -1030,7 +1030,103 @@ export default function DocumentProcessor() {
 
   useEffect(() => { return () => { if (abortControllerRef.current) abortControllerRef.current.abort(); }; }, []);
 
-  const startProcessing = () => {
+  const isCsvOrExcel = (file: UploadedFile) => {
+    const n = file.name.toLowerCase();
+    return n.endsWith('.csv') || n.endsWith('.xlsx') || n.endsWith('.xls') ||
+      file.file.type === 'text/csv' ||
+      file.file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.file.type === 'application/vnd.ms-excel';
+  };
+
+  const extractAllBbeeEntities = (parsed: ClientSideImportResult): any[] => {
+    const entities: any[] = [];
+    const BLACK_RACES = ['African', 'Coloured', 'Indian'];
+    const fmt = (n: number) => n.toLocaleString('en-ZA', { maximumFractionDigits: 2 });
+    const pct = (n: number) => `${fmt(n)}%`;
+    const rand = (n: number) => `R ${fmt(Math.round(n))}`;
+
+    // — Ownership —
+    const totalShares = parsed.shareholders.reduce((s, sh) => s + (sh.shares || 0), 0);
+    const blackShares = parsed.shareholders.reduce((s, sh) => s + (sh.shares || 0) * Math.min(1, sh.blackOwnership || 0), 0);
+    const blackWomenShares = parsed.shareholders.reduce((s, sh) => s + (sh.shares || 0) * Math.min(1, sh.blackWomenOwnership || 0), 0);
+    const blackOwnerPct = totalShares > 0 ? (blackShares / totalShares) * 100 : 0;
+    const blackWomenPct = totalShares > 0 ? (blackWomenShares / totalShares) * 100 : 0;
+    if (parsed.shareholders.length > 0) {
+      entities.push({ name: 'BlackVotingRights', value: pct(blackOwnerPct), confidence: 0.95, status: 'approved', pillar: 'Ownership' });
+      entities.push({ name: 'BlackEconomicInterest', value: pct(blackOwnerPct), confidence: 0.95, status: 'approved', pillar: 'Ownership' });
+      entities.push({ name: 'BlackWomenVotingRights', value: pct(blackWomenPct), confidence: 0.95, status: 'approved', pillar: 'Ownership' });
+      entities.push({ name: 'BlackWomenEconomicInterest', value: pct(blackWomenPct), confidence: 0.95, status: 'approved', pillar: 'Ownership' });
+      parsed.shareholders.forEach(sh => {
+        entities.push({
+          name: `Shareholder — ${sh.name}`,
+          value: `${pct((sh.blackOwnership || 0) * 100)} black, ${sh.shares || 0} shares`,
+          confidence: 0.95, status: 'approved', pillar: 'Ownership',
+        });
+      });
+    }
+
+    // — Management Control —
+    const byDesig = (d: string) => parsed.employees.filter(e => e.designation === d);
+    const blackPct = (arr: any[]) => arr.length > 0 ? (arr.filter(e => BLACK_RACES.includes(e.race)).length / arr.length) * 100 : 0;
+    if (parsed.employees.length > 0) {
+      entities.push({ name: 'BlackBoardMembers', value: pct(blackPct(byDesig('Board'))), confidence: 0.95, status: 'approved', pillar: 'Management Control' });
+      entities.push({ name: 'BlackExecutiveManagement', value: pct(blackPct(byDesig('Executive'))), confidence: 0.95, status: 'approved', pillar: 'Management Control' });
+      entities.push({ name: 'BlackSeniorManagement', value: pct(blackPct(byDesig('Senior'))), confidence: 0.95, status: 'approved', pillar: 'Management Control' });
+      entities.push({ name: 'BlackMiddleManagement', value: pct(blackPct(byDesig('Middle'))), confidence: 0.95, status: 'approved', pillar: 'Management Control' });
+      entities.push({ name: 'BlackJuniorManagement', value: pct(blackPct(byDesig('Junior'))), confidence: 0.95, status: 'approved', pillar: 'Management Control' });
+      entities.push({ name: 'TotalEmployees', value: `${parsed.employees.length}`, confidence: 0.95, status: 'approved', pillar: 'Management Control' });
+    }
+
+    // — Skills Development —
+    const leviable = parsed.financials.leviableAmount || 0;
+    const blackTraining = parsed.trainingPrograms.filter(t => t.isBlack).reduce((s, t) => s + (t.cost || 0), 0);
+    const skillsPct = leviable > 0 ? (blackTraining / leviable) * 100 : 0;
+    if (parsed.trainingPrograms.length > 0 || leviable > 0) {
+      entities.push({ name: 'LeviableAmount', value: rand(leviable), confidence: 0.95, status: 'approved', pillar: 'Skills Development' });
+      entities.push({ name: 'BlackSkillsSpend', value: rand(blackTraining), confidence: 0.95, status: 'approved', pillar: 'Skills Development' });
+      entities.push({ name: 'SkillsSpendPercent', value: pct(skillsPct), confidence: 0.95, status: 'approved', pillar: 'Skills Development' });
+      entities.push({ name: 'BlackLearnerships', value: `${parsed.trainingPrograms.filter(t => t.isBlack && t.category === 'learnership').length}`, confidence: 0.95, status: 'approved', pillar: 'Skills Development' });
+    }
+
+    // — Preferential Procurement —
+    const allSpend = parsed.suppliers.reduce((s, sup) => s + (sup.spend || 0), 0);
+    const tmps = (parsed.financials.tmps || 0) > 0 ? parsed.financials.tmps : allSpend;
+    const LEVEL_W: Record<number, number> = { 1: 1, 2: 0.9, 3: 0.8, 4: 0.6, 5: 0.5, 6: 0.4, 7: 0.3, 8: 0.1 };
+    const recognised = parsed.suppliers.reduce((s, sup) => s + (sup.spend || 0) * (LEVEL_W[sup.beeLevel] ?? 0), 0);
+    const procPct = tmps > 0 ? (recognised / tmps) * 100 : 0;
+    if (parsed.suppliers.length > 0) {
+      entities.push({ name: 'TMPS', value: rand(tmps), confidence: 0.95, status: 'approved', pillar: 'Preferential Procurement' });
+      entities.push({ name: 'RecognisedBEESpend', value: rand(recognised), confidence: 0.95, status: 'approved', pillar: 'Preferential Procurement' });
+      entities.push({ name: 'ProcurementRecognition', value: pct(procPct), confidence: 0.95, status: 'approved', pillar: 'Preferential Procurement' });
+      entities.push({ name: 'TotalSuppliers', value: `${parsed.suppliers.length}`, confidence: 0.95, status: 'approved', pillar: 'Preferential Procurement' });
+      parsed.suppliers.forEach(sup => {
+        entities.push({
+          name: `Supplier — ${sup.name}`,
+          value: `Level ${sup.beeLevel}, ${rand(sup.spend || 0)}`,
+          confidence: 0.95, status: 'approved', pillar: 'Preferential Procurement',
+        });
+      });
+    }
+
+    // — ESD & SED —
+    const npat = parsed.financials.npat || 0;
+    const esdTotal = parsed.esdContributions.reduce((s, c) => s + c.amount, 0);
+    const sedTotal = parsed.sedContributions.reduce((s, c) => s + c.amount, 0);
+    if (npat > 0 || esdTotal > 0 || sedTotal > 0) {
+      entities.push({ name: 'NPAT', value: rand(npat), confidence: 0.95, status: 'approved', pillar: 'Enterprise & Supplier Development' });
+      entities.push({ name: 'ESDContributions', value: rand(esdTotal), confidence: 0.95, status: 'approved', pillar: 'Enterprise & Supplier Development' });
+      entities.push({ name: 'SEDContributions', value: rand(sedTotal), confidence: 0.95, status: 'approved', pillar: 'Socio-Economic Development' });
+    }
+
+    // Financials summary
+    if (parsed.financials.revenue > 0) {
+      entities.push({ name: 'AnnualRevenue', value: rand(parsed.financials.revenue), confidence: 0.95, status: 'approved', pillar: 'General' });
+    }
+
+    return entities;
+  };
+
+  const startProcessing = async () => {
     const unclassified = uploadedFiles.filter(f => !fileClassifications[String(f.id)]);
     if (unclassified.length > 0) return;
 
@@ -1113,9 +1209,47 @@ export default function DocumentProcessor() {
 
     const splitSSEBlocks = (raw: string) => raw.split(/\r?\n\r?\n/);
 
+    // ── Pre-process CSV/Excel files directly (no GROQ needed) ──────────────
+    let preHandledCount = 0;
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const file = uploadedFiles[i];
+      if (!isCsvOrExcel(file)) continue;
+      try {
+        const parsed = await parseExcelClientSide(file.file);
+        const entities = extractAllBbeeEntities(parsed);
+        const templateId = fileClassifications[String(file.id)];
+        const template = templates.find(t => t.id === templateId);
+        handleEvent('doc-done', {
+          index: i,
+          fileName: file.name,
+          templateId,
+          templateName: template?.name || 'CSV Import',
+          entities: entities.length > 0 ? entities : [
+            { name: 'NoBbeeDataFound', value: 'No structured B-BBEE sheets detected', confidence: 0, status: 'pending' },
+          ],
+        });
+        preHandledCount++;
+      } catch (err: any) {
+        handleEvent('doc-error', {
+          index: i, fileName: file.name,
+          templateId: fileClassifications[String(file.id)],
+          templateName: 'CSV Import',
+          entities: [{ name: 'ParseError', value: err.message || 'Could not parse file', confidence: 0, status: 'error' }],
+        });
+        preHandledCount++;
+      }
+    }
+
+    // If all files were CSV/Excel, we're done — no API call needed
+    if (preHandledCount >= uploadedFiles.length) return;
+
+    // ── Only send non-CSV files to the API stream ──────────────────────────
+    const apiDocuments = documents.filter((_, i) => !isCsvOrExcel(uploadedFiles[i]));
+    if (apiDocuments.length === 0) return;
+
     fetch("/api/process-documents-stream", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documents }), signal: controller.signal,
+      body: JSON.stringify({ documents: apiDocuments }), signal: controller.signal,
     }).then(response => {
       if (!response.ok) throw new Error("Server returned an error");
       if (!response.body) throw new Error("No response body");
