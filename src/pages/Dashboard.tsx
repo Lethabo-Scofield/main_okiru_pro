@@ -707,7 +707,7 @@ export default function Dashboard() {
                                   </div>
                                   {c.isComplete ? (
                                     <Link
-                                      href={`/toolkit/${c.sessionId}`}
+                                      href="/toolkit-demo"
                                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[12px] font-semibold smooth press-sm"
                                       data-testid={`button-toolkit-${c.id}`}
                                     >
