@@ -10,12 +10,8 @@ const ClientContext = createContext<ClientContextType>({
   setActiveClientId: () => {},
 });
 
-export function ClientProvider({ children, initialClientId }: { children: ReactNode; initialClientId?: string }) {
+export function ClientProvider({ children }: { children: ReactNode }) {
   const [activeClientId, setActiveClientId] = useState<string | null>(() => {
-    if (initialClientId) {
-      localStorage.setItem('okiru-pro-active-client', initialClientId);
-      return initialClientId;
-    }
     return localStorage.getItem('okiru-pro-active-client') || null;
   });
 

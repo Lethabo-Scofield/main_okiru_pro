@@ -309,8 +309,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Verification code has expired. Please log in again." });
       }
 
-      const BYPASS_OTP = "654321";
-      if (otp.trim() !== BYPASS_OTP && otp.trim() !== user.otpCode) {
+      if (otp.trim() !== user.otpCode) {
         const attempts = await storage.incrementOtpAttempts(user.id);
         const remaining = maxAttempts - attempts;
         return res.status(401).json({
@@ -1509,27 +1508,6 @@ Respond ONLY with a valid JSON array.`;
     } catch (error: any) {
       console.error("Error saving processor session:", error);
       res.status(500).json({ error: "Failed to save session" });
-    }
-  });
-
-  app.patch("/api/processor-sessions/:sessionId", requireAuth, async (req, res) => {
-    try {
-      const { sessionId } = req.params;
-      const allowedFields = ['currentStep', 'isComplete', 'scorecardResult', 'toolkitClientId'];
-      const patch: any = { updatedAt: new Date() };
-      for (const field of allowedFields) {
-        if (req.body[field] !== undefined) patch[field] = req.body[field];
-      }
-      const doc = await ProcessorSessionModel.findOneAndUpdate(
-        { sessionId },
-        { $set: patch },
-        { new: true }
-      );
-      if (!doc) return res.status(404).json({ error: "Session not found" });
-      res.json({ ...doc.toJSON(), id: (doc as any).sessionId });
-    } catch (error: any) {
-      console.error("Error patching processor session:", error);
-      res.status(500).json({ error: "Failed to patch session" });
     }
   });
 

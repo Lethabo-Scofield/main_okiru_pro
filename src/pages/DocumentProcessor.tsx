@@ -4,15 +4,14 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { useTheme } from '@/lib/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@toolkit/lib/auth';
-// Import removed - using hybrid extraction endpoint instead of client-side parsing
+import { parseExcelClientSide, type ClientSideImportResult } from '@toolkit/lib/excel-parser';
 import logoCircle from '@assets/Okiru_WHT_Circle_Logo_V1_1772535293807.png';
 import {
   X, Home, ArrowLeft, CloudUpload, Puzzle, Cpu, SearchCheck,
   Check, AlertTriangle, PlusCircle, Loader2, Trash2, ChevronRight, ChevronLeft,
   Circle, Zap, ListChecks, CheckCheck, FileText, FileSpreadsheet,
   FileImage, File, FileQuestion, Building2, ScanLine, Monitor, HelpCircle, LogOut,
-  Pencil, Plus, Maximize2, Minimize2, Save, ArrowRightCircle, Send, ClipboardEdit,
-  ExternalLink
+  Pencil, Plus, Maximize2, Minimize2, Save, ArrowRightCircle, Send, ClipboardEdit
 } from 'lucide-react';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -62,7 +61,7 @@ interface ProcessorSession {
   companyInfo: CompanyInfo;
   createdAt: string;
   updatedAt: string;
-  currentStep: 'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review' | 'summary' | 'scorecard';
+  currentStep: 'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review' | 'scorecard';
   filesData: { id: number; name: string; size: string; type: string; textContent: string }[];
   fileClassifications: Record<string, number>;
   extractionResults: any[];
@@ -223,68 +222,11 @@ function buildScorecardFromCsvImport(data: ClientSideImportResult): any {
   };
 }
 
-// The 4 actual B-BBEE sector codes with 6 scorecard templates
-export interface SectorOption {
-  code: string;
-  label: string;
-  description: string;
-  hasQSE: boolean; // Whether this sector has QSE variant (RCOGP and ICT do)
-}
-
-export const BBEE_SECTORS: SectorOption[] = [
-  {
-    code: 'RCOGP',
-    label: 'Revised Codes of Good Practice (RCOGP)',
-    description: 'Default B-BBEE framework for most enterprises',
-    hasQSE: true,
-  },
-  {
-    code: 'ICT',
-    label: 'ICT Sector Code',
-    description: 'Information & Communications Technology sector',
-    hasQSE: true,
-  },
-  {
-    code: 'FSC',
-    label: 'Financial Sector Code (FSC)',
-    description: 'Banks, insurers, investment firms',
-    hasQSE: false,
-  },
-  {
-    code: 'AGRI',
-    label: 'AgriBEE Sector Code',
-    description: 'Agriculture and farming enterprises',
-    hasQSE: false,
-  },
+const BBEE_SECTORS = [
+  'Agriculture', 'Construction', 'Education', 'Financial Services',
+  'Healthcare', 'Information Technology', 'Manufacturing', 'Mining',
+  'Professional Services', 'Retail', 'Transportation', 'Other',
 ];
-
-/**
- * Determine scorecard type based on sector and annual turnover
- * - Generic: > R50M turnover
- * - QSE: R10M - R50M turnover (only RCOGP and ICT have QSE variants)
- */
-export function determineScorecardType(
-  sectorCode: string,
-  annualTurnoverStr: string
-): { scorecardType: 'Generic' | 'QSE'; thresholdExceeded: boolean } {
-  // Parse turnover (handles "R 50 000 000" or "50000000")
-  const turnoverValue = parseFloat(annualTurnoverStr.replace(/[^\d.]/g, '')) || 0;
-  const QSE_THRESHOLD = 50000000; // R50M
-
-  // Only RCOGP and ICT have QSE variants
-  const sector = BBEE_SECTORS.find(s => s.code === sectorCode);
-  const hasQSE = sector?.hasQSE ?? false;
-
-  if (hasQSE && turnoverValue <= QSE_THRESHOLD && turnoverValue >= 10000000) {
-    return { scorecardType: 'QSE', thresholdExceeded: false };
-  }
-
-  // Default to Generic for:
-  // - Turnover > R50M
-  // - Sectors without QSE (FSC, AGRI)
-  // - Turnover < R10M (EME - but we handle as Generic for now)
-  return { scorecardType: 'Generic', thresholdExceeded: turnoverValue > QSE_THRESHOLD };
-}
 
 const BBEE_LEVELS = ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5', 'Level 6', 'Level 7', 'Level 8', 'Non-Compliant', 'Not Verified'];
 const FYE_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -969,7 +911,7 @@ export default function DocumentProcessor() {
   const [location, navigate] = useLocation();
   const { user, logout } = useAuth();
   const entityColors = useMemo(() => getEntityColors(isDark), [isDark]);
-  const [currentPage, setCurrentPage] = useState<'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review' | 'summary' | 'manual-entry' | 'populating' | 'scorecard'>('company-info');
+  const [currentPage, setCurrentPage] = useState<'company-info' | 'upload' | 'classify' | 'extract' | 'processing' | 'review' | 'manual-entry' | 'populating' | 'scorecard'>('company-info');
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(EMPTY_COMPANY_INFO);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isSavingSession, setIsSavingSession] = useState(false);
@@ -998,7 +940,6 @@ export default function DocumentProcessor() {
   const [manualEntry, setManualEntry] = useState<ManualEntryData>(loadManualEntryData);
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
   const [scorecardResult, setScorecardResult] = useState<any>(null);
-  const [toolkitClientId, setToolkitClientId] = useState<string | null>(null);
   const [populatingData, setPopulatingData] = useState<ClientSideImportResult | null>(null);
   const populatingClientIdRef = useRef<string | null>(null);
   const populatingErrorRef = useRef<boolean>(false);
@@ -1058,7 +999,7 @@ export default function DocumentProcessor() {
         });
         setUploadedFiles(restored);
       }
-      const validSteps = ['company-info', 'upload', 'classify', 'extract', 'review', 'summary', 'scorecard'];
+      const validSteps = ['company-info', 'upload', 'classify', 'extract', 'review', 'scorecard'];
       const step = sess.currentStep && validSteps.includes(sess.currentStep)
         ? sess.currentStep
         : sess.scorecardResult ? 'scorecard'
@@ -1067,10 +1008,6 @@ export default function DocumentProcessor() {
         : 'upload';
       setCurrentPage(step as any);
       if (sess.scorecardResult) setScorecardResult(sess.scorecardResult);
-      if ((sess as any).toolkitClientId) {
-        setToolkitClientId((sess as any).toolkitClientId);
-        populatingClientIdRef.current = (sess as any).toolkitClientId;
-      }
       toast({ title: `Resumed: ${sess.companyInfo.name}`, description: 'Your session has been loaded.' });
     });
   }, [location]);
@@ -1431,81 +1368,80 @@ export default function DocumentProcessor() {
 
     const splitSSEBlocks = (raw: string) => raw.split(/\r?\n\r?\n/);
 
-    // ── Process all files using hybrid extraction endpoint ────────────────
-    // The new /api/extract-entities-hybrid endpoint handles ALL file types:
-    // CSV, XLSX, PDF, TXT, DOCX with BM25 + Semantic + LLM extraction
-
-    const sectorCode = companyInfo.sector || 'RCOGP';
-    const { scorecardType } = determineScorecardType(sectorCode, companyInfo.annualTurnover);
-
-    // Process files sequentially using the hybrid extraction endpoint
+    // ── Pre-process CSV/Excel files directly (no GROQ needed) ──────────────
+    let preHandledCount = 0;
     for (let i = 0; i < uploadedFiles.length; i++) {
       const file = uploadedFiles[i];
-      handleEvent('doc-start', { index: i, fileName: file.name });
-
+      if (!isCsvOrExcel(file)) continue;
       try {
-        // Use the new hybrid extraction endpoint
-        const formData = new FormData();
-        formData.append('file', file.file);
-        formData.append('sectorCode', sectorCode);
-        formData.append('scorecardType', scorecardType);
-
-        const response = await fetch('/api/extract-entities-hybrid', {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(errorData.error || `HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!data.success || !data.entities) {
-          throw new Error('Invalid response from extraction service');
-        }
-
-        // Map extraction results to the expected format
-        const entities = data.entities.map((e: any) => ({
-          name: e.name,
-          value: e.value,
-          confidence: e.confidence,
-          status: e.status || 'pending',
-          pillar: e.pillar,
-          fieldType: e.fieldType,
-          definition: e.definition,
-          provenance: e.provenance,
-          validation: e.validation,
-        }));
-
+        const parsed = await parseExcelClientSide(file.file);
+        const entities = extractAllBbeeEntities(parsed);
         const templateId = fileClassifications[String(file.id)];
         const template = templates.find(t => t.id === templateId);
-
         handleEvent('doc-done', {
           index: i,
           fileName: file.name,
           templateId,
-          templateName: template?.name || 'Hybrid Extraction',
-          entities,
-          timing: data.timing,
-          stats: data.stats,
+          templateName: template?.name || 'CSV Import',
+          entities: entities.length > 0 ? entities : [
+            { name: 'NoBbeeDataFound', value: 'No structured B-BBEE sheets detected', confidence: 0, status: 'pending' },
+          ],
         });
+        preHandledCount++;
       } catch (err: any) {
-        console.error(`[DocumentProcessor] Extraction failed for ${file.name}:`, err);
         handleEvent('doc-error', {
-          index: i,
-          fileName: file.name,
+          index: i, fileName: file.name,
           templateId: fileClassifications[String(file.id)],
-          templateName: 'Extraction',
-          entities: [{ name: 'ExtractionError', value: err.message || 'Could not extract entities', confidence: 0, status: 'error' }],
+          templateName: 'CSV Import',
+          entities: [{ name: 'ParseError', value: err.message || 'Could not parse file', confidence: 0, status: 'error' }],
         });
+        preHandledCount++;
       }
     }
 
-    // All files processed via hybrid endpoint
-    handleEvent('complete', {});
+    // If all files were CSV/Excel, we're done — no API call needed
+    if (preHandledCount >= uploadedFiles.length) return;
+
+    // ── Only send non-CSV files to the API stream ──────────────────────────
+    const apiDocuments = documents.filter((_, i) => !isCsvOrExcel(uploadedFiles[i]));
+    if (apiDocuments.length === 0) return;
+
+    fetch("/api/process-documents-stream", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documents: apiDocuments }), signal: controller.signal,
+    }).then(response => {
+      if (!response.ok) throw new Error("Server returned an error");
+      if (!response.body) throw new Error("No response body");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      const pump = (): Promise<void> => {
+        return reader.read().then(({ done, value }) => {
+          if (controller.signal.aborted) return;
+          if (done) {
+            if (buffer.trim()) splitSSEBlocks(buffer).filter(b => b.trim()).forEach(parseSSEBlock);
+            finalizeResults();
+            return;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          const blocks = splitSSEBlocks(buffer);
+          buffer = blocks.pop() || "";
+          blocks.filter(b => b.trim()).forEach(parseSSEBlock);
+          return pump();
+        });
+      };
+      return pump();
+    }).catch(err => {
+      if (err.name === 'AbortError') return;
+      console.error("Stream error:", err);
+      setProcessingError(err.message);
+      setExtractionResults(documents.map(doc => ({
+        fileName: doc.fileName, templateId: doc.templateId, templateName: doc.templateName,
+        entities: doc.entitiesToExtract.map((e: any) => ({ name: e.label, value: `Error`, confidence: 0, status: 'error' })),
+      })));
+      setCurrentPage('review');
+      toast({ title: "Processing error", description: err.message || "Extraction failed", variant: "destructive" });
+    });
   };
 
   const extractSingleDocument = async (fileIdx: number) => {
@@ -1519,48 +1455,63 @@ export default function DocumentProcessor() {
     setDocStatuses(prev => ({ ...prev, [fileIdx]: 'processing' }));
 
     try {
-      // Use the new hybrid extraction endpoint
-      const sectorCode = companyInfo.sector || 'RCOGP';
-      const { scorecardType } = determineScorecardType(sectorCode, companyInfo.annualTurnover);
-
-      const formData = new FormData();
-      formData.append('file', file.file);
-      formData.append('sectorCode', sectorCode);
-      formData.append('scorecardType', scorecardType);
-
-      const response = await fetch('/api/extract-entities-hybrid', {
-        method: 'POST',
-        body: formData,
+      const response = await fetch("/api/process-documents-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documents: [{
+            fileName: file.name,
+            templateId,
+            templateName: template.name,
+            entitiesToExtract: template.entities || [],
+            documentText: file.textContent || '',
+          }],
+        }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error("Server error");
+      if (!response.body) throw new Error("No response body");
 
-      const data = await response.json();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let result: any = null;
 
-      if (!data.success || !data.entities) {
-        throw new Error('Invalid response from extraction service');
-      }
-
-      // Map extraction results to the expected format
-      const result = {
-        fileName: file.name,
-        templateId,
-        templateName: template?.name || 'Hybrid Extraction',
-        entities: data.entities.map((e: any) => ({
-          name: e.name,
-          value: e.value,
-          confidence: e.confidence,
-          status: e.status || 'pending',
-          pillar: e.pillar,
-          fieldType: e.fieldType,
-          definition: e.definition,
-          provenance: e.provenance,
-          validation: e.validation,
-        })),
+      const parseBlock = (block: string) => {
+        const normalized = block.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        let eventType = "";
+        let dataLines: string[] = [];
+        for (const line of normalized.split("\n")) {
+          if (line.startsWith("event:")) eventType = line.slice(6).trim();
+          else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+        }
+        if (eventType && dataLines.length > 0) {
+          try {
+            const data = JSON.parse(dataLines.join("\n"));
+            if (eventType === "doc-done" || eventType === "doc-error") {
+              result = {
+                fileName: data.fileName || file.name,
+                templateId, templateName: template.name,
+                entities: (data.entities || []).map((e: any) => ({
+                  ...e,
+                  name: e.name || e.entity || '',
+                  confidence: e.confidence ?? e.conf ?? 0,
+                })),
+              };
+            }
+          } catch {}
+        }
       };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const blocks = buffer.split(/\r?\n\r?\n/);
+        buffer = blocks.pop() || "";
+        blocks.filter(b => b.trim()).forEach(parseBlock);
+      }
+      if (buffer.trim()) buffer.split(/\r?\n\r?\n/).filter(b => b.trim()).forEach(parseBlock);
 
       if (result) {
         setExtractionResults(prev => {
@@ -1668,7 +1619,7 @@ export default function DocumentProcessor() {
     return 'text';
   }, [activeDocFile]);
 
-  const stepIdx = currentPage === 'company-info' ? 0 : currentPage === 'upload' ? 1 : currentPage === 'classify' ? 2 : (currentPage === 'extract' || currentPage === 'processing') ? 3 : currentPage === 'manual-entry' ? 4 : currentPage === 'review' ? 5 : currentPage === 'summary' ? 6 : 7;
+  const stepIdx = currentPage === 'company-info' ? 0 : currentPage === 'upload' ? 1 : currentPage === 'classify' ? 2 : (currentPage === 'extract' || currentPage === 'processing') ? 3 : 4;
 
   // Called by PopulatingScreen when its animation completes
   const handlePopulatingDone = async () => {
@@ -1804,8 +1755,8 @@ export default function DocumentProcessor() {
 
       <div className="bg-black px-6 py-3" style={{ borderBottom: '1px solid #1c1c1e' }}>
         <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
-          {['Company', 'Upload', 'Template', 'Extract', 'Manual Entry', 'Review', 'Summary', 'Scorecard'].map((label, idx) => {
-            const pageMap = ['company-info', 'upload', 'classify', 'extract', 'manual-entry', 'review', 'summary', 'scorecard'] as const;
+          {['Company', 'Upload', 'Template', 'Extract', 'Manual Entry', 'Review', 'Scorecard'].map((label, idx) => {
+            const pageMap = ['company-info', 'upload', 'classify', 'extract', 'manual-entry', 'review', 'scorecard'] as const;
             type PageMapType = typeof pageMap[number];
             const safeCurrentPage = currentPage as PageMapType;
             const stepIdx = pageMap.indexOf(safeCurrentPage);
@@ -1833,7 +1784,7 @@ export default function DocumentProcessor() {
                         : 'text-[#48484a]'
                   }`}>{label}</span>
                 </div>
-                {idx < 7 && (
+                {idx < 6 && (
                   <div className="flex-1 h-px mx-4" style={{ background: '#2c2c2e' }}>
                     <div className="h-full transition-all duration-700" style={{ width: isComplete ? '100%' : '0%', background: '#636366' }}></div>
                   </div>
@@ -1935,17 +1886,8 @@ export default function DocumentProcessor() {
                             className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white focus:border-[#48484a] focus:outline-none focus:ring-1 focus:ring-[#48484a]/30 transition-all appearance-none"
                             data-testid="select-company-sector">
                             <option value="">Select a sector…</option>
-                            {BBEE_SECTORS.map(s => (
-                              <option key={s.code} value={s.code}>
-                                {s.label} {s.hasQSE ? '(Generic/QSE)' : '(Generic only)'}
-                              </option>
-                            ))}
+                            {BBEE_SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
-                          {companyInfo.sector && (
-                            <p className="mt-1.5 text-[11px] text-[#8e8e93]">
-                              {BBEE_SECTORS.find(s => s.code === companyInfo.sector)?.description}
-                            </p>
-                          )}
                         </div>
                         <div>
                           <label className="block text-[11px] font-medium text-[#8e8e93] mb-1.5">Annual Turnover (ZAR)</label>
@@ -2510,102 +2452,138 @@ export default function DocumentProcessor() {
               setIsSavingSession(true);
 
               try {
-                const sectorCode = companyInfo.sector || 'RCOGP';
-                const { scorecardType } = determineScorecardType(sectorCode, companyInfo.annualTurnover);
-
-                // Collect all approved entities from the review results
-                const entityMap: Record<string, any> = {};
-                for (const doc of extractionResults) {
-                  for (const entity of (doc.entities || [])) {
-                    if (entity.status !== 'rejected' && entity.value != null && entity.value !== '') {
-                      let val: any = entity.value;
-                      if (typeof val === 'string') {
-                        const cleaned = val.replace(/^R\s*/, '').replace(/\s/g, '').replace(/,/g, '');
-                        const parsed = Number(cleaned);
-                        if (!isNaN(parsed) && cleaned !== '') val = parsed;
-                      }
-                      entityMap[entity.name] = val;
-                    }
-                  }
-                }
-
-                // Use the combined evaluate-from-entities endpoint
-                const res = await fetch('/api/scorecard/evaluate-from-entities', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ sectorCode, scorecardType, entities: entityMap }),
+                // 1. Check if any uploaded file is CSV or Excel — use direct client-side parsing
+                const csvExcelFiles = uploadedFiles.filter(f => {
+                  const name = f.name.toLowerCase();
+                  return name.endsWith('.csv') || name.endsWith('.xlsx') || name.endsWith('.xls') ||
+                    f.file.type === 'text/csv' ||
+                    f.file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                    f.file.type === 'application/vnd.ms-excel';
                 });
 
-                let normalised: any;
-
-                if (res.ok) {
-                  const evalData = await res.json();
-                  const pillarScores = evalData.evaluation?.pillarScores || {};
-                  const totalScore = Object.values(pillarScores).reduce(
-                    (sum: number, p: any) => sum + (p?.score || 0), 0
-                  );
-
-                  normalised = {
-                    ownership: { score: pillarScores.ownership?.score || 0, target: 25, weighting: 25, subMinimumMet: false },
-                    managementControl: { score: pillarScores.managementControl?.score || pillarScores.management_control?.score || 0, target: 19, weighting: 19 },
-                    skillsDevelopment: { score: pillarScores.skillsDevelopment?.score || pillarScores.skills_development?.score || 0, target: 25, weighting: 25, subMinimumMet: false },
-                    procurement: { score: pillarScores.preferentialProcurement?.score || pillarScores.procurement?.score || 0, target: 29, weighting: 29, subMinimumMet: false },
-                    supplierDevelopment: { score: pillarScores.supplierDevelopment?.score || pillarScores.esd?.score || 0, target: 10, weighting: 10, subMinimumMet: false },
-                    enterpriseDevelopment: { score: pillarScores.enterpriseDevelopment?.score || 0, target: 7, weighting: 7, subMinimumMet: false },
-                    socioEconomicDevelopment: { score: pillarScores.socioEconomicDevelopment?.score || pillarScores.sed?.score || 0, target: 5, weighting: 5 },
-                    yesInitiative: { score: 0, target: 5, weighting: 5 },
-                    total: { score: totalScore, target: 120, weighting: 120 },
-                    achievedLevel: bbeeLevel(totalScore),
-                    discountedLevel: bbeeLevel(totalScore),
-                    isDiscounted: false,
-                    recognitionLevel: bbeeRecognition(bbeeLevel(totalScore)),
-                    _source: 'evaluate-from-entities',
-                    _engine: evalData.engine,
-                    _coverage: evalData.coverage,
-                    _overrideCount: evalData.overrideCount,
-                  };
-                } else {
-                  // Fallback: try the legacy extract-and-score endpoint
-                  const documentTexts = uploadedFiles.filter(f => f.textContent).map(f => f.textContent);
-                  const fallbackRes = await fetch('/api/extract-and-score', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ documentTexts, sectorCode, scorecardType, clientName: companyInfo.name }),
-                  });
-
-                  if (!fallbackRes.ok) throw new Error('Both evaluation endpoints failed');
-
-                  const scoreData = await fallbackRes.json();
-                  const pillarsById: Record<string, any> = {};
-                  if (scoreData.scorecard?.pillars) {
-                    for (const p of scoreData.scorecard.pillars) {
-                      const key = p.pillar.toLowerCase().replace(/[^a-z]/g, '');
-                      pillarsById[key] = p;
-                    }
+                if (csvExcelFiles.length > 0) {
+                  // Parse CSV/Excel files directly — no AI needed
+                  let combinedResult: ClientSideImportResult | null = null;
+                  for (const file of csvExcelFiles) {
+                    try {
+                      const parsed = await parseExcelClientSide(file.file);
+                      if (parsed.entityCount > 0) {
+                        combinedResult = parsed;
+                        break;
+                      }
+                    } catch { /* try next file */ }
                   }
-                  const totalScore = scoreData.scorecard?.totalScore || 0;
-                  normalised = {
-                    ownership: { score: pillarsById['ownership']?.weightedScore || 0, target: 25, weighting: 25, subMinimumMet: false },
-                    managementControl: { score: pillarsById['managementcontrol']?.weightedScore || 0, target: 19, weighting: 19 },
-                    skillsDevelopment: { score: pillarsById['skillsdevelopment']?.weightedScore || 0, target: 25, weighting: 25, subMinimumMet: false },
-                    procurement: { score: pillarsById['enterprisesupplierdevelopment']?.subItems?.[0]?.score || 0, target: 29, weighting: 29, subMinimumMet: false },
-                    supplierDevelopment: { score: pillarsById['enterprisesupplierdevelopment']?.subItems?.[1]?.score || 0, target: 10, weighting: 10, subMinimumMet: false },
-                    enterpriseDevelopment: { score: 0, target: 7, weighting: 7, subMinimumMet: false },
-                    socioEconomicDevelopment: { score: pillarsById['socioeconomicdevelopment']?.weightedScore || 0, target: 5, weighting: 5 },
-                    yesInitiative: { score: 0, target: 5, weighting: 5 },
-                    total: { score: totalScore, target: 120, weighting: 120 },
-                    achievedLevel: bbeeLevel(totalScore),
-                    discountedLevel: bbeeLevel(totalScore),
-                    isDiscounted: false,
-                    recognitionLevel: bbeeRecognition(bbeeLevel(totalScore)),
-                    _source: 'legacy_extract_and_score',
-                  };
+
+                  if (combinedResult && combinedResult.entityCount > 0) {
+                    const result = buildScorecardFromCsvImport(combinedResult);
+                    setScorecardResult(result);
+
+                    // Fire off API calls in the background while the populating screen animates
+                    populatingClientIdRef.current = null;
+                    populatingErrorRef.current = false;
+
+                    const turnoverRaw = companyInfo.annualTurnover.replace(/[^\d.]/g, '');
+                    const revenue = combinedResult.financials.revenue > 0
+                      ? combinedResult.financials.revenue
+                      : (parseFloat(turnoverRaw) || 0);
+
+                    (async () => {
+                      try {
+                        const clientRes = await fetch('/api/clients', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            name: companyInfo.name || 'Imported Company',
+                            financialYear: companyInfo.financialYearEnd || new Date().getFullYear().toString(),
+                            industrySector: companyInfo.sector || null,
+                            revenue,
+                            npat: combinedResult.financials.npat || 0,
+                            leviableAmount: combinedResult.financials.leviableAmount || 0,
+                          }),
+                        });
+                        if (!clientRes.ok) throw new Error('Failed to create client');
+                        const newClient = await clientRes.json();
+                        const toolkitClientId = newClient.clientId;
+
+                        const importRes = await fetch(`/api/clients/${toolkitClientId}/bulk-import`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            shareholders: combinedResult.shareholders,
+                            employees: combinedResult.employees,
+                            trainingPrograms: combinedResult.trainingPrograms,
+                            suppliers: combinedResult.suppliers,
+                            esdContributions: combinedResult.esdContributions,
+                            sedContributions: combinedResult.sedContributions,
+                            financials: combinedResult.financials,
+                          }),
+                        });
+                        if (!importRes.ok) throw new Error('Bulk import failed');
+
+                        populatingClientIdRef.current = toolkitClientId;
+                      } catch (err) {
+                        console.error('Background import failed:', err);
+                        populatingErrorRef.current = true;
+                      }
+                    })();
+
+                    // Show the populating animation screen
+                    setPopulatingData(combinedResult);
+                    setCurrentPage('populating');
+                    setIsSubmitted(true);
+                    setIsSavingSession(false);
+                    return;
+                  }
                 }
 
+                // 2. Fall back to API-based extraction (requires GROQ_API_KEY)
+                const documentTexts = uploadedFiles
+                  .filter(file => file.textContent)
+                  .map(file => file.textContent);
+
+                const sectorCode = 'RCOGP';
+                const scorecardType = parseFloat(companyInfo.annualTurnover.replace(/[^\d]/g, '')) <= 50000000 ? 'QSE' : 'Generic';
+
+                const res = await fetch('/api/extract-and-score', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ documentTexts, sectorCode, scorecardType, clientName: companyInfo.name }),
+                });
+
+                if (!res.ok) throw new Error('API scoring failed');
+
+                const scoreData = await res.json();
+
+                // Normalise the API response into the pillar-keyed format
+                const pillarsById: Record<string, any> = {};
+                if (scoreData.scorecard?.pillars) {
+                  for (const p of scoreData.scorecard.pillars) {
+                    const key = p.pillar.toLowerCase().replace(/[^a-z]/g, '');
+                    pillarsById[key] = p;
+                  }
+                }
+                const totalScore = scoreData.scorecard?.totalScore || 0;
+                const normalised = {
+                  ownership: { score: pillarsById['ownership']?.weightedScore || 0, target: 25, weighting: 25, subMinimumMet: false },
+                  managementControl: { score: pillarsById['managementcontrol']?.weightedScore || 0, target: 19, weighting: 19 },
+                  skillsDevelopment: { score: pillarsById['skillsdevelopment']?.weightedScore || 0, target: 25, weighting: 25, subMinimumMet: false },
+                  procurement: { score: pillarsById['enterprisesupplierdevelopment']?.subItems?.[0]?.score || 0, target: 29, weighting: 29, subMinimumMet: false },
+                  supplierDevelopment: { score: pillarsById['enterprisesupplierdevelopment']?.subItems?.[1]?.score || 0, target: 10, weighting: 10, subMinimumMet: false },
+                  enterpriseDevelopment: { score: 0, target: 7, weighting: 7, subMinimumMet: false },
+                  socioEconomicDevelopment: { score: pillarsById['socioeconomicdevelopment']?.weightedScore || 0, target: 5, weighting: 5 },
+                  yesInitiative: { score: 0, target: 5, weighting: 5 },
+                  total: { score: totalScore, target: 120, weighting: 120 },
+                  achievedLevel: bbeeLevel(totalScore),
+                  discountedLevel: bbeeLevel(totalScore),
+                  isDiscounted: false,
+                  recognitionLevel: bbeeRecognition(bbeeLevel(totalScore)),
+                  _source: 'api_extraction',
+                };
+
                 setScorecardResult(normalised);
-                await persistSession('summary', { results: extractionResults, complete: true, scorecardResult: normalised });
+                await persistSession('scorecard', { results: extractionResults, complete: true, scorecardResult: normalised });
                 setIsSubmitted(true);
-                setCurrentPage('summary');
+                setCurrentPage('scorecard');
                 toast({ title: "Assessment complete", description: "Scorecard generated successfully!" });
 
               } catch (err: any) {
@@ -2637,9 +2615,9 @@ export default function DocumentProcessor() {
                   _error: err.message,
                 };
                 setScorecardResult(fallback);
-                await persistSession('summary', { results: extractionResults, complete: true, scorecardResult: fallback });
+                await persistSession('scorecard', { results: extractionResults, complete: true, scorecardResult: fallback });
                 setIsSubmitted(true);
-                setCurrentPage('summary');
+                setCurrentPage('scorecard');
                 toast({ title: "Partial Scorecard", description: "Scorecard generated from reviewed entities.", variant: "default" });
               } finally {
                 setIsSavingSession(false);
@@ -3305,168 +3283,6 @@ export default function DocumentProcessor() {
             </div>
           )}
 
-          {currentPage === 'summary' && (() => {
-            const PILLAR_META: { key: string; label: string; color: string; icon: string }[] = [
-              { key: 'Ownership', label: 'Ownership', color: '#5e9bff', icon: '○' },
-              { key: 'Management Control', label: 'Management Control', color: '#34d399', icon: '○' },
-              { key: 'Skills Development', label: 'Skills Development', color: '#f59e0b', icon: '○' },
-              { key: 'Preferential Procurement', label: 'Preferential Procurement', color: '#a78bfa', icon: '○' },
-              { key: 'Enterprise & Supplier Development', label: 'Enterprise & Supplier Dev.', color: '#38bdf8', icon: '○' },
-              { key: 'Socio-Economic Development', label: 'Socio-Economic Dev.', color: '#f472b6', icon: '○' },
-              { key: 'Financials', label: 'Financials', color: '#fb923c', icon: '○' },
-            ];
-
-            const allEntities: any[] = [];
-            for (const doc of extractionResults) {
-              for (const e of (doc.entities || [])) {
-                if (e.status !== 'rejected' && e.status !== 'not_found' && e.value) {
-                  allEntities.push({ ...e, _docName: doc.fileName });
-                }
-              }
-            }
-
-            const byPillar: Record<string, any[]> = {};
-            for (const e of allEntities) {
-              const pillar = e.pillar || 'Other';
-              if (!byPillar[pillar]) byPillar[pillar] = [];
-              byPillar[pillar].push(e);
-            }
-            const otherEntities = byPillar['Other'] || [];
-
-            const fmtLabel = (s: string) => s.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-z\d])([A-Z])/g, '$1 $2');
-            const confidenceColor = (c: number) => c >= 0.85 ? '#34d399' : c >= 0.6 ? '#f59e0b' : '#f87171';
-            const confidenceLabel = (c: number) => c >= 0.85 ? 'High' : c >= 0.6 ? 'Medium' : 'Low';
-
-            return (
-              <div className="max-w-4xl mx-auto py-8 space-y-6">
-                {/* Header */}
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-[24px] font-bold text-white tracking-tight">Extraction Summary</h2>
-                    <p className="text-[#8e8e93] text-[14px] mt-1">
-                      {allEntities.length} entities extracted across {extractionResults.length} document{extractionResults.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (toolkitClientId) {
-                        localStorage.setItem('okiru-pro-active-client', toolkitClientId);
-                        navigate(`/toolkit/${toolkitClientId}/scorecard`);
-                      } else {
-                        navigate('/toolkit');
-                      }
-                    }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-[#e5e5ea] text-black rounded-xl font-semibold text-[13px] transition-colors press-sm shrink-0"
-                  >
-                    <ScanLine className="w-4 h-4" />
-                    View Scorecard
-                  </button>
-                </div>
-
-                {/* Stats bar */}
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: 'Total Entities', value: allEntities.length },
-                    { label: 'High Confidence', value: allEntities.filter(e => (e.confidence || 0) >= 0.85).length },
-                    { label: 'Documents Processed', value: extractionResults.length },
-                  ].map(stat => (
-                    <div key={stat.label} className="rounded-xl p-4 flex flex-col gap-1" style={{ background: '#0d0d0d', border: '1px solid #1e1e1e' }}>
-                      <span className="text-[11px] font-semibold text-[#636366] uppercase tracking-widest">{stat.label}</span>
-                      <span className="text-[28px] font-bold text-white leading-none">{stat.value}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Pillars */}
-                {PILLAR_META.filter(p => (byPillar[p.key] || []).length > 0).map(pillar => {
-                  const entities = byPillar[pillar.key] || [];
-                  const avgConf = entities.reduce((s, e) => s + (e.confidence || 0), 0) / entities.length;
-                  return (
-                    <div key={pillar.key} className="rounded-2xl overflow-hidden" style={{ background: '#0d0d0d', border: '1px solid #1e1e1e' }}>
-                      {/* Pillar header */}
-                      <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid #1e1e1e' }}>
-                        <div className="flex items-center gap-3">
-                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: pillar.color }} />
-                          <span className="text-[14px] font-semibold text-white">{pillar.label}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-[11px] font-medium px-2.5 py-1 rounded-lg" style={{ background: `${pillar.color}18`, color: pillar.color }}>
-                            {entities.length} {entities.length === 1 ? 'entity' : 'entities'}
-                          </span>
-                          <span className="text-[11px] text-[#636366]">
-                            avg {Math.round(avgConf * 100)}% confidence
-                          </span>
-                        </div>
-                      </div>
-                      {/* Entity rows */}
-                      <div className="divide-y" style={{ borderColor: '#1a1a1a' }}>
-                        {entities.map((e: any, i: number) => (
-                          <div key={i} className="px-5 py-3 flex items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors">
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-[13px] font-medium text-[#d1d1d6] truncate">{fmtLabel(e.name)}</span>
-                              {e._docName && (
-                                <span className="text-[11px] text-[#48484a] truncate mt-0.5">{e._docName}</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="text-[13px] font-semibold text-white max-w-[200px] truncate text-right">{e.value}</span>
-                              {e.confidence != null && (
-                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{
-                                  background: `${confidenceColor(e.confidence)}18`,
-                                  color: confidenceColor(e.confidence),
-                                }}>
-                                  {confidenceLabel(e.confidence)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Uncategorised entities */}
-                {otherEntities.length > 0 && (
-                  <div className="rounded-2xl overflow-hidden" style={{ background: '#0d0d0d', border: '1px solid #1e1e1e' }}>
-                    <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid #1e1e1e' }}>
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-[#636366]" />
-                      <span className="text-[14px] font-semibold text-white">Other</span>
-                      <span className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-[#1c1c1e] text-[#636366] ml-auto">{otherEntities.length} entities</span>
-                    </div>
-                    <div className="divide-y" style={{ borderColor: '#1a1a1a' }}>
-                      {otherEntities.map((e: any, i: number) => (
-                        <div key={i} className="px-5 py-3 flex items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors">
-                          <span className="text-[13px] font-medium text-[#d1d1d6] truncate">{fmtLabel(e.name)}</span>
-                          <span className="text-[13px] font-semibold text-white max-w-[240px] truncate text-right">{e.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Empty state */}
-                {allEntities.length === 0 && (
-                  <div className="rounded-2xl flex flex-col items-center justify-center py-20 gap-3" style={{ background: '#0d0d0d', border: '1px solid #1e1e1e' }}>
-                    <FileQuestion className="w-8 h-8 text-[#48484a]" />
-                    <p className="text-[#8e8e93] text-sm">No entities were extracted.</p>
-                  </div>
-                )}
-
-                {/* Footer action */}
-                <div className="flex justify-end pt-2">
-                  <button
-                    onClick={() => setCurrentPage('scorecard')}
-                    className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-[#e5e5ea] text-black rounded-xl font-semibold text-[14px] transition-colors press-sm"
-                  >
-                    <ScanLine className="w-4 h-4" />
-                    View Full Scorecard
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
-
           {currentPage === 'scorecard' && (() => {
             const sc = scorecardResult;
             const PILLARS = [
@@ -3602,20 +3418,9 @@ export default function DocumentProcessor() {
 
                     {/* Actions */}
                     <div className="flex gap-3">
-                      <button
-                        onClick={() => {
-                          if (toolkitClientId) {
-                            localStorage.setItem('okiru-pro-active-client', toolkitClientId);
-                            navigate(`/toolkit/${toolkitClientId}/scorecard`);
-                          } else {
-                            navigate('/toolkit');
-                          }
-                        }}
-                        className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold transition-colors"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        Open in Toolkit
-                      </button>
+                      <Link href="/dashboard" className="flex-1 text-center px-6 py-3 bg-[#1c1c1e] hover:bg-[#2c2c2e] text-white rounded-xl font-semibold transition-colors border border-[#2c2c2e]">
+                        Go to Dashboard
+                      </Link>
                       <button
                         onClick={() => {
                           setScorecardResult(null);

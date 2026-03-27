@@ -1,8 +1,6 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { registerExcelExtractRoute } from "./excelExtractRoute";
-import { registerApiProxy } from "./apiProxy";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { connectDB } from "./db";
@@ -65,9 +63,6 @@ app.use((req, res, next) => {
 
 (async () => {
   await connectDB();
-
-  registerApiProxy(app);
-
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
