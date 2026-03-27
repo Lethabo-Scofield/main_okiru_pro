@@ -17,7 +17,7 @@ import NotFound from "@/pages/NotFound";
 import AdminUsers from "@/pages/AdminUsers";
 
 const ToolkitView = lazy(() => import("@/pages/ToolkitView"));
-const DummyToolkit = lazy(() => import("@toolkit/App"));
+const DemoToolkitPage = lazy(() => import("@/pages/DemoToolkitPage"));
 
 function ToolkitLoader() {
   return (
@@ -34,7 +34,7 @@ function ToolkitLoader() {
   );
 }
 
-function DummyToolkitLoader() {
+function DemoToolkitLoader() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -44,7 +44,7 @@ function DummyToolkitLoader() {
         </div>
       </div>
     }>
-      <DummyToolkit />
+      <DemoToolkitPage />
     </Suspense>
   );
 }
@@ -77,7 +77,7 @@ function AppRouter() {
         <ProtectedRoute><ToolkitLoader /></ProtectedRoute>
       </Route>
       <Route path="/toolkit-demo" nest>
-        <ProtectedRoute><DummyToolkitLoader /></ProtectedRoute>
+        <ProtectedRoute><DemoToolkitLoader /></ProtectedRoute>
       </Route>
       <Route>
         <NotFound />

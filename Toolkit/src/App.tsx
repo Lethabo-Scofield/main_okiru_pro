@@ -31,6 +31,7 @@ import okiruLogoDark from "@toolkit-assets/Okiru_WHT_Circle_Logo_V1_177265896519
 import { useBbeeStore } from "@toolkit/lib/store";
 import { useActiveClient } from "@toolkit/lib/client-context";
 import { useEffect, useState } from "react";
+import { DEMO_CLIENT_ID } from "@toolkit/lib/demo-data";
 
 function RouteAwareSkeleton() {
   const [location] = useLocation();
@@ -130,6 +131,22 @@ function AuthenticatedApp() {
   );
 }
 
+function DemoLoader() {
+  const { loadDemoData, isLoaded } = useBbeeStore();
+  const { setActiveClientId } = useActiveClient();
+
+  useEffect(() => {
+    loadDemoData();
+    setActiveClientId(DEMO_CLIENT_ID);
+  }, []);
+
+  if (!isLoaded) {
+    return <AppLoader />;
+  }
+
+  return <AppRoutes />;
+}
+
 function App() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="okiru-pro-theme">
@@ -137,7 +154,9 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <Toaster />
-            <AuthenticatedApp />
+            <ClientProvider>
+              <DemoLoader />
+            </ClientProvider>
           </TooltipProvider>
         </AuthProvider>
       </QueryClientProvider>

@@ -7,6 +7,7 @@ import {
 } from './types';
 import { v4 as uuidv4 } from "uuid";
 import { api, invalidateClientData } from './api';
+import { demoClient, demoOwnership, demoManagement, demoSkills, demoProcurement, demoESD, demoSED, DEMO_CLIENT_ID } from './demo-data';
 import type { CalculatorConfig } from '../../../shared/schema';
 
 import { calculateOwnershipScore } from './calculators/ownership';
@@ -112,6 +113,7 @@ interface BbeeState extends PillarState {
   baseSnapshot: ScenarioSnapshot | null;
 
   loadClientData: (clientId: string) => Promise<void>;
+  loadDemoData: () => void;
   clearData: () => void;
 
   setPipelineOverrides: (overrides: PipelineOverrides) => void;
@@ -442,6 +444,27 @@ export const useBbeeStore = create<BbeeState>((set, get) => ({
       set({ isLoaded: false, activeClientId: null });
       throw error;
     }
+  },
+
+  loadDemoData: () => {
+    set({
+      isLoaded: true,
+      activeClientId: DEMO_CLIENT_ID,
+      client: demoClient,
+      ownership: demoOwnership,
+      management: demoManagement,
+      skills: demoSkills,
+      procurement: demoProcurement,
+      esd: demoESD,
+      sed: demoSED,
+      pipelineOverrides: null,
+      calculatorConfig: null,
+      isScenarioMode: false,
+      activeScenarioId: null,
+      scenarios: [],
+      baseSnapshot: null,
+    });
+    get()._recalculateAll();
   },
 
   clearData: () => {
